@@ -26,9 +26,9 @@ void program_body( const string_view device_prefix )
   auto playback_interface = make_shared<AudioInterface>( interface_name, short_name, SND_PCM_STREAM_PLAYBACK );
   AudioInterface::Configuration config;
   config.sample_rate = 48000; /* samples per second */
-  config.buffer_size = 192;   /* maximum samples of queued audio = 4 milliseconds */
-  config.period_size = 48;    /* kernel will generally transfer units of 1 millisecond */
-  config.avail_minimum = 48;  /* kernel will wake us up when 1 millisecond can be written */
+  config.buffer_size = 96;    /* maximum samples of queued audio = 2 milliseconds */
+  config.period_size = 16;    /* chunk size for kernel's management of audio buffer */
+  config.avail_minimum = 64;  /* device is writeable with 64 samples can be written */
   playback_interface->set_config( config );
   playback_interface->initialize();
 
