@@ -38,19 +38,7 @@ struct AudioStatistics
   unsigned int recoveries;
 
   unsigned int total_wakeups;
-  unsigned int empty_wakeups;
-
-  unsigned int max_microphone_avail;
-  unsigned int min_headphone_delay { std::numeric_limits<unsigned int>::max() };
-  unsigned int max_combined_samples;
-
-  struct SampleStats
-  {
-    unsigned int samples_counted;
-    unsigned int samples_skipped;
-    float max_ch1_amplitude, max_ch2_amplitude;
-    float ssa_ch1, ssa_ch2;
-  } sample_stats;
+  unsigned int min_delay { std::numeric_limits<unsigned int>::max() };
 };
 
 class AudioInterface
@@ -63,6 +51,8 @@ class AudioInterface
   snd_pcm_sframes_t avail_ {}, delay_ {};
 
   size_t cursor_ {};
+
+  AudioStatistics statistics_ {};
 
   class Buffer
   {
@@ -92,16 +82,12 @@ class AudioInterface
 public:
   struct Configuration
   {
-    unsigned int sample_rate { 48000 };
-    unsigned int avail_minimum { 6 };
-    unsigned int period_size { 12 };
-    unsigned int buffer_size { 192 };
+    unsigned int sample_rate { 48000 }; // samples per second
+    unsigned int avail_minimum { 24 };  // minimum samples that have to be available in buffer to trigger event
+    unsigned int period_size { 48 };    // samples per "period"
+    unsigned int buffer_size { 240 };   // size of buffer
 
-    unsigned int start_threshold { 24 };
-    unsigned int skip_threshold { 64 };
-
-    std::array<float, 2> ch1_loopback_gain { 2.0, 2.0 };
-    std::array<float, 2> ch2_loopback_gain { 2.0, 2.0 };
+    unsigned int start_threshold { 24 }; // how many samples to accumulate before starting playback
   };
 
 private:
@@ -119,13 +105,10 @@ public:
   void recover();
   bool update();
 
-  void copy_all_available_samples_to( AudioInterface& other,
-                                      ChannelPair& capture_output,
-                                      const ChannelPair& playback_input,
-                                      AudioStatistics::SampleStats& stats );
-
   const Configuration& config() const { return config_; }
   void set_config( const Configuration& other ) { config_ = other; }
+
+  const AudioStatistics& statistics() const { return statistics_; }
 
   snd_pcm_state_t state() const;
   unsigned int avail() const { return avail_; }
@@ -136,56 +119,13 @@ public:
 
   size_t cursor() const { return cursor_; }
 
-  ~AudioInterface();
+  void play( const size_t play_until_sample, const ChannelPair& playback );
 
-  void link_with( AudioInterface& other );
+  ~AudioInterface();
 
   /* can't copy or assign */
   AudioInterface( const AudioInterface& other ) = delete;
   AudioInterface& operator=( const AudioInterface& other ) = delete;
-};
-
-class AudioPair
-{
-  AudioInterface headphone_, microphone_;
-  AudioInterface::Configuration config_ {};
-  PCMFD fd_ { microphone_.fd() };
-
-  AudioStatistics statistics_ {};
-
-public:
-  AudioPair( const std::string_view interface_name );
-
-  const AudioInterface::Configuration& config() const { return config_; }
-  void set_config( const AudioInterface::Configuration& config );
-
-  void initialize()
-  {
-    microphone_.initialize();
-    headphone_.initialize();
-  }
-
-  PCMFD& fd() { return fd_; }
-
-  void start() { microphone_.start(); }
-  void recover();
-  void loopback( ChannelPair& capture_output, const ChannelPair& playback_input );
-
-  bool mic_has_samples();
-  unsigned int mic_avail() { return microphone_.avail(); }
-
-  size_t cursor() const { return microphone_.cursor(); }
-
-  const AudioStatistics& statistics() const { return statistics_; }
-  void reset_statistics()
-  {
-    const auto rec = statistics_.recoveries, skip = statistics_.sample_stats.samples_skipped;
-    const auto last_recovery = statistics_.last_recovery;
-    statistics_ = {};
-    statistics_.recoveries = rec;
-    statistics_.sample_stats.samples_skipped = skip;
-    statistics_.last_recovery = last_recovery;
-  }
 };
 
 inline float float_to_dbfs( const float sample_f )

@@ -116,18 +116,6 @@ pair<string, string> ALSADevices::find_device( const vector<string_view> descrip
   throw runtime_error( "Audio device not found" );
 }
 
-AudioPair::AudioPair( const string_view interface_name )
-  : headphone_( interface_name, "Headphone", SND_PCM_STREAM_PLAYBACK )
-  , microphone_( interface_name, "Microphone", SND_PCM_STREAM_CAPTURE )
-{}
-
-void AudioPair::set_config( const AudioInterface::Configuration& config )
-{
-  config_ = config;
-  headphone_.set_config( config );
-  microphone_.set_config( config );
-}
-
 AudioInterface::AudioInterface( const string_view interface_name,
                                 const string_view annotation,
                                 const snd_pcm_stream_t stream )
@@ -236,11 +224,15 @@ bool AudioInterface::update()
     throw runtime_error( "avail < 0 or delay < 0" );
   }
 
+  statistics_.min_delay = min( statistics_.min_delay, delay() );
+
   return false;
 }
 
 void AudioInterface::recover()
 {
+  statistics_.recoveries++;
+  statistics_.last_recovery = cursor();
   drop();
   prepare();
 }
@@ -296,63 +288,6 @@ void AudioInterface::prepare()
   check_state( SND_PCM_STATE_PREPARED );
 }
 
-void AudioPair::recover()
-{
-  statistics_.recoveries++;
-  statistics_.last_recovery = cursor();
-  microphone_.recover();
-  headphone_.recover();
-  microphone_.start();
-}
-
-bool AudioPair::mic_has_samples()
-{
-  if ( microphone_.update() ) {
-    return false;
-  }
-
-  return microphone_.avail();
-}
-
-void AudioPair::loopback( ChannelPair& capture_output, const ChannelPair& playback_input )
-{
-  statistics_.total_wakeups++;
-  fd_.register_read();
-
-  if ( microphone_.update() ) {
-    recover();
-    return;
-  }
-
-  if ( headphone_.update() ) {
-    recover();
-    return;
-  }
-
-  if ( microphone_.avail() == 0 ) {
-    statistics_.empty_wakeups++;
-    return;
-  }
-
-  if ( headphone_.delay() > config_.start_threshold and headphone_.state() == SND_PCM_STATE_PREPARED ) {
-    headphone_.start();
-  }
-
-  statistics_.max_microphone_avail = max( statistics_.max_microphone_avail, microphone_.avail() );
-  statistics_.min_headphone_delay = min( statistics_.min_headphone_delay, headphone_.delay() );
-  const unsigned int combined = microphone_.avail() + headphone_.delay();
-  statistics_.max_combined_samples = max( statistics_.max_combined_samples, combined );
-
-  /*
-  if ( combined > 128 ) {
-    recover();
-    return;
-  }
-  */
-
-  microphone_.copy_all_available_samples_to( headphone_, capture_output, playback_input, statistics_.sample_stats );
-}
-
 inline float sample_to_float( const int32_t sample )
 {
   if ( sample & 0xff ) {
@@ -372,64 +307,39 @@ inline int32_t float_to_sample( const float sample_f )
   return lrint( clamp( sample_f, -1.0f, 1.0f ) * maxval );
 }
 
-void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
-                                                    ChannelPair& capture_output,
-                                                    const ChannelPair& playback_input,
-                                                    AudioStatistics::SampleStats& stats )
+void AudioInterface::play( const size_t play_until_sample, const ChannelPair& playback_input )
 {
-  unsigned int avail_remaining = avail();
-
-  while ( avail_remaining ) {
-    Buffer read_buf { *this, avail_remaining };
-    Buffer write_buf { other, read_buf.frame_count() };
-
-    const unsigned int num_frames = write_buf.frame_count();
-
-    for ( unsigned int i = 0; i < num_frames; i++ ) {
-      const float ch1_sample = sample_to_float( read_buf.sample( false, i ) );
-      const float ch2_sample = sample_to_float( read_buf.sample( true, i ) );
-
-      /* capture into output buffer */
-      capture_output.safe_set( cursor_, { ch1_sample, ch2_sample } );
-
-      /* track statistics */
-      stats.samples_counted++;
-      stats.ssa_ch1 += stats.max_ch1_amplitude * stats.max_ch1_amplitude;
-      stats.ssa_ch2 += stats.max_ch2_amplitude * stats.max_ch2_amplitude;
-      stats.max_ch1_amplitude = max( stats.max_ch1_amplitude, abs( ch1_sample ) );
-      stats.max_ch2_amplitude = max( stats.max_ch2_amplitude, abs( ch2_sample ) );
-
-      /* play from input buffer + captured sample */
-      const auto playback_sample = playback_input.safe_get( cursor_ );
-
-      write_buf.sample( false, i )
-        = float_to_sample( ch1_sample * config_.ch1_loopback_gain[0] + ch2_sample * config_.ch2_loopback_gain[0]
-                           + playback_sample.first );
-
-      write_buf.sample( true, i )
-        = float_to_sample( ch1_sample * config_.ch1_loopback_gain[1] + ch2_sample * config_.ch2_loopback_gain[1]
-                           + playback_sample.second );
-
-      cursor_++;
-    }
-
-    unsigned int amount_to_write = num_frames;
-
-    if ( other.delay() + amount_to_write > config_.skip_threshold and num_frames > 0 ) {
-      amount_to_write--;
-      stats.samples_skipped++;
-    }
-
-    write_buf.commit( amount_to_write );
-    read_buf.commit( num_frames );
-
-    avail_remaining -= num_frames;
+  if ( update() ) {
+    recover();
+    return;
   }
-}
 
-void AudioInterface::link_with( AudioInterface& other )
-{
-  alsa_check( "snd_pcm_link(" + name() + ", " + other.name() + ")", snd_pcm_link( pcm_, other.pcm_ ) );
+  if ( play_until_sample <= cursor() ) {
+    /* nothing to play */
+    return;
+  }
+
+  const unsigned int samples_available_to_play = play_until_sample - cursor();
+
+  Buffer write_buf { *this, samples_available_to_play };
+
+  const unsigned int frames_to_play = write_buf.frame_count();
+
+  for ( unsigned int i = 0; i < frames_to_play; i++ ) {
+    /* play from input buffer + captured sample */
+    const auto playback_sample = playback_input.safe_get( cursor_ );
+
+    write_buf.sample( false, i ) = float_to_sample( playback_sample.first );
+    write_buf.sample( true, i ) = float_to_sample( playback_sample.second );
+
+    cursor_++;
+  }
+
+  write_buf.commit();
+
+  if ( delay() + frames_to_play >= config_.start_threshold and state() == SND_PCM_STATE_PREPARED ) {
+    start();
+  }
 }
 
 AudioInterface::Buffer::Buffer( AudioInterface& interface, const unsigned int frames_requested )
