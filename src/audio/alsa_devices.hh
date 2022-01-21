@@ -30,6 +30,7 @@ public:
   using FileDescriptor::FileDescriptor;
 
   using FileDescriptor::register_read;
+  using FileDescriptor::register_write;
 };
 
 struct AudioStatistics
@@ -45,6 +46,9 @@ class AudioInterface
 {
   std::string interface_name_, annotation_;
   snd_pcm_t* pcm_;
+  std::optional<PCMFD> fd_;
+
+  PCMFD dup_internal_fd();
 
   void check_state( const snd_pcm_state_t expected_state );
 
@@ -83,9 +87,9 @@ public:
   struct Configuration
   {
     unsigned int sample_rate { 48000 }; // samples per second
-    unsigned int avail_minimum { 24 };  // minimum samples that have to be available in buffer to trigger event
-    unsigned int period_size { 48 };    // samples per "period"
-    unsigned int buffer_size { 240 };   // size of buffer
+    unsigned int avail_minimum { 48 };  // minimum samples that have to be available in buffer to trigger event
+    unsigned int period_size { 48 };    // samples per "period" -- kernel will generally return units of this
+    unsigned int buffer_size { 192 };   // default size of buffer
 
     unsigned int start_threshold { 24 }; // how many samples to accumulate before starting playback
   };
@@ -115,7 +119,7 @@ public:
   unsigned int delay() const { return delay_; }
 
   std::string name() const;
-  PCMFD fd();
+  const FileDescriptor& fd() { return fd_.value(); };
 
   size_t cursor() const { return cursor_; }
 

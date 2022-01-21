@@ -122,15 +122,18 @@ AudioInterface::AudioInterface( const string_view interface_name,
   : interface_name_( interface_name )
   , annotation_( annotation )
   , pcm_( nullptr )
+  , fd_()
 {
   const string diagnostic = "snd_pcm_open(" + name() + ")";
   alsa_check( diagnostic, snd_pcm_open( &pcm_, interface_name_.c_str(), stream, SND_PCM_NONBLOCK ) );
   notnull( diagnostic, pcm_ );
 
   check_state( SND_PCM_STATE_OPEN );
+
+  fd_.emplace( dup_internal_fd() );
 }
 
-PCMFD AudioInterface::fd()
+PCMFD AudioInterface::dup_internal_fd()
 {
   const int count = alsa_check_easy( snd_pcm_poll_descriptors_count( pcm_ ) );
   if ( count < 1 or count > 2 ) {
@@ -311,6 +314,7 @@ void AudioInterface::play( const size_t play_until_sample, const ChannelPair& pl
 {
   if ( update() ) {
     recover();
+    fd_.value().register_write();
     return;
   }
 
@@ -324,6 +328,10 @@ void AudioInterface::play( const size_t play_until_sample, const ChannelPair& pl
   Buffer write_buf { *this, samples_available_to_play };
 
   const unsigned int frames_to_play = write_buf.frame_count();
+
+  if ( frames_to_play == 0 ) {
+    throw runtime_error( "AudioInterface::play(): no available buffer space" );
+  }
 
   for ( unsigned int i = 0; i < frames_to_play; i++ ) {
     /* play from input buffer + captured sample */
@@ -340,6 +348,8 @@ void AudioInterface::play( const size_t play_until_sample, const ChannelPair& pl
   if ( delay() + frames_to_play >= config_.start_threshold and state() == SND_PCM_STATE_PREPARED ) {
     start();
   }
+
+  fd_.value().register_write();
 }
 
 AudioInterface::Buffer::Buffer( AudioInterface& interface, const unsigned int frames_requested )
