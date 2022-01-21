@@ -229,6 +229,7 @@ bool AudioInterface::update()
 
   if ( state() == SND_PCM_STATE_RUNNING ) {
     statistics_.min_delay = min( statistics_.min_delay, delay() );
+    statistics_.max_delay = max( statistics_.max_delay, delay() );
   }
 
   return false;
@@ -314,6 +315,8 @@ inline int32_t float_to_sample( const float sample_f )
 
 void AudioInterface::play( const size_t play_until_sample, const ChannelPair& playback_input )
 {
+  statistics_.wakeups++;
+
   if ( update() ) {
     recover();
     fd_.value().register_write();
@@ -412,17 +415,15 @@ void AudioInterface::summary( ostream& out ) const
 {
   out << name() << " statistics: ";
 
-  out << " wakeups=" << statistics().total_wakeups;
-
   out << " cursor=";
   pp_samples( out, cursor() );
 
-  if ( statistics().min_delay < std::numeric_limits<unsigned int>::max() ) {
-    out << " min_delay=" << statistics().min_delay << " samples";
-  }
+  out << " wakeups=" << statistics().wakeups;
+
+  out << " delay=[" << statistics().min_delay << ".." << statistics().max_delay << "]";
 
   if ( statistics().recoveries ) {
-    out << " recoveries=" << statistics().recoveries;
+    out << " total recoveries=" << statistics().recoveries;
   }
 
   if ( statistics().last_recovery ) {
@@ -431,4 +432,10 @@ void AudioInterface::summary( ostream& out ) const
   }
 
   out << "\n";
+}
+
+void AudioInterface::reset_summary()
+{
+  statistics_.min_delay = std::numeric_limits<unsigned int>::max();
+  statistics_.max_delay = 0;
 }

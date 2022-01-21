@@ -39,8 +39,10 @@ struct AudioStatistics
   size_t last_recovery;
   unsigned int recoveries;
 
-  unsigned int total_wakeups;
+  /* these statistics are reset every stats interval */
+  unsigned int wakeups;
   unsigned int min_delay { std::numeric_limits<unsigned int>::max() };
+  unsigned int max_delay;
 };
 
 class AudioInterface : public Summarizable
@@ -127,6 +129,7 @@ public:
   void play( const size_t play_until_sample, const ChannelPair& playback );
 
   void summary( std::ostream& out ) const override;
+  void reset_summary() override;
 
   ~AudioInterface();
 
