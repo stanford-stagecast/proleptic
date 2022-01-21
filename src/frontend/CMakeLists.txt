@@ -3,6 +3,7 @@ add_executable ("example2" "example2.cc")
 
 add_executable ("example3" "example3.cc")
 target_link_libraries ("example3" dbus)
+target_link_libraries ("example3" stats)
 target_link_libraries ("example3" audio)
 target_link_libraries ("example3" util)
 

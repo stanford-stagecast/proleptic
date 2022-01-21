@@ -9,6 +9,7 @@
 
 #include "audio_buffer.hh"
 #include "file_descriptor.hh"
+#include "summarize.hh"
 
 class ALSADevices
 {
@@ -42,7 +43,7 @@ struct AudioStatistics
   unsigned int min_delay { std::numeric_limits<unsigned int>::max() };
 };
 
-class AudioInterface
+class AudioInterface : public Summarizable
 {
   std::string interface_name_, annotation_;
   snd_pcm_t* pcm_;
@@ -124,6 +125,8 @@ public:
   size_t cursor() const { return cursor_; }
 
   void play( const size_t play_until_sample, const ChannelPair& playback );
+
+  void summary( std::ostream& out ) const override;
 
   ~AudioInterface();
 

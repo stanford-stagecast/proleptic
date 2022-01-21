@@ -12,6 +12,7 @@
 
 #include "alsa_devices.hh"
 #include "exception.hh"
+#include "timestamp.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -208,7 +209,6 @@ void AudioInterface::initialize()
 
     snd_pcm_uframes_t thresh;
     alsa_check_easy( snd_pcm_sw_params_get_stop_threshold( params.get(), &thresh ) );
-    //    cerr << name() << ": stop threshold = " << thresh << "\n";
   }
 
   check_state( SND_PCM_STATE_PREPARED );
@@ -227,7 +227,9 @@ bool AudioInterface::update()
     throw runtime_error( "avail < 0 or delay < 0" );
   }
 
-  statistics_.min_delay = min( statistics_.min_delay, delay() );
+  if ( state() == SND_PCM_STATE_RUNNING ) {
+    statistics_.min_delay = min( statistics_.min_delay, delay() );
+  }
 
   return false;
 }
@@ -404,4 +406,29 @@ AudioInterface::Buffer::~Buffer()
       cerr << "AudioInterface::Buffer destructor: " << e.what() << "\n";
     }
   }
+}
+
+void AudioInterface::summary( ostream& out ) const
+{
+  out << name() << " statistics: ";
+
+  out << " wakeups=" << statistics().total_wakeups;
+
+  out << " cursor=";
+  pp_samples( out, cursor() );
+
+  if ( statistics().min_delay < std::numeric_limits<unsigned int>::max() ) {
+    out << " min_delay=" << statistics().min_delay << " samples";
+  }
+
+  if ( statistics().recoveries ) {
+    out << " recoveries=" << statistics().recoveries;
+  }
+
+  if ( statistics().last_recovery ) {
+    out << " last recovery=";
+    pp_samples( out, cursor() - statistics().last_recovery );
+  }
+
+  out << "\n";
 }
