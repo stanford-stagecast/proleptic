@@ -1,8 +1,9 @@
 #include <iostream>
-#include <fstream>
 
+#include <alsa/asoundlib.h>
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
+#include "wav_wrapper.hh"
 #include "eventloop.hh"
 #include "stats_printer.hh"
 
@@ -22,6 +23,8 @@ void program_body( const string_view device_prefix )
   /* claim exclusive access to the audio device */
   const auto device_claim = AudioDeviceClaim::try_claim( name );
 
+  const string input_filename = "/home/snr/Documents/pancake/D#1v8.5-PA.wav";
+
   /* use ALSA to initialize and configure audio device */
   const auto short_name = device_prefix.substr( 0, 16 );
   auto playback_interface = make_shared<AudioInterface>( interface_name, short_name, SND_PCM_STREAM_PLAYBACK );
@@ -37,23 +40,17 @@ void program_body( const string_view device_prefix )
   ChannelPair audio_signal { 16384 };  // the output signal
   size_t next_sample_to_calculate = 0; // what's the next sample # to be written to the output signal?
 
-
-  ifstream file_l("audio_data_l.bin", std::ios::binary);
-  ifstream file_r("audio_data_l.bin", std::ios::binary);
-
-  float left_aud;
-  float right_aud;
+  WavWrapper wav_file { input_filename };
 
   /* rule #1: write a continuous sine wave (but no more than 1 millisecond into the future) */
   event_loop->add_rule(
     "calculate sine wave",
     [&] {
       while ( next_sample_to_calculate <= playback_interface->cursor() + 48 ) {
-        file_l.read(reinterpret_cast<char*>(&left_aud), sizeof(float));
-        file_r.read(reinterpret_cast<char*>(&right_aud), sizeof(float));
-
+        const double time = next_sample_to_calculate / double( config.sample_rate );
+        /* compute the sine wave amplitude (middle A, 440 Hz) */
         audio_signal.safe_set( next_sample_to_calculate,
-                               { left_aud, right_aud } );
+                               { 0.99 * sin( 2 * M_PI * 440 * time ), 0.99 * sin( 2 * M_PI * 440 * time ) } );
         next_sample_to_calculate++;
       }
     },
