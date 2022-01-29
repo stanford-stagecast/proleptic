@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include <alsa/asoundlib.h>
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
 #include "eventloop.hh"
