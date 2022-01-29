@@ -5,7 +5,7 @@
 
 
 
-using wav_frame_t = std::basic_string_view<int16_t>;
+using wav_frame_t = std::pair<float, float>;
 
 using namespace std;
 
@@ -13,7 +13,7 @@ using namespace std;
 class WavWrapper
 {
     SndfileHandle handle_;
-    vector<int16_t> samples_;
+    vector<float> samples_;
 
 public:
     WavWrapper( const string & filename );
