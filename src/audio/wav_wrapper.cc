@@ -47,10 +47,21 @@ WavWrapper::WavWrapper( const string & filename )
     }
 }
 
+
+bool WavWrapper::at_end( const size_t offset )
+{
+    if ( offset >= samples_.size()/2 ) {
+        return true;
+    }
+
+
+    return false;
+}
+
 wav_frame_t WavWrapper::view( const size_t offset )
 {
-    if ( offset > samples_.size()/2 ) {
-        throw out_of_range( "offset > samples_.size()/2" );
+    if ( offset >= samples_.size()/2 ) {
+        return {0, 0};
     }
 
 

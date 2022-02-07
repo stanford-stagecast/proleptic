@@ -20,4 +20,6 @@ public:
 
     wav_frame_t view( const size_t offset );
 
+    bool at_end( const size_t offset );
+
 };

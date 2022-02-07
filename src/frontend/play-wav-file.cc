@@ -4,6 +4,7 @@
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
 #include "wav_wrapper.hh"
+#include "file_watch_loop.hh"
 #include "eventloop.hh"
 #include "stats_printer.hh"
 
@@ -23,7 +24,8 @@ void program_body( const string_view device_prefix )
   /* claim exclusive access to the audio device */
   const auto device_claim = AudioDeviceClaim::try_claim( name );
 
-  const string input_filename = "D#1v8.5-PA.wav";
+  const string first_input_filename = "D#1v8.5-PA.wav";
+  const string second_input_filename = "C4v16.wav";
 
   /* use ALSA to initialize and configure audio device */
   const auto short_name = device_prefix.substr( 0, 16 );
@@ -39,23 +41,54 @@ void program_body( const string_view device_prefix )
   /* get ready to play an audio signal */
   ChannelPair audio_signal { 16384 };  // the output signal
   size_t next_sample_to_add = 0; // what's the next sample # to be written to the output signal?
+  size_t samples_written = 0; 
 
-  WavWrapper wav_file { input_filename };
+
+  FileWatchLoop play_input {"toplay.txt"};
+  WavWrapper first_wav_file { first_input_filename };
+  WavWrapper second_wav_file { second_input_filename };
+  std::vector wavs = {first_wav_file, second_wav_file};
+  std::string last_command = "0";
 
   /* rule #1: write a continuous sine wave (but no more than 1 millisecond into the future) */
   event_loop->add_rule(
     "add next frame from wav file",
     [&] {
-      while ( next_sample_to_add <= playback_interface->cursor() + 48 ) {
+      std::string command = play_input.readfile();
+      //cout << "command: " << command << "\n";
 
-        /* compute the sine wave amplitude (middle A, 440 Hz) */
-        audio_signal.safe_set( next_sample_to_add,
-                               { wav_file.view(next_sample_to_add) } );
-        next_sample_to_add++;
+      if (last_command.compare("1") != 0 && command.compare("1") == 0) {
+          next_sample_to_add = 0;
+          last_command = "1";
+        } else if (last_command.compare("2") != 0 && command.compare("2") == 0) {
+          next_sample_to_add = 0;
+          last_command = "2";
+        } 
+
+      while ( samples_written <= playback_interface->cursor() + 48 ) {      
+        if (last_command.compare("1") == 0 || last_command.compare("2") == 0) {
+
+          if (wavs[stoi(last_command) - 1].at_end(next_sample_to_add)) {
+            cout << "breaking\n\n\n\n\n\n\n\n\n\n\n\n";
+            last_command = "0";
+            break;
+          }
+          audio_signal.safe_set( samples_written,
+                                { wavs[stoi(last_command) - 1].view(next_sample_to_add) } );
+          next_sample_to_add++;
+        } else {
+          audio_signal.safe_set( samples_written, {0, 0});
+        }
+
+        
+        
+        samples_written++;
       }
+        
+      
     },
     /* when should this rule run? commit to an output signal until 1 millisecond in the future */
-    [&] { return next_sample_to_add <= playback_interface->cursor() + 48; } );
+    [&] { return samples_written <= playback_interface->cursor() + 48; } );
 
   /* rule #2: play the output signal whenever space available in audio output buffer */
   event_loop->add_rule(
@@ -64,12 +97,12 @@ void program_body( const string_view device_prefix )
     Direction::Out,           /* execute rule when file descriptor is "writeable"
                                  -> there's room in the output buffer (config.buffer_size) */
     [&] {
-      playback_interface->play( next_sample_to_add, audio_signal );
+      playback_interface->play( samples_written, audio_signal );
       /* now that we've played these samples, pop them from the outgoing audio signal */
       audio_signal.pop_before( playback_interface->cursor() );
     },
     [&] {
-      return next_sample_to_add > playback_interface->cursor();
+      return samples_written > playback_interface->cursor();
     },     /* rule should run as long as any new samples available to play */
     [] {}, /* no callback if EOF or closed */
     [&] {  /* on error such as buffer overrun/underrun, recover the ALSA interface */
