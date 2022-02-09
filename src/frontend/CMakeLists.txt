@@ -29,3 +29,18 @@ target_link_libraries ("play-wav-file" ${DBus_LDFLAGS})
 target_link_libraries ("play-wav-file" ${DBus_LDFLAGS_OTHER})
 target_link_libraries ("play-wav-file" ${Sndfile_LDFLAGS})
 target_link_libraries ("play-wav-file" ${Sndfile_LDFLAGS_OTHER})
+
+  
+add_executable ("midi-input" "midi-input.cc")
+target_link_libraries ("midi-input" dbus)
+target_link_libraries ("midi-input" stats)
+target_link_libraries ("midi-input" audio)
+target_link_libraries ("midi-input" util)
+
+target_link_libraries ("midi-input" ${ALSA_LDFLAGS})
+target_link_libraries ("midi-input" ${ALSA_LDFLAGS_OTHER})
+
+target_link_libraries ("midi-input" ${DBus_LDFLAGS})
+target_link_libraries ("midi-input" ${DBus_LDFLAGS_OTHER})
+target_link_libraries ("midi-input" ${Sndfile_LDFLAGS})
+target_link_libraries ("midi-input" ${Sndfile_LDFLAGS_OTHER})
