@@ -1,10 +1,10 @@
 #include <iostream>
 
-#include <alsa/asoundlib.h>
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
 #include "eventloop.hh"
 #include "stats_printer.hh"
+#include <alsa/asoundlib.h>
 
 using namespace std;
 

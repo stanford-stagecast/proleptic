@@ -1,12 +1,12 @@
 #include <iostream>
 
-#include <alsa/asoundlib.h>
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
-#include "wav_wrapper.hh"
-#include "file_watch_loop.hh"
 #include "eventloop.hh"
+#include "file_watch_loop.hh"
 #include "stats_printer.hh"
+#include "wav_wrapper.hh"
+#include <alsa/asoundlib.h>
 
 using namespace std;
 
@@ -39,15 +39,14 @@ void program_body( const string_view device_prefix )
   playback_interface->initialize();
 
   /* get ready to play an audio signal */
-  ChannelPair audio_signal { 16384 };  // the output signal
-  size_t next_sample_to_add = 0; // what's the next sample # to be written to the output signal?
-  size_t samples_written = 0; 
+  ChannelPair audio_signal { 16384 }; // the output signal
+  size_t next_sample_to_add = 0;      // what's the next sample # to be written to the output signal?
+  size_t samples_written = 0;
 
-
-  FileWatchLoop play_input {"toplay.txt"};
+  FileWatchLoop play_input { "toplay.txt" };
   WavWrapper first_wav_file { first_input_filename };
   WavWrapper second_wav_file { second_input_filename };
-  std::vector wavs = {first_wav_file, second_wav_file};
+  std::vector wavs = { first_wav_file, second_wav_file };
   std::string last_command = "0";
 
   /* rule #1: write a continuous sine wave (but no more than 1 millisecond into the future) */
@@ -55,37 +54,32 @@ void program_body( const string_view device_prefix )
     "add next frame from wav file",
     [&] {
       std::string command = play_input.readfile();
-      //cout << "command: " << command << "\n";
+      // cout << "command: " << command << "\n";
 
-      if (last_command.compare("1") != 0 && command.compare("1") == 0) {
-          next_sample_to_add = 0;
-          last_command = "1";
-        } else if (last_command.compare("2") != 0 && command.compare("2") == 0) {
-          next_sample_to_add = 0;
-          last_command = "2";
-        } 
+      if ( last_command.compare( "1" ) != 0 && command.compare( "1" ) == 0 ) {
+        next_sample_to_add = 0;
+        last_command = "1";
+      } else if ( last_command.compare( "2" ) != 0 && command.compare( "2" ) == 0 ) {
+        next_sample_to_add = 0;
+        last_command = "2";
+      }
 
-      while ( samples_written <= playback_interface->cursor() + 48 ) {      
-        if (last_command.compare("1") == 0 || last_command.compare("2") == 0) {
+      while ( samples_written <= playback_interface->cursor() + 48 ) {
+        if ( last_command.compare( "1" ) == 0 || last_command.compare( "2" ) == 0 ) {
 
-          if (wavs[stoi(last_command) - 1].at_end(next_sample_to_add)) {
+          if ( wavs[stoi( last_command ) - 1].at_end( next_sample_to_add ) ) {
             cout << "breaking\n\n\n\n\n\n\n\n\n\n\n\n";
             last_command = "0";
             break;
           }
-          audio_signal.safe_set( samples_written,
-                                { wavs[stoi(last_command) - 1].view(next_sample_to_add) } );
+          audio_signal.safe_set( samples_written, { wavs[stoi( last_command ) - 1].view( next_sample_to_add ) } );
           next_sample_to_add++;
         } else {
-          audio_signal.safe_set( samples_written, {0, 0});
+          audio_signal.safe_set( samples_written, { 0, 0 } );
         }
 
-        
-        
         samples_written++;
       }
-        
-      
     },
     /* when should this rule run? commit to an output signal until 1 millisecond in the future */
     [&] { return samples_written <= playback_interface->cursor() + 48; } );
