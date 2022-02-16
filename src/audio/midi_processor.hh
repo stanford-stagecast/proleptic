@@ -33,6 +33,6 @@ public:
 
   size_t pressesSize() { return key_presses.size(); };
 
-  void popPress();
+  uint8_t popPress();
 
 };

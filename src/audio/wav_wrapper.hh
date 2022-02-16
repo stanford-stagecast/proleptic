@@ -12,11 +12,14 @@ class WavWrapper
 {
   SndfileHandle handle_;
   vector<float> samples_;
+  size_t curr_offset;
 
 public:
   WavWrapper( const string& filename );
 
-  wav_frame_t view( const size_t offset );
+  wav_frame_t view( );
 
-  bool at_end( const size_t offset );
+  void reset( ) { curr_offset = 0; };
+
+  bool at_end(  );
 };

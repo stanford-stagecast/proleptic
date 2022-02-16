@@ -11,8 +11,10 @@ MidiProcessor::MidiProcessor(std::string data_str)
     }
 
 
-void MidiProcessor::popPress() {
+uint8_t MidiProcessor::popPress() {
+  key_press curr_press = key_presses.front();
   key_presses.pop();
+  return curr_press.note;
 }
 
 void MidiProcessor::pushPress( ) {

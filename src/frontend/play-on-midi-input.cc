@@ -1,4 +1,5 @@
 #include <iostream>
+#include <set>
 
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
@@ -40,7 +41,6 @@ void program_body( const string_view device_prefix, const string& midi_filename 
 
   /* get ready to play an audio signal */
   ChannelPair audio_signal { 16384 }; // the output signal
-  size_t next_sample_to_add = 0;      // what's the next sample # to be written to the output signal?
   size_t samples_written = 0;
 
   FileDescriptor piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDONLY ) ) };
@@ -54,23 +54,33 @@ void program_body( const string_view device_prefix, const string& midi_filename 
   WavWrapper first_wav_file { first_input_filename };
   WavWrapper second_wav_file { second_input_filename };
   std::vector wavs = { first_wav_file, second_wav_file };
-  int wavToPlay = -1;
+  std::set<size_t> active_wavs = {};
 
   /* rule #2: write from wav file (but no more than 1 millisecond into the future) */
   event_loop->add_rule(
     "add next frame from wav file",
     [&] {
-      if (midi_processor.pressesSize() > 0) {
-        cout << "Presses queue size: " << midi_processor.pressesSize() << "\n";
-        midi_processor.popPress();
-        next_sample_to_add = 0;
-        wavToPlay = 0;
+      while (midi_processor.pressesSize() > 0) {      
+        uint8_t note_val = midi_processor.popPress();
+
+        size_t idx = note_val > 95 ? 1 : 0;
+
+        active_wavs.insert(idx);
+        wavs[idx].reset();
       }
       while ( samples_written <= playback_interface->cursor() + 48 ) {
-        if (wavToPlay >= 0) {
-          //cout << "PLAYING WAV\n\n";
-          audio_signal.safe_set( samples_written, { wavs[wavToPlay].view( next_sample_to_add ) } );
-          next_sample_to_add++;
+        if (active_wavs.size() > 0) {
+          std::pair<float, float> total_sample = {0 , 0};
+
+          for (size_t i : active_wavs) {
+            std::pair<float, float> curr_sample = wavs[i].view();
+            total_sample.first += curr_sample.first;
+            total_sample.second += curr_sample.second;
+          }
+          total_sample.first /= active_wavs.size();
+          total_sample.second /= active_wavs.size();
+
+          audio_signal.safe_set( samples_written, total_sample );
         } else {
           audio_signal.safe_set(samples_written, {0 , 0});
         }
