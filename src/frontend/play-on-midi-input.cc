@@ -63,27 +63,35 @@ void program_body( const string_view device_prefix, const string& midi_filename 
       while ( midi_processor.pressesSize() > 0 ) {
         uint8_t note_val = midi_processor.popPress();
 
+        // Choose which wav file to play
         size_t idx = note_val > 95 ? 1 : 0;
 
         active_wavs.insert( idx );
+        // Set the offset index back to 0
         wavs[idx].reset();
       }
       while ( samples_written <= playback_interface->cursor() + 48 ) {
         if ( active_wavs.size() > 0 ) {
           std::pair<float, float> total_sample = { 0, 0 };
 
+          std::set<int> finished_wavs = {};
           for ( size_t i : active_wavs ) {
             std::pair<float, float> curr_sample = wavs[i].view();
             total_sample.first += curr_sample.first;
             total_sample.second += curr_sample.second;
+
+            // Check if we've finished playing this wav file
             if ( wavs[i].at_end() )
               active_wavs.erase( i );
           }
+
+          // Clip the audio output
           total_sample.first /= active_wavs.size();
           total_sample.second /= active_wavs.size();
 
           audio_signal.safe_set( samples_written, total_sample );
         } else {
+          // If we've have no audio data, write zeroes
           audio_signal.safe_set( samples_written, { 0, 0 } );
         }
 

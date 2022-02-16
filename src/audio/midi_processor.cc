@@ -18,6 +18,7 @@ uint8_t MidiProcessor::popPress()
 void MidiProcessor::pushPress()
 {
   key_press new_press;
+  // For now, we're interested in key down data
   if ( static_cast<unsigned int>( leftover_data.front() ) == 144 ) {
     new_press.direction = leftover_data.front();
     leftover_data.pop();
@@ -27,6 +28,7 @@ void MidiProcessor::pushPress()
     leftover_data.pop();
     key_presses.push( new_press );
   } else {
+    // If this is key up data, discard
     leftover_data.pop();
     leftover_data.pop();
     leftover_data.pop();
@@ -42,6 +44,7 @@ void MidiProcessor::processIncomingMIDI( ssize_t bytes_read )
 
     if ( byte != 0xfe ) {
       leftover_data.push( byte );
+      // We have the data for a full key press
       if ( leftover_data.size() == 3 ) {
         pushPress();
       }
