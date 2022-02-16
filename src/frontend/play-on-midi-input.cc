@@ -76,6 +76,7 @@ void program_body( const string_view device_prefix, const string& midi_filename 
             std::pair<float, float> curr_sample = wavs[i].view();
             total_sample.first += curr_sample.first;
             total_sample.second += curr_sample.second;
+            if (wavs[i].at_end()) active_wavs.erase(i);
           }
           total_sample.first /= active_wavs.size();
           total_sample.second /= active_wavs.size();
