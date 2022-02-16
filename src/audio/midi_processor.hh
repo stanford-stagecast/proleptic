@@ -1,10 +1,11 @@
 #pragma once
 
-#include "spans.hh"
 #include "file_descriptor.hh"
+#include "spans.hh"
 #include <queue>
 
-struct key_press {
+struct key_press
+{
   uint8_t direction;
   uint8_t note;
   uint8_t velocity;
@@ -21,11 +22,10 @@ class MidiProcessor
   queue<key_press> key_presses;
 
 private:
-  void pushPress( );
+  void pushPress();
 
 public:
-    
-  MidiProcessor(string data_str);
+  MidiProcessor( string data_str );
 
   string_span getDataBuffer() { return raw_input_; };
 
@@ -34,5 +34,4 @@ public:
   size_t pressesSize() { return key_presses.size(); };
 
   uint8_t popPress();
-
 };

@@ -48,9 +48,7 @@ WavWrapper::WavWrapper( const string& filename )
   }
 }
 
-
-
-bool WavWrapper::at_end(  )
+bool WavWrapper::at_end()
 {
   if ( curr_offset >= samples_.size() / 2 ) {
     return true;
@@ -59,7 +57,7 @@ bool WavWrapper::at_end(  )
   return false;
 }
 
-wav_frame_t WavWrapper::view( )
+wav_frame_t WavWrapper::view()
 {
   if ( at_end() ) {
     return { 0, 0 };
