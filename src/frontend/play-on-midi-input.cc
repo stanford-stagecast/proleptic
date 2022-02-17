@@ -59,14 +59,17 @@ void program_body( const string_view device_prefix, const string& midi_filename 
     [&] {
       while ( midi_processor.has_event() ) {
         uint8_t note_val = midi_processor.get_event_note();
-        midi_processor.pop_event();
+       
+        if ((uint8_t)midi_processor.get_event_type() == 144) {
+          // Choose which wav file to play
+          size_t idx = note_val > 95 ? 1 : 0;
 
-        // Choose which wav file to play
-        size_t idx = note_val > 95 ? 1 : 0;
+          active_wavs.insert( idx );
+          // Set the offset index back to 0
+          wavs[idx].reset();
+        }
 
-        active_wavs.insert( idx );
-        // Set the offset index back to 0
-        wavs[idx].reset();
+         midi_processor.pop_event();
       }
       while ( samples_written <= playback_interface->cursor() + 48 ) {
         if ( active_wavs.size() > 0 ) {
