@@ -11,7 +11,7 @@ class MidiProcessor
 {
   RingBuffer unprocessed_midi_bytes_ { 4096 };
 
-  std::optional<std::chrono::steady_clock::time_point> last_event_time_ {};
+  std::chrono::steady_clock::time_point last_event_time_ { std::chrono::steady_clock::now() };
 
   void pop_active_sense_bytes();
 
@@ -28,5 +28,6 @@ public:
 
   void pop_event();
 
-  bool piano_is_alive() const;
+  /* no event or active sense in more than 1 s */
+  bool data_timeout() const;
 };

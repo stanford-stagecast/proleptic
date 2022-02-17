@@ -133,7 +133,7 @@ void program_body( const string_view device_prefix, const string& midi_filename 
 
   /* run the event loop forever */
   while ( event_loop->wait_next_event( stats_printer.wait_time_ms() ) != EventLoop::Result::Exit ) {
-    if ( not midi_processor.piano_is_alive() ) {
+    if ( midi_processor.data_timeout() ) {
       throw runtime_error( "no data from piano!" );
     }
   }

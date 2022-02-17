@@ -17,7 +17,7 @@ void MidiProcessor::read_from_fd( FileDescriptor& fd )
 
   pop_active_sense_bytes();
 
-  last_event_time_.emplace( steady_clock::now() );
+  last_event_time_ = steady_clock::now();
 }
 
 void MidiProcessor::pop_event()
@@ -28,17 +28,9 @@ void MidiProcessor::pop_event()
   }
 }
 
-bool MidiProcessor::piano_is_alive() const
+bool MidiProcessor::data_timeout() const
 {
-  if ( not last_event_time_.has_value() ) {
-    return false;
-  }
-
   const auto now = steady_clock::now();
 
-  if ( duration_cast<milliseconds>( now - last_event_time_.value() ).count() > 1000 ) {
-    return false;
-  }
-
-  return true;
+  return duration_cast<milliseconds>( now - last_event_time_ ).count() > 1000;
 }
