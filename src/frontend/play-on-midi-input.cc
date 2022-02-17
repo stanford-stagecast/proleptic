@@ -84,10 +84,13 @@ void program_body( const string_view device_prefix, const string& midi_filename 
             std::pair<float, float> curr_sample = wavs[i].view();
             total_sample.first += curr_sample.first;
             total_sample.second += curr_sample.second;
+            if (wavs[i].at_end()) {
+              finished_wavs.insert(i);
+            }
+          }
 
-            // Check if we've finished playing this wav file
-            if ( wavs[i].at_end() )
-              active_wavs.erase( i );
+          for (size_t i : finished_wavs) {
+            active_wavs.erase(i);
           }
 
           // Clip the audio output
