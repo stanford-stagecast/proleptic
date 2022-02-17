@@ -44,12 +44,9 @@ void program_body( const string_view device_prefix, const string& midi_filename 
   size_t samples_written = 0;
 
   FileDescriptor piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDONLY ) ) };
-  string data_str( 1024, 'x' );
-  MidiProcessor midi_processor { data_str };
+  MidiProcessor midi_processor;
 
-  event_loop->add_rule( "read MIDI data", piano, Direction::In, [&] {
-    midi_processor.processIncomingMIDI( piano.read( midi_processor.getDataBuffer() ) );
-  } );
+  event_loop->add_rule( "read MIDI data", piano, Direction::In, [&] { midi_processor.read_from_fd( piano ); } );
 
   WavWrapper first_wav_file { first_input_filename };
   WavWrapper second_wav_file { second_input_filename };
@@ -60,8 +57,9 @@ void program_body( const string_view device_prefix, const string& midi_filename 
   event_loop->add_rule(
     "add next frame from wav file",
     [&] {
-      while ( midi_processor.pressesSize() > 0 ) {
-        uint8_t note_val = midi_processor.popPress();
+      while ( midi_processor.has_event() ) {
+        uint8_t note_val = midi_processor.get_event_note();
+        midi_processor.pop_event();
 
         // Choose which wav file to play
         size_t idx = note_val > 95 ? 1 : 0;

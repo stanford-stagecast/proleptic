@@ -1,37 +1,32 @@
 #pragma once
 
+#include <chrono>
+#include <optional>
+
 #include "file_descriptor.hh"
-#include "spans.hh"
-#include <queue>
-
-struct key_press
-{
-  uint8_t direction;
-  uint8_t note;
-  uint8_t velocity;
-};
-
-using namespace std;
+#include "ring_buffer.hh"
 
 /* wrap MIDI file input */
 class MidiProcessor
 {
-  string data;
-  string_span raw_input_;
-  queue<uint8_t> leftover_data;
-  queue<key_press> key_presses;
+  RingBuffer unprocessed_midi_bytes_ { 4096 };
 
-private:
-  void pushPress();
+  std::optional<std::chrono::steady_clock::time_point> last_event_time_ {};
+
+  void pop_active_sense_bytes();
 
 public:
-  MidiProcessor( string data_str );
+  void read_from_fd( FileDescriptor& fd );
 
-  string_span getDataBuffer() { return raw_input_; };
+  bool want_read() const { return unprocessed_midi_bytes_.writable_region().size() > 0; }
 
-  void processIncomingMIDI( ssize_t bytes_read );
+  bool has_event() { return unprocessed_midi_bytes_.readable_region().size() >= 3; }
 
-  size_t pressesSize() { return key_presses.size(); };
+  uint8_t get_event_type() const { return unprocessed_midi_bytes_.readable_region().at( 0 ); }
+  uint8_t get_event_note() const { return unprocessed_midi_bytes_.readable_region().at( 1 ); }
+  uint8_t get_event_velocity() const { return unprocessed_midi_bytes_.readable_region().at( 2 ); }
 
-  uint8_t popPress();
+  void pop_event();
+
+  bool piano_is_alive() const;
 };

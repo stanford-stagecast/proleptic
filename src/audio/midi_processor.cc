@@ -1,54 +1,44 @@
 #include "midi_processor.hh"
-#include <iostream>
 
-MidiProcessor::MidiProcessor( std::string data_str )
-  : data( data_str )
-  , raw_input_( string_span::from_view( data ) )
-  , leftover_data()
-  , key_presses()
-{}
+using namespace std;
+using namespace chrono;
 
-uint8_t MidiProcessor::popPress()
+void MidiProcessor::pop_active_sense_bytes()
 {
-  key_press curr_press = key_presses.front();
-  key_presses.pop();
-  return curr_press.note;
-}
-
-void MidiProcessor::pushPress()
-{
-  key_press new_press;
-  // For now, we're interested in key down data
-  if ( static_cast<unsigned int>( leftover_data.front() ) == 144 ) {
-    new_press.direction = leftover_data.front();
-    leftover_data.pop();
-    new_press.note = leftover_data.front();
-    leftover_data.pop();
-    new_press.velocity = leftover_data.front();
-    leftover_data.pop();
-    key_presses.push( new_press );
-  } else {
-    // If this is key up data, discard
-    leftover_data.pop();
-    leftover_data.pop();
-    leftover_data.pop();
+  while ( unprocessed_midi_bytes_.readable_region().size()
+          and uint8_t( unprocessed_midi_bytes_.readable_region().at( 0 ) ) == 0xfe ) {
+    unprocessed_midi_bytes_.pop( 1 );
   }
 }
 
-void MidiProcessor::processIncomingMIDI( ssize_t bytes_read )
+void MidiProcessor::read_from_fd( FileDescriptor& fd )
 {
-  string_view data_read_this_time { data.data(), (long unsigned int)bytes_read };
+  unprocessed_midi_bytes_.push_from_fd( fd );
 
-  for ( size_t i = 0; i < data_read_this_time.size(); i++ ) {
-    uint8_t byte = data_read_this_time[i];
+  pop_active_sense_bytes();
 
-    if ( byte != 0xfe ) {
-      leftover_data.push( byte );
-      // We have the data for a full key press
-      if ( leftover_data.size() == 3 ) {
-        pushPress();
-      }
-      cerr << "Piano gave us: " << static_cast<unsigned int>( byte ) << "\n";
-    }
+  last_event_time_.emplace( steady_clock::now() );
+}
+
+void MidiProcessor::pop_event()
+{
+  while ( unprocessed_midi_bytes_.readable_region().size() >= 3 ) {
+    unprocessed_midi_bytes_.pop( 3 );
+    pop_active_sense_bytes();
   }
+}
+
+bool MidiProcessor::piano_is_alive() const
+{
+  if ( not last_event_time_.has_value() ) {
+    return false;
+  }
+
+  const auto now = steady_clock::now();
+
+  if ( duration_cast<milliseconds>( now - last_event_time_.value() ).count() > 1000 ) {
+    return false;
+  }
+
+  return true;
 }
