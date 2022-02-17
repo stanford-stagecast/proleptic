@@ -46,31 +46,35 @@ void program_body( const string_view device_prefix, const string& midi_filename 
   FileDescriptor piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDONLY ) ) };
   MidiProcessor midi_processor;
 
-  event_loop->add_rule( "read MIDI data", piano, Direction::In, [&] { midi_processor.read_from_fd( piano ); } );
-
   WavWrapper first_wav_file { first_input_filename };
   WavWrapper second_wav_file { second_input_filename };
   std::vector wavs = { first_wav_file, second_wav_file };
   std::set<size_t> active_wavs = {};
 
-  /* rule #2: write from wav file (but no more than 1 millisecond into the future) */
+  /* rule #1: read events from MIDI piano and adjust synthesizer state as a result */
+  event_loop->add_rule( "read MIDI data", piano, Direction::In, [&] {
+    midi_processor.read_from_fd( piano );
+
+    while ( midi_processor.has_event() ) {
+      uint8_t note_val = midi_processor.get_event_note();
+
+      if ( (uint8_t)midi_processor.get_event_type() == 144 ) {
+        // Choose which wav file to play
+        size_t idx = note_val > 95 ? 1 : 0;
+
+        active_wavs.insert( idx );
+        // Set the offset index back to 0
+        wavs[idx].reset();
+      }
+
+      midi_processor.pop_event();
+    }
+  } );
+
+  /* rule #2: write synthesizer output to speaker (but no more than 1 millisecond into the future) */
   event_loop->add_rule(
     "add next frame from wav file",
     [&] {
-      while ( midi_processor.has_event() ) {
-        uint8_t note_val = midi_processor.get_event_note();
-       
-        if ((uint8_t)midi_processor.get_event_type() == 144) {
-          // Choose which wav file to play
-          size_t idx = note_val > 95 ? 1 : 0;
-
-          active_wavs.insert( idx );
-          // Set the offset index back to 0
-          wavs[idx].reset();
-        }
-
-         midi_processor.pop_event();
-      }
       while ( samples_written <= playback_interface->cursor() + 48 ) {
         if ( active_wavs.size() > 0 ) {
           std::pair<float, float> total_sample = { 0, 0 };
@@ -129,6 +133,9 @@ void program_body( const string_view device_prefix, const string& midi_filename 
 
   /* run the event loop forever */
   while ( event_loop->wait_next_event( stats_printer.wait_time_ms() ) != EventLoop::Result::Exit ) {
+    if ( not midi_processor.piano_is_alive() ) {
+      throw runtime_error( "no data from piano!" );
+    }
   }
 }
 
