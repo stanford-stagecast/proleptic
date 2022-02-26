@@ -67,12 +67,12 @@ void program_body( const string_view device_prefix )
       while ( samples_written <= playback_interface->cursor() + 48 ) {
         if ( last_command.compare( "1" ) == 0 || last_command.compare( "2" ) == 0 ) {
 
-          if ( wavs[stoi( last_command ) - 1].at_end() ) {
+          if ( wavs[stoi( last_command ) - 1].at_end( next_sample_to_add ) ) {
             cout << "breaking\n\n\n\n\n\n\n\n\n\n\n\n";
             last_command = "0";
             break;
           }
-          audio_signal.safe_set( samples_written, { wavs[stoi( last_command ) - 1].view() } );
+          audio_signal.safe_set( samples_written, { wavs[stoi( last_command ) - 1].view( next_sample_to_add ) } );
           next_sample_to_add++;
         } else {
           audio_signal.safe_set( samples_written, { 0, 0 } );

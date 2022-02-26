@@ -11,7 +11,6 @@ using namespace std;
 WavWrapper::WavWrapper( const string& filename )
   : handle_( filename )
   , samples_( 1 )
-  , curr_offset( 0 )
 {
   const unsigned int num_frames_in_input = handle_.frames();
   samples_.resize( NUM_CHANNELS * num_frames_in_input );
@@ -48,22 +47,21 @@ WavWrapper::WavWrapper( const string& filename )
   }
 }
 
-bool WavWrapper::at_end()
+bool WavWrapper::at_end( size_t offset )
 {
-  if ( curr_offset >= samples_.size() / 2 ) {
+  if ( offset >= samples_.size() / 2 ) {
     return true;
   }
 
   return false;
 }
 
-wav_frame_t WavWrapper::view()
+wav_frame_t WavWrapper::view( size_t offset )
 {
-  if ( at_end() ) {
+  if ( at_end( offset ) ) {
     return { 0, 0 };
   }
-  std::pair<float, float> sample = { samples_.at( curr_offset * 2 ), samples_.at( ( curr_offset * 2 ) + 1 ) };
+  std::pair<float, float> sample = { samples_.at( offset * 2 ), samples_.at( ( offset * 2 ) + 1 ) };
 
-  curr_offset++;
   return sample;
 }
