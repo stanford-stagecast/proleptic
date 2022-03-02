@@ -30,7 +30,7 @@ wav_frame_t Synthesizer::calculate_curr_sample()
       std::pair<float, float> curr_sample = note_repo.get_sample( *it );
       float vol_ratio = 1;
       if ( s.direction == 128 )
-        vol_ratio = 5;
+        vol_ratio = 20;
 
       // TODO: Change how we prevent clipping
       total_sample.first += curr_sample.first / vol_ratio;   // num_sounds;

@@ -1,10 +1,7 @@
 #pragma once
 
-#include "wav_wrapper.hh"
+#include "note_files.hh"
 #include <vector>
-
-// Current note_id structure: direction_velocity_note
-using note_id = uint32_t;
 
 struct sound
 {
@@ -17,9 +14,7 @@ struct sound
 class NoteRepository
 {
 
-  std::vector<WavWrapper> wav_files {};
-
-  note_id get_note_idx( sound curr_sound );
+  std::vector<NoteFiles> notes {};
 
 public:
   NoteRepository();
