@@ -13,7 +13,6 @@ struct sound
 
 class NoteRepository
 {
-
   std::vector<NoteFiles> notes {};
 
 public:

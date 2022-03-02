@@ -5,30 +5,29 @@
 
 NoteRepository::NoteRepository()
 {
-
-  notes.push_back( { "A0", 1 } );
-  notes.push_back( { "C1", 4 } );
-  notes.push_back( { "D#1", 7 } );
-  notes.push_back( { "F#1", 10 } );
-  notes.push_back( { "A1", 13 } );
-  notes.push_back( { "C2", 16 } );
-  notes.push_back( { "D#2", 19 } );
-  notes.push_back( { "F#2", 22 } );
-  notes.push_back( { "A2", 25 } );
-  notes.push_back( { "C3", 28 } );
-  notes.push_back( { "D#3", 31 } );
-  notes.push_back( { "F#3", 34 } );
-  notes.push_back( { "A3", 37 } );
-  notes.push_back( { "C4", 40 } );
-  notes.push_back( { "D#4", 43 } );
-  notes.push_back( { "F#4", 46 } );
-  notes.push_back( { "A4", 49 } );
-  notes.push_back( { "C5", 52 } );
-  notes.push_back( { "D#5", 55 } );
-  notes.push_back( { "F#5", 58 } );
-  notes.push_back( { "A5", 61 } );
-  notes.push_back( { "C6", 64 } );
-  notes.push_back( { "D#6", 67 } );
+  notes.emplace_back( "A0", 1 );
+  notes.emplace_back( "C1", 4 );
+  notes.emplace_back( "D#1", 7 );
+  notes.emplace_back( "F#1", 10 );
+  notes.emplace_back( "A1", 13 );
+  notes.emplace_back( "C2", 16 );
+  notes.emplace_back( "D#2", 19 );
+  notes.emplace_back( "F#2", 22 );
+  notes.emplace_back( "A2", 25 );
+  notes.emplace_back( "C3", 28 );
+  notes.emplace_back( "D#3", 31 );
+  notes.emplace_back( "F#3", 34 );
+  notes.emplace_back( "A3", 37 );
+  notes.emplace_back( "C4", 40 );
+  notes.emplace_back( "D#4", 43 );
+  notes.emplace_back( "F#4", 46 );
+  notes.emplace_back( "A4", 49 );
+  notes.emplace_back( "C5", 52 );
+  notes.emplace_back( "D#5", 55 );
+  notes.emplace_back( "F#5", 58 );
+  notes.emplace_back( "A5", 61 );
+  notes.emplace_back( "C6", 64 );
+  notes.emplace_back( "D#6", 67 );
 }
 
 bool NoteRepository::reached_end( sound curr_sound )
