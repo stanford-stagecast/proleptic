@@ -18,6 +18,6 @@ class NoteRepository
 public:
   NoteRepository();
 
-  bool reached_end( sound curr_sound );
+  bool reached_end( sound curr_sound ) const;
   wav_frame_t get_sample( sound curr_sound );
 };
