@@ -15,7 +15,7 @@ NoteFiles::NoteFiles( const string& note, size_t rel_num )
   , rel( prefix + "rel" + to_string( rel_num ) + ".wav" )
 {}
 
-WavWrapper& NoteFiles::getFileFromVel( uint8_t dir, uint8_t vel )
+const WavWrapper& NoteFiles::getFileFromVel( uint8_t dir, uint8_t vel ) const
 {
   if ( dir == 128 ) {
     return rel;

@@ -16,7 +16,7 @@ class WavWrapper
 public:
   WavWrapper( const string& filename );
 
-  wav_frame_t view( size_t offset );
+  wav_frame_t view( size_t offset ) const;
 
-  bool at_end( size_t offset );
+  bool at_end( size_t offset ) const;
 };
