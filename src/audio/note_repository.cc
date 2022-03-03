@@ -30,13 +30,13 @@ NoteRepository::NoteRepository()
   add_notes( "D#6", 3 );
 
   // keys below here do not have dampers
-  add_notes( "F#6", 3 );
-  add_notes( "A6", 3 );
-  add_notes( "C7", 3 );
-  add_notes( "D#7", 3 );
-  add_notes( "F#7", 3 );
-  add_notes( "A7", 3 );
-  add_notes( "C8", 2 );
+  add_notes( "F#6", 3, false );
+  add_notes( "A6", 3, false );
+  add_notes( "C7", 3, false );
+  add_notes( "D#7", 3, false );
+  add_notes( "F#7", 3, false );
+  add_notes( "A7", 3, false );
+  add_notes( "C8", 2, false );
 
   cerr << "Added " << notes.size() << " notes\n";
 }
@@ -45,16 +45,13 @@ const WavWrapper& NoteRepository::get_wav( const uint8_t direction,
                                            const uint8_t note,
                                            const uint8_t velocity ) const
 {
-  size_t id = note - 21;
-  id /= 3; /* XXX */
-
-  return notes.at( id ).getFileFromVel( direction, velocity );
+  return notes.at( note - 21 ).getFileFromVel( direction, velocity );
 }
 
-void NoteRepository::add_notes( const string& name, const unsigned int num_notes )
+void NoteRepository::add_notes( const string& name, const unsigned int num_notes, const bool has_damper )
 {
   unsigned int note_num_base = notes.size() + 1;
   for ( unsigned int i = 0; i < num_notes; i++ ) {
-    notes.emplace_back( name, note_num_base + i );
+    notes.emplace_back( name, note_num_base + i, has_damper );
   }
 }

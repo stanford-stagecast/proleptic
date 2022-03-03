@@ -8,11 +8,12 @@ static const string suff_slow = "v1-PA.wav";
 static const string suff_med = "v8.5-PA.wav";
 static const string suff_fast = "v16.wav";
 
-NoteFiles::NoteFiles( const string& note, const size_t key_num )
+NoteFiles::NoteFiles( const string& note, const size_t key_num, const bool has_damper )
   : slow( prefix + note + suff_slow )
   , med( prefix + note + suff_med )
   , fast( prefix + note + suff_fast )
   , rel( prefix + "rel" + to_string( key_num ) + ".wav" )
+  , has_damper_( has_damper )
 {}
 
 const WavWrapper& NoteFiles::getFileFromVel( uint8_t dir, uint8_t vel ) const

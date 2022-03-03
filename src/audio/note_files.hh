@@ -9,12 +9,16 @@ class NoteFiles
   WavWrapper fast;
   WavWrapper rel;
 
+  bool has_damper_;
+
 public:
-  NoteFiles( const string& note, const size_t key_num );
+  NoteFiles( const string& note, const size_t key_num, const bool has_damper );
 
   const WavWrapper& getSlow() const { return slow; };
   const WavWrapper& getMed() const { return med; };
   const WavWrapper& getFast() const { return fast; };
   const WavWrapper& getRel() const { return rel; };
   const WavWrapper& getFileFromVel( uint8_t dir, uint8_t vel ) const;
+
+  bool has_damper() const { return has_damper_; }
 };
