@@ -52,7 +52,7 @@ void program_body( const string_view device_prefix, const string& midi_filename 
 
   /* rule #2: write synthesizer output to speaker (but no more than 1 millisecond into the future) */
   event_loop->add_rule(
-    "add next frame from wav file",
+    "synthesize piano",
     [&] {
       while ( samples_written <= playback_interface->cursor() + 48 ) {
         pair<float, float> samp = synth.calculate_curr_sample();
@@ -67,7 +67,7 @@ void program_body( const string_view device_prefix, const string& midi_filename 
 
   /* rule #3: play the output signal whenever space available in audio output buffer */
   event_loop->add_rule(
-    "play wav file",
+    "sound output",
     playback_interface->fd(), /* file descriptor event cares about */
     Direction::Out,           /* execute rule when file descriptor is "writeable"
                                  -> there's room in the output buffer (config.buffer_size) */

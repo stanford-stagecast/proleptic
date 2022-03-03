@@ -10,7 +10,7 @@ class NoteFiles
   WavWrapper rel;
 
 public:
-  NoteFiles( const string& note, size_t rel_num );
+  NoteFiles( const string& note, const size_t key_num );
 
   const WavWrapper& getSlow() const { return slow; };
   const WavWrapper& getMed() const { return med; };

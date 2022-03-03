@@ -7,6 +7,8 @@ class NoteRepository
 {
   std::vector<NoteFiles> notes {};
 
+  void add_notes( const string& name, const unsigned int num_notes );
+
 public:
   NoteRepository();
 
