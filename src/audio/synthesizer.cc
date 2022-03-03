@@ -23,7 +23,9 @@ wav_frame_t Synthesizer::calculate_curr_sample() const
   for ( const auto& s : active_sounds ) {
     const auto& wav_file = note_repo.get_wav( s.direction, s.note, s.velocity );
 
-    const float amplitude_multiplier = ( s.direction == 144 ) ? 1.0 : exp10( -37 / 20.0 );
+    float amplitude_multiplier = ( s.direction == 144 ) ? 1.0 : exp10( -37 / 20.0 );
+
+    amplitude_multiplier *= 0.1; /* to avoid clipping */
 
     const std::pair<float, float> curr_sample = wav_file.view( s.curr_offset );
 
