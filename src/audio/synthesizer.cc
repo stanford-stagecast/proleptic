@@ -24,7 +24,6 @@ wav_frame_t Synthesizer::calculate_curr_sample()
   size_t num_sounds = active_sounds.size();
 
   if ( num_sounds > 0 ) {
-
     for ( std::vector<sound>::iterator it = active_sounds.begin(); it != active_sounds.end(); ) {
       sound s = *it;
       const auto& wav_file = note_repo.get_wav( s.direction, s.note, s.velocity );

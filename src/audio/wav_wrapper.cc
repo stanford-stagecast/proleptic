@@ -9,9 +9,9 @@ const unsigned int NUM_CHANNELS = 2;
 using namespace std;
 
 WavWrapper::WavWrapper( const string& filename )
-  : handle_( filename )
-  , samples_( 1 )
 {
+  SndfileHandle handle_ { filename };
+
   const unsigned int num_frames_in_input = handle_.frames();
   samples_.resize( NUM_CHANNELS * num_frames_in_input );
 
