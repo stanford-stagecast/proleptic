@@ -7,8 +7,10 @@ void Synthesizer::process_new_data( FileDescriptor& fd )
   midi_processor.read_from_fd( fd );
 
   while ( midi_processor.has_event() ) {
-    active_sounds.emplace_back(
-      midi_processor.get_event_type(), midi_processor.get_event_note(), midi_processor.get_event_velocity(), 0 );
+    active_sounds.push_back( { midi_processor.get_event_type(),
+                               midi_processor.get_event_note(),
+                               midi_processor.get_event_velocity(),
+                               0 } );
 
     midi_processor.pop_event();
   }
