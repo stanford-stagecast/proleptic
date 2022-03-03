@@ -41,5 +41,5 @@ const WavWrapper& NoteRepository::get_wav( const uint8_t direction,
     id /= 3;
   }
 
-  return notes.at( note - 21 ).getFileFromVel( direction, velocity );
+  return notes.at( id ).getFileFromVel( direction, velocity );
 }
