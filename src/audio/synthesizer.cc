@@ -27,7 +27,8 @@ wav_frame_t Synthesizer::calculate_curr_sample()
 
     for ( std::vector<sound>::iterator it = active_sounds.begin(); it != active_sounds.end(); ) {
       sound s = *it;
-      std::pair<float, float> curr_sample = note_repo.get_sample( *it );
+      const auto& wav_file = note_repo.get_wav( s.direction, s.note, s.velocity );
+      std::pair<float, float> curr_sample = wav_file.view( s.curr_offset );
       float vol_ratio = 1;
       if ( s.direction == 128 )
         vol_ratio = 20;
@@ -36,8 +37,8 @@ wav_frame_t Synthesizer::calculate_curr_sample()
       total_sample.first += curr_sample.first / vol_ratio;   // num_sounds;
       total_sample.second += curr_sample.second / vol_ratio; // num_sounds;
       it->curr_offset += 1;
-      if ( note_repo.reached_end( s ) ) {
-        cout << "finished\n\n";
+      if ( wav_file.at_end( s.curr_offset ) ) {
+        cerr << "finished\n\n";
         active_sounds.erase( it );
       } else {
         ++it;

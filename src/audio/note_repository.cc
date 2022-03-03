@@ -30,26 +30,16 @@ NoteRepository::NoteRepository()
   notes.emplace_back( "D#6", 67 );
 }
 
-bool NoteRepository::reached_end( sound curr_sound ) const
+const WavWrapper& NoteRepository::get_wav( const uint8_t direction,
+                                           const uint8_t note,
+                                           const uint8_t velocity ) const
 {
-  size_t id = curr_sound.note - 21;
+  size_t id = note - 21;
   if ( id % 3 != 0 ) {
-    return true;
+    id = 0;
+  } else {
+    id /= 3;
   }
-  id /= 3;
-  return notes.at( curr_sound.note - 21 )
-    .getFileFromVel( curr_sound.direction, curr_sound.velocity )
-    .at_end( curr_sound.curr_offset );
-}
 
-wav_frame_t NoteRepository::get_sample( sound curr_sound ) const
-{
-  size_t id = curr_sound.note - 21;
-  if ( id % 3 != 0 ) {
-    return { 0, 0 };
-  }
-  id /= 3;
-  return notes.at( curr_sound.note - 21 )
-    .getFileFromVel( curr_sound.direction, curr_sound.velocity )
-    .view( curr_sound.curr_offset );
+  return notes.at( note - 21 ).getFileFromVel( direction, velocity );
 }
