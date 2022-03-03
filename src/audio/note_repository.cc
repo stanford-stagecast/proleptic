@@ -3,6 +3,8 @@
 
 #include <iostream>
 
+using namespace std;
+
 NoteRepository::NoteRepository()
 {
   add_notes( "A0", 2 );
@@ -52,6 +54,13 @@ void NoteRepository::add_notes( const string& name, const unsigned int num_notes
 {
   unsigned int note_num_base = notes.size() + 1;
   for ( unsigned int i = 0; i < num_notes; i++ ) {
-    notes.emplace_back( name, note_num_base + i, has_damper );
+    unsigned int release_sample_num = note_num_base + i;
+
+    notes.emplace_back( name, release_sample_num, has_damper );
+    /* do we need to bend the pitch? */
+
+    if ( ( release_sample_num - 1 ) % 3 == 0 ) {
+      std::cerr << "NOT bending for: " << name << " = " << release_sample_num << "\n";
+    }
   }
 }

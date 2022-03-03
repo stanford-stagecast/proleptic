@@ -3,7 +3,6 @@
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
 #include "eventloop.hh"
-#include "file_watch_loop.hh"
 #include "spans.hh"
 #include "stats_printer.hh"
 #include "wav_wrapper.hh"

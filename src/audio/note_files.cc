@@ -31,3 +31,10 @@ const WavWrapper& NoteFiles::getFileFromVel( uint8_t dir, uint8_t vel ) const
 
   return slow;
 }
+
+void NoteFiles::bend_pitch( const double pitch_bend_ratio )
+{
+  slow.bend_pitch( pitch_bend_ratio );
+  med.bend_pitch( pitch_bend_ratio );
+  fast.bend_pitch( pitch_bend_ratio );
+}

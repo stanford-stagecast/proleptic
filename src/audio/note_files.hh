@@ -12,7 +12,7 @@ class NoteFiles
   bool has_damper_;
 
 public:
-  NoteFiles( const string& note, const size_t key_num, const bool has_damper );
+  NoteFiles( const std::string& note, const size_t key_num, const bool has_damper );
 
   const WavWrapper& getSlow() const { return slow; };
   const WavWrapper& getMed() const { return med; };
@@ -21,4 +21,6 @@ public:
   const WavWrapper& getFileFromVel( uint8_t dir, uint8_t vel ) const;
 
   bool has_damper() const { return has_damper_; }
+
+  void bend_pitch( const double pitch_bend_ratio );
 };

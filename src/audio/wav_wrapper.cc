@@ -2,9 +2,10 @@
 #include "exception.hh"
 
 #include <iostream>
+#include <samplerate.h>
 
-const unsigned int SAMPLE_RATE = 48000; /* Hz */
-const unsigned int NUM_CHANNELS = 2;
+constexpr unsigned int SAMPLE_RATE = 48000; /* Hz */
+constexpr unsigned int NUM_CHANNELS = 2;
 
 using namespace std;
 
@@ -64,4 +65,26 @@ wav_frame_t WavWrapper::view( size_t offset ) const
   std::pair<float, float> sample = { samples_.at( offset * 2 ), samples_.at( ( offset * 2 ) + 1 ) };
 
   return sample;
+}
+
+void WavWrapper::bend_pitch( const double pitch_bend_ratio )
+{
+  vector<float> new_samples( samples_.size() * 2 ); /* hopefully enough samples */
+
+  SRC_DATA resample_info;
+  resample_info.data_in = samples_.data();
+  resample_info.data_out = new_samples.data();
+  resample_info.input_frames = samples_.size() / NUM_CHANNELS;
+  resample_info.output_frames = new_samples.size() / NUM_CHANNELS;
+  resample_info.src_ratio = pitch_bend_ratio;
+
+  const int ret = src_simple( &resample_info, SRC_SINC_BEST_QUALITY, NUM_CHANNELS );
+  if ( ret ) {
+    throw runtime_error( "libsamplerate src_simple exception: "s + src_strerror( ret ) );
+    /* XXX should use an error category */
+  }
+
+  new_samples.resize( NUM_CHANNELS * resample_info.output_frames_gen );
+
+  samples_.swap( new_samples );
 }

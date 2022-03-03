@@ -5,18 +5,18 @@
 
 using wav_frame_t = std::pair<float, float>;
 
-using namespace std;
-
 /* wrap WAV file with error/validity checks */
 class WavWrapper
 {
-  vector<float> samples_ {};
+  std::vector<float> samples_ {};
 
 public:
-  WavWrapper( const string& filename );
+  WavWrapper( const std::string& filename );
 
   wav_frame_t view( size_t offset ) const;
   bool at_end( size_t offset ) const;
+
+  void bend_pitch( const double pitch_bend_ratio );
 
   /* can't copy or assign */
   WavWrapper( const WavWrapper& other ) = delete;
