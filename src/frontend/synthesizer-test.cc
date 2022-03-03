@@ -59,6 +59,7 @@ void program_body( const string_view device_prefix, const string& midi_filename 
         // cout << "total samp: " << samp.first << "\n";
         audio_signal.safe_set( samples_written, samp );
         samples_written++;
+        synth.advance_sample();
       }
     },
     /* when should this rule run? commit to an output signal until 1 millisecond in the future */

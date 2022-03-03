@@ -1,6 +1,6 @@
 #include "synthesizer.hh"
+#include <cmath>
 #include <iostream>
-#include <set>
 
 void Synthesizer::process_new_data( FileDescriptor& fd )
 {
@@ -14,32 +14,36 @@ void Synthesizer::process_new_data( FileDescriptor& fd )
   }
 }
 
-wav_frame_t Synthesizer::calculate_curr_sample()
+wav_frame_t Synthesizer::calculate_curr_sample() const
 {
   std::pair<float, float> total_sample = { 0, 0 };
-  size_t num_sounds = active_sounds.size();
 
-  if ( num_sounds > 0 ) {
-    for ( std::vector<sound>::iterator it = active_sounds.begin(); it != active_sounds.end(); ) {
-      sound s = *it;
-      const auto& wav_file = note_repo.get_wav( s.direction, s.note, s.velocity );
-      std::pair<float, float> curr_sample = wav_file.view( s.curr_offset );
-      float vol_ratio = 1;
-      if ( s.direction == 128 )
-        vol_ratio = 20;
+  for ( const auto& s : active_sounds ) {
+    const auto& wav_file = note_repo.get_wav( s.direction, s.note, s.velocity );
 
-      // TODO: Change how we prevent clipping
-      total_sample.first += curr_sample.first / vol_ratio;   // num_sounds;
-      total_sample.second += curr_sample.second / vol_ratio; // num_sounds;
-      it->curr_offset += 1;
-      if ( wav_file.at_end( s.curr_offset ) ) {
-        cerr << "finished\n\n";
-        active_sounds.erase( it );
-      } else {
-        ++it;
-      }
-    }
+    const float amplitude_multiplier = ( s.direction == 144 ) ? 1.0 : exp10( -37 / 20.0 );
+
+    const std::pair<float, float> curr_sample = wav_file.view( s.curr_offset );
+
+    total_sample.first += curr_sample.first * amplitude_multiplier;
+    total_sample.second += curr_sample.second * amplitude_multiplier;
   }
 
   return total_sample;
+}
+
+void Synthesizer::advance_sample()
+{
+  auto it = active_sounds.begin();
+  while ( it != active_sounds.end() ) {
+    auto& s = *it;
+
+    s.curr_offset++;
+
+    if ( note_repo.get_wav( s.direction, s.note, s.velocity ).at_end( s.curr_offset ) ) {
+      it = active_sounds.erase( it );
+    } else {
+      ++it;
+    }
+  }
 }
