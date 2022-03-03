@@ -44,3 +44,6 @@ target_link_libraries ("synthesizer-test" ${DBus_LDFLAGS})
 target_link_libraries ("synthesizer-test" ${DBus_LDFLAGS_OTHER})
 target_link_libraries ("synthesizer-test" ${Sndfile_LDFLAGS})
 target_link_libraries ("synthesizer-test" ${Sndfile_LDFLAGS_OTHER})
+
+target_link_libraries ("synthesizer-test" ${Samplerate_LDFLAGS})
+target_link_libraries ("synthesizer-test" ${Samplerate_LDFLAGS_OTHER})

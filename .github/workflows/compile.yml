@@ -8,6 +8,6 @@ jobs:
       steps:
       - uses: actions/checkout@v1
       - name: configure
-        run:  sudo apt install libasound2-dev libsndfile1-dev libdbus-1-dev && mkdir build && cd build && cmake ..
+        run:  sudo apt install libasound2-dev libsndfile1-dev libdbus-1-dev libsamplerate0-dev && mkdir build && cd build && cmake ..
       - name: build
         run: cd build && make -j2 && make check

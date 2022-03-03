@@ -21,6 +21,10 @@ pkg_check_modules ( Sndfile REQUIRED sndfile )
 include_directories ( ${Sndfile_INCLUDE_DIRS} )
 add_compile_options ( ${Sndfile_CFLAGS} )
 
+pkg_check_modules ( Samplerate REQUIRED samplerate )
+include_directories ( ${Samplerate_INCLUDE_DIRS} )
+add_compile_options ( ${Samplerate_CFLAGS} )
+
 include_directories ("${PROJECT_SOURCE_DIR}/src/util")
 include_directories ("${PROJECT_SOURCE_DIR}/src/audio")
 include_directories ("${PROJECT_SOURCE_DIR}/src/stats")
