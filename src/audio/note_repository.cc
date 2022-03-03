@@ -59,8 +59,14 @@ void NoteRepository::add_notes( const string& name, const unsigned int num_notes
     notes.emplace_back( name, release_sample_num, has_damper );
     /* do we need to bend the pitch? */
 
-    if ( ( release_sample_num - 1 ) % 3 == 0 ) {
+    const unsigned int pitch_bend_modulus = ( release_sample_num - 1 ) % 3;
+
+    if ( pitch_bend_modulus == 0 ) {
       std::cerr << "NOT bending for: " << name << " = " << release_sample_num << "\n";
+    } else if ( pitch_bend_modulus == 1 ) {
+      std::cerr << "Bending UP from " << name << "\n";
+    } else {
+      std::cerr << "Bending DOWN from " << name << "\n";
     }
   }
 }
