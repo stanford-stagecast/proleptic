@@ -66,10 +66,10 @@ void NoteRepository::add_notes( const string& name, const unsigned int num_notes
       std::cerr << "NOT bending for: " << name << " = " << release_sample_num << "\n";
     } else if ( pitch_bend_modulus == 1 ) {
       std::cerr << "Bending UP from " << name << "\n";
-      notes.back().bend_pitch( pow( 2, 1.0 / 12.0 ) );
+      notes.back().bend_pitch( pow( 2, -1.0 / 12.0 ) );
     } else {
       std::cerr << "Bending DOWN from " << name << "\n";
-      notes.back().bend_pitch( pow( 2, -1.0 / 12.0 ) );
+      notes.back().bend_pitch( pow( 2, 1.0 / 12.0 ) );
     }
   }
 }
