@@ -16,9 +16,9 @@ NoteFiles::NoteFiles( const string& note, const size_t key_num, const bool has_d
   , has_damper_( has_damper )
 {}
 
-const WavWrapper& NoteFiles::getFileFromVel( uint8_t dir, uint8_t vel ) const
+const WavWrapper& NoteFiles::getFileFromVel( bool dir, uint8_t vel ) const
 {
-  if ( dir == 128 ) {
+  if ( !dir ) {
     return rel;
   } else {
     // TODO: Create less arbitrary velocity boundaries,

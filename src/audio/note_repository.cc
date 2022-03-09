@@ -44,11 +44,9 @@ NoteRepository::NoteRepository()
   cerr << "Added " << notes.size() << " notes\n";
 }
 
-const WavWrapper& NoteRepository::get_wav( const uint8_t direction,
-                                           const uint8_t note,
-                                           const uint8_t velocity ) const
+const WavWrapper& NoteRepository::get_wav( const bool direction, const size_t note, const uint8_t velocity ) const
 {
-  return notes.at( note - 21 ).getFileFromVel( direction, velocity );
+  return notes.at( note ).getFileFromVel( direction, velocity );
 }
 
 void NoteRepository::add_notes( const string& name, const unsigned int num_notes, const bool has_damper )

@@ -12,5 +12,5 @@ class NoteRepository
 public:
   NoteRepository();
 
-  const WavWrapper& get_wav( const uint8_t direction, const uint8_t note, const uint8_t velocity ) const;
+  const WavWrapper& get_wav( const bool direction, const size_t note, const uint8_t velocity ) const;
 };

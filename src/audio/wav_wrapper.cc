@@ -7,6 +7,8 @@
 constexpr unsigned int SAMPLE_RATE = 48000; /* Hz */
 constexpr unsigned int NUM_CHANNELS = 2;
 
+#include <algorithm>
+
 using namespace std;
 
 WavWrapper::WavWrapper( const string& filename )
@@ -78,7 +80,7 @@ void WavWrapper::bend_pitch( const double pitch_bend_ratio )
   resample_info.output_frames = new_samples.size() / NUM_CHANNELS;
   resample_info.src_ratio = pitch_bend_ratio;
 
-  const int ret = src_simple( &resample_info, SRC_SINC_MEDIUM_QUALITY, NUM_CHANNELS );
+  const int ret = src_simple( &resample_info, SRC_SINC_FASTEST, NUM_CHANNELS );
   if ( ret ) {
     throw runtime_error( "libsamplerate src_simple exception: "s + src_strerror( ret ) );
     /* XXX should use an error category */

@@ -26,9 +26,6 @@ void program_body( const string_view device_prefix, const string& midi_filename 
   /* claim exclusive access to the audio device */
   const auto device_claim = AudioDeviceClaim::try_claim( name );
 
-  const string first_input_filename = "/home/yasminem/D#1v8.5-PA.wav";
-  const string second_input_filename = "/home/yasminem/C4v16.wav";
-
   /* use ALSA to initialize and configure audio device */
   const auto short_name = device_prefix.substr( 0, 16 );
   auto playback_interface = make_shared<AudioInterface>( interface_name, short_name, SND_PCM_STREAM_PLAYBACK );
@@ -45,7 +42,7 @@ void program_body( const string_view device_prefix, const string& midi_filename 
   size_t samples_written = 0;
 
   FileDescriptor piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDONLY ) ) };
-  Synthesizer synth;
+  Synthesizer synth {};
 
   /* rule #1: read events from MIDI piano and adjust synthesizer state as a result */
   event_loop->add_rule( "read MIDI data", piano, Direction::In, [&] { synth.process_new_data( piano ); } );

@@ -18,7 +18,7 @@ public:
   const WavWrapper& getMed() const { return med; };
   const WavWrapper& getFast() const { return fast; };
   const WavWrapper& getRel() const { return rel; };
-  const WavWrapper& getFileFromVel( uint8_t dir, uint8_t vel ) const;
+  const WavWrapper& getFileFromVel( bool dir, uint8_t vel ) const;
 
   bool has_damper() const { return has_damper_; }
 
