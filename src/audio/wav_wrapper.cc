@@ -4,6 +4,8 @@
 #include <iostream>
 #include <samplerate.h>
 
+#include <fstream>
+
 constexpr unsigned int SAMPLE_RATE = 48000; /* Hz */
 constexpr unsigned int NUM_CHANNELS = 2;
 
@@ -42,6 +44,7 @@ WavWrapper::WavWrapper( const string& filename )
   if ( retval != NUM_CHANNELS * num_frames_in_input ) {
     throw runtime_error( "unexpected read of " + to_string( retval ) + " samples" );
   }
+
 
   /* verify EOF */
   int16_t dummy;
@@ -89,4 +92,5 @@ void WavWrapper::bend_pitch( const double pitch_bend_ratio )
   new_samples.resize( NUM_CHANNELS * resample_info.output_frames_gen );
 
   samples_.swap( new_samples );
+
 }

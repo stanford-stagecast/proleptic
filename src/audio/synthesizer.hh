@@ -2,17 +2,17 @@
 
 #include "midi_processor.hh"
 #include "note_repository.hh"
+#include <deque>
 #include <vector>
 
 class Synthesizer
 {
   struct sound
   {
-    bool active;
-    bool direction;
-    uint8_t velocity;
-    unsigned long curr_offset;
-    float ratio;
+    std::deque<unsigned long> presses;
+    std::deque<unsigned long> releases;
+    std::deque<unsigned long> velocities;
+    std::deque<unsigned long> volumes;
   };
 
   MidiProcessor midi_processor {};
