@@ -9,15 +9,20 @@ class Synthesizer
 {
   struct sound
   {
-    std::deque<unsigned long> presses;
-    std::deque<unsigned long> releases;
-    std::deque<unsigned long> velocities;
-    std::deque<unsigned long> volumes;
+    unsigned long offset;
+    unsigned long velocity;
+    float vol_ratio;
+  };
+
+  struct key
+  {
+    std::deque<sound> presses;
+    std::deque<sound> releases;
   };
 
   MidiProcessor midi_processor {};
   NoteRepository note_repo {};
-  std::vector<sound> sounds {};
+  std::vector<key> keys {};
 
 public:
   Synthesizer();

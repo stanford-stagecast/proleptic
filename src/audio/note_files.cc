@@ -16,22 +16,6 @@ NoteFiles::NoteFiles( const string& note, const size_t key_num, const bool has_d
   , has_damper_( has_damper )
 {}
 
-const WavWrapper& NoteFiles::getFileFromVel( bool dir, uint8_t vel ) const
-{
-  if ( !dir ) {
-    return rel;
-  } else {
-    // TODO: Create less arbitrary velocity boundaries,
-    // or mix velocity more continously
-    if ( vel > 100 )
-      return fast;
-    if ( vel > 50 )
-      return med;
-  }
-
-  return slow;
-}
-
 void NoteFiles::bend_pitch( const double pitch_bend_ratio )
 {
   slow.bend_pitch( pitch_bend_ratio );

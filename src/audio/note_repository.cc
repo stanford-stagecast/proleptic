@@ -6,6 +6,11 @@
 
 using namespace std;
 
+constexpr unsigned int LOW_XFOUT_LOVEL = 8; // Equivalent to MED_XFIN_LOVEL
+constexpr unsigned int LOW_XFOUT_HIVEL = 59; // Equivalent to MED_XFIN_HIVEL
+constexpr unsigned int HIGH_XFIN_LOVEL = 67; // Equivalent to MED_XFOUT_LOVEL
+constexpr unsigned int HIGH_XFIN_HIVEL = 119; // Equivalent to MED_XFOUT_HIVEL
+
 NoteRepository::NoteRepository()
 {
   add_notes( "A0", 2 );
@@ -44,9 +49,58 @@ NoteRepository::NoteRepository()
   cerr << "Added " << notes.size() << " notes\n";
 }
 
-const WavWrapper& NoteRepository::get_wav( const bool direction, const size_t note, const uint8_t velocity ) const
+const wav_frame_t NoteRepository::get_sample( const bool direction, const size_t note, const uint8_t velocity, const unsigned long offset ) const
 {
-  return notes.at( note ).getFileFromVel( direction, velocity );
+  if (direction) {
+    if (velocity <= LOW_XFOUT_LOVEL) {
+      return notes.at( note ).getRel().view( offset );
+    } else if (velocity <= LOW_XFOUT_HIVEL) {
+      std::pair<float, float> new_samp = notes.at( note ).getSlow().view( offset );
+      new_samp.first *= (LOW_XFOUT_HIVEL - velocity) / (LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL);
+      new_samp.second *= (LOW_XFOUT_HIVEL - velocity) / (LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL);
+
+      std::pair<float, float> med_samp = notes.at( note ).getMed().view( offset );
+      new_samp.first = med_samp.first * ((velocity - LOW_XFOUT_LOVEL) / (LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL));
+      new_samp.second = med_samp.second * ((velocity - LOW_XFOUT_LOVEL) / (LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL));
+
+      return new_samp;
+    } else if (velocity <= HIGH_XFIN_LOVEL) {
+      return notes.at( note ).getMed().view( offset );
+    } else if (velocity <= HIGH_XFIN_HIVEL) {
+      std::pair<float, float> new_samp = notes.at( note ).getMed().view( offset );
+      new_samp.first *= (HIGH_XFIN_HIVEL - velocity) / (HIGH_XFIN_HIVEL - HIGH_XFIN_LOVEL);
+      new_samp.second *= (HIGH_XFIN_HIVEL - velocity) / (HIGH_XFIN_HIVEL - HIGH_XFIN_LOVEL);
+
+      std::pair<float, float> fast_samp = notes.at( note ).getFast().view( offset );
+      new_samp.first = fast_samp.first * ((velocity - HIGH_XFIN_LOVEL) / (HIGH_XFIN_HIVEL - HIGH_XFIN_LOVEL));
+      new_samp.second = fast_samp.second * ((velocity - HIGH_XFIN_LOVEL) / (HIGH_XFIN_HIVEL - HIGH_XFIN_LOVEL));
+
+      return new_samp;
+    } else {
+      return notes.at( note ).getFast().view( offset );
+    }
+  } 
+
+  return notes.at( note ).getRel().view( offset );
+}
+
+bool NoteRepository::note_finished( const bool direction, const size_t note, const uint8_t velocity, const unsigned long offset ) const
+{
+  if (direction) {
+    if (velocity <= LOW_XFOUT_LOVEL) {
+      return notes.at( note ).getSlow().at_end( offset );
+    } else if (velocity <= LOW_XFOUT_HIVEL) {
+      return notes.at( note ).getMed().at_end( offset );
+    } else if (velocity <= HIGH_XFIN_LOVEL) {
+      return notes.at( note ).getMed().at_end( offset );
+    } else if (velocity <= HIGH_XFIN_HIVEL) {
+      return notes.at( note ).getFast().at_end( offset );
+    } else {
+      return notes.at( note ).getFast().at_end( offset );
+    }
+  } 
+
+  return notes.at( note ).getRel().at_end( offset );
 }
 
 void NoteRepository::add_notes( const string& name, const unsigned int num_notes, const bool has_damper )
