@@ -5,6 +5,10 @@
 constexpr unsigned int NUM_KEYS = 88;
 constexpr unsigned int KEY_OFFSET = 21;
 
+constexpr unsigned int KEY_DOWN = 144;
+constexpr unsigned int KEY_UP = 128;
+constexpr unsigned int SUSTAIN = 176;
+
 Synthesizer::Synthesizer()
 {
   for ( size_t i = 0; i < NUM_KEYS; i++ ) {
@@ -17,16 +21,23 @@ void Synthesizer::process_new_data( FileDescriptor& fd )
   midi_processor.read_from_fd( fd );
 
   while ( midi_processor.has_event() ) {
-    bool direction = midi_processor.get_event_type() == 144 ? true : false;
-    auto& k = keys.at( midi_processor.get_event_note() - KEY_OFFSET );
+    if (midi_processor.get_event_type() == SUSTAIN) {
+      //std::cerr << (size_t) midi_processor.get_event_type() << " " << (size_t) midi_processor.get_event_note() << " " << (size_t)midi_processor.get_event_velocity() << "\n";
+      if (midi_processor.get_event_velocity() == 127) sustain_down = true;
+      else  sustain_down = false;
+    } else if (midi_processor.get_event_type() == KEY_DOWN || midi_processor.get_event_type() == KEY_UP) {
+      bool direction = midi_processor.get_event_type() == KEY_DOWN ? true : false;
+      auto& k = keys.at( midi_processor.get_event_note() - KEY_OFFSET );
 
-    if ( !direction ) {
-      k.releases.push_back({ 0, midi_processor.get_event_velocity(), 1.0 });
-      k.presses.back().vol_ratio = 0.99;
-    } else {
-      k.presses.push_back({ 0, midi_processor.get_event_velocity(), 1.0 });
+      if ( !direction ) {
+        k.releases.push_back({ 0, midi_processor.get_event_velocity(), 1.0, false });
+        k.presses.back().released = true;
+      } else {
+        k.presses.push_back({ 0, midi_processor.get_event_velocity(), 1.0, false });
+      }
+
+      
     }
-
     midi_processor.pop_event();
   }
 }
@@ -76,7 +87,7 @@ void Synthesizer::advance_sample()
       if ( note_repo.note_finished( true, i, k.presses.at(j).velocity, k.presses.at(j).offset ) ) {
         k.presses.pop_front();
         j--;
-      } else if ( ( k.presses.at(j).vol_ratio < 1.0 ) & ( k.presses.at(j).vol_ratio > 0 ) ) {
+      } else if ( ( k.presses.at(j).released && !sustain_down ) & ( k.presses.at(j).vol_ratio > 0 ) ) {
         k.presses.at(j).vol_ratio -= 0.0001;
       }
     }

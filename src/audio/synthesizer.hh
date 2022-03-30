@@ -12,6 +12,7 @@ class Synthesizer
     unsigned long offset;
     unsigned long velocity;
     float vol_ratio;
+    bool released = false;
   };
 
   struct key
@@ -23,6 +24,7 @@ class Synthesizer
   MidiProcessor midi_processor {};
   NoteRepository note_repo {};
   std::vector<key> keys {};
+  bool sustain_down = false;
 
 public:
   Synthesizer();
