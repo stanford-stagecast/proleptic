@@ -2,7 +2,7 @@
 
 #include "midi_processor.hh"
 #include "note_repository.hh"
-#include <deque>
+//#include <deque>
 #include <vector>
 
 class Synthesizer
@@ -17,8 +17,8 @@ class Synthesizer
 
   struct key
   {
-    std::deque<sound> presses;
-    std::deque<sound> releases;
+    std::vector<sound> presses;
+    std::vector<sound> releases;
   };
 
   MidiProcessor midi_processor {};

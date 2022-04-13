@@ -52,7 +52,7 @@ wav_frame_t Synthesizer::calculate_curr_sample() const
     size_t active_releases = k.releases.size();
 
     for (size_t j = 0; j < active_presses; j++) {
-      float amplitude_multiplier = k.presses.at(j).vol_ratio * 0.7; /* to avoid clipping */
+      float amplitude_multiplier = k.presses.at(j).vol_ratio * 0.2; /* to avoid clipping */
 
       const std::pair<float, float> curr_sample = note_repo.get_sample(true, i, k.presses.at(j).velocity, k.presses.at(j).offset );
 
@@ -62,7 +62,7 @@ wav_frame_t Synthesizer::calculate_curr_sample() const
 
     for (size_t j = 0; j < active_releases; j++) {
 
-      float amplitude_multiplier = exp10( -37 / 20.0 ) * 0.7; /* to avoid clipping */
+      float amplitude_multiplier = exp10( -37 / 20.0 ) * 0.2; /* to avoid clipping */
 
       const std::pair<float, float> curr_sample = note_repo.get_sample( false, i, k.releases.at(j).velocity, k.releases.at(j).offset );
 
@@ -79,25 +79,28 @@ void Synthesizer::advance_sample()
 {
   for ( size_t i = 0; i < NUM_KEYS; i++ ) {
     auto& k = keys.at( i );
-    
+    size_t active_presses = k.presses.size();
+    size_t active_releases = k.releases.size();
 
-    for (size_t j = 0; j < k.presses.size(); j++) {
+    for (size_t j = 0; j < active_presses; j++) {
       k.presses.at(j).offset++;
 
       if ( note_repo.note_finished( true, i, k.presses.at(j).velocity, k.presses.at(j).offset ) ) {
-        k.presses.pop_front();
+        k.presses.erase(k.presses.begin());
         j--;
+        active_presses--;
       } else if ( ( k.presses.at(j).released && !sustain_down ) & ( k.presses.at(j).vol_ratio > 0 ) ) {
         k.presses.at(j).vol_ratio -= 0.0001;
       }
     }
 
-    for (size_t j = 0; j < k.releases.size(); j++) {
+    for (size_t j = 0; j < active_releases; j++) {
       k.releases.at(j).offset++;
 
       if ( note_repo.note_finished( false, i, k.releases.at(j).velocity, k.releases.at(j).offset ) ) {
-        k.releases.pop_front();
+        k.releases.erase(k.releases.begin());
         j--;
+        active_releases--;
       }
     }
 
