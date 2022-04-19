@@ -55,6 +55,7 @@ void program_body( const string_view device_prefix, const string& midi_filename 
       while ( midi_processor.has_event() ) {
         synth.process_new_data(
           midi_processor.get_event_type(), midi_processor.get_event_note(), midi_processor.get_event_velocity() );
+        midi_processor.pop_event();
       }
     },
     /* when should this rule run? */
