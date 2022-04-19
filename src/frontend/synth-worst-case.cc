@@ -12,7 +12,7 @@
 
 using namespace std;
 
-void program_body( const string_view device_prefix, const string& midi_filename )
+void program_body( const string_view device_prefix )
 {
   /* speed up C++ I/O by decoupling from C standard I/O */
   ios::sync_with_stdio( false );
@@ -41,27 +41,21 @@ void program_body( const string_view device_prefix, const string& midi_filename 
   ChannelPair audio_signal { 16384 }; // the output signal
   size_t samples_written = 0;
 
-  FileDescriptor piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDONLY ) ) };
+  bool write_one = false;
+
   Synthesizer synth {};
-  MidiProcessor midi_processor {};
 
-  /* rule #1: read events from MIDI piano */
-  event_loop->add_rule( "read MIDI data", piano, Direction::In, [&] { midi_processor.read_from_fd( piano ); } );
-
-  /* rule #2: let synthesizer read in new MIDI processor data */
+  /* rule #1: push worse case data to synthesizer */
   event_loop->add_rule(
-    "synthesizer processes data",
+    "synthesizer processes worst-case data",
     [&] {
-      while ( midi_processor.has_event() ) {
-        synth.process_new_data(
-          midi_processor.get_event_type(), midi_processor.get_event_note(), midi_processor.get_event_velocity() );
-        midi_processor.pop_event();
-      }
+      synth.process_new_data( 144, 25, 65 );
+      write_one = true;
     },
     /* when should this rule run? */
-    [&] { return midi_processor.has_event(); } );
+    [&] { return !write_one; } );
 
-  /* rule #3: write synthesizer output to speaker (but no more than 1 millisecond into the future) */
+  /* rule #2: write synthesizer output to speaker (but no more than 1 millisecond into the future) */
   event_loop->add_rule(
     "synthesize piano",
     [&] {
@@ -76,7 +70,7 @@ void program_body( const string_view device_prefix, const string& midi_filename 
     /* when should this rule run? commit to an output signal until 1 millisecond in the future */
     [&] { return samples_written <= playback_interface->cursor() + 48; } );
 
-  /* rule #4: play the output signal whenever space available in audio output buffer */
+  /* rule #3: play the output signal whenever space available in audio output buffer */
   event_loop->add_rule(
     "sound output",
     playback_interface->fd(), /* file descriptor event cares about */
@@ -133,12 +127,12 @@ int main( int argc, char* argv[] )
       abort();
     }
 
-    if ( argc != 3 ) {
+    if ( argc != 2 ) {
       usage_message( argv[0] );
       return EXIT_FAILURE;
     }
 
-    program_body( argv[1], argv[2] );
+    program_body( argv[1] );
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
     return EXIT_FAILURE;
