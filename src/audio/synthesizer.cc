@@ -16,29 +16,25 @@ Synthesizer::Synthesizer()
   }
 }
 
-void Synthesizer::process_new_data( FileDescriptor& fd )
+void Synthesizer::process_new_data( uint8_t event_type, uint8_t event_note, uint8_t event_velocity )
 {
-  midi_processor.read_from_fd( fd );
+  if ( event_type == SUSTAIN ) {
+    // std::cerr << (size_t) midi_processor.get_event_type() << " " << (size_t) event_note << " " <<
+    // (size_t)event_velocity << "\n";
+    if ( event_velocity == 127 )
+      sustain_down = true;
+    else
+      sustain_down = false;
+  } else if ( event_type == KEY_DOWN || event_type == KEY_UP ) {
+    bool direction = event_type == KEY_DOWN ? true : false;
+    auto& k = keys.at( event_note - KEY_OFFSET );
 
-  while ( midi_processor.has_event() ) {
-    if (midi_processor.get_event_type() == SUSTAIN) {
-      //std::cerr << (size_t) midi_processor.get_event_type() << " " << (size_t) midi_processor.get_event_note() << " " << (size_t)midi_processor.get_event_velocity() << "\n";
-      if (midi_processor.get_event_velocity() == 127) sustain_down = true;
-      else  sustain_down = false;
-    } else if (midi_processor.get_event_type() == KEY_DOWN || midi_processor.get_event_type() == KEY_UP) {
-      bool direction = midi_processor.get_event_type() == KEY_DOWN ? true : false;
-      auto& k = keys.at( midi_processor.get_event_note() - KEY_OFFSET );
-
-      if ( !direction ) {
-        k.releases.push_back({ 0, midi_processor.get_event_velocity(), 1.0, false });
-        k.presses.back().released = true;
-      } else {
-        k.presses.push_back({ 0, midi_processor.get_event_velocity(), 1.0, false });
-      }
-
-      
+    if ( !direction ) {
+      k.releases.push_back( { 0, event_velocity, 1.0, false } );
+      k.presses.back().released = true;
+    } else {
+      k.presses.push_back( { 0, event_velocity, 1.0, false } );
     }
-    midi_processor.pop_event();
   }
 }
 
@@ -51,25 +47,26 @@ wav_frame_t Synthesizer::calculate_curr_sample() const
     size_t active_presses = k.presses.size();
     size_t active_releases = k.releases.size();
 
-    for (size_t j = 0; j < active_presses; j++) {
-      float amplitude_multiplier = k.presses.at(j).vol_ratio * 0.2; /* to avoid clipping */
+    for ( size_t j = 0; j < active_presses; j++ ) {
+      float amplitude_multiplier = k.presses.at( j ).vol_ratio * 0.2; /* to avoid clipping */
 
-      const std::pair<float, float> curr_sample = note_repo.get_sample(true, i, k.presses.at(j).velocity, k.presses.at(j).offset );
+      const std::pair<float, float> curr_sample
+        = note_repo.get_sample( true, i, k.presses.at( j ).velocity, k.presses.at( j ).offset );
 
       total_sample.first += curr_sample.first * amplitude_multiplier;
       total_sample.second += curr_sample.second * amplitude_multiplier;
     }
 
-    for (size_t j = 0; j < active_releases; j++) {
+    for ( size_t j = 0; j < active_releases; j++ ) {
 
       float amplitude_multiplier = exp10( -37 / 20.0 ) * 0.2; /* to avoid clipping */
 
-      const std::pair<float, float> curr_sample = note_repo.get_sample( false, i, k.releases.at(j).velocity, k.releases.at(j).offset );
+      const std::pair<float, float> curr_sample
+        = note_repo.get_sample( false, i, k.releases.at( j ).velocity, k.releases.at( j ).offset );
 
       total_sample.first += curr_sample.first * amplitude_multiplier;
       total_sample.second += curr_sample.second * amplitude_multiplier;
     }
-
   }
 
   return total_sample;
@@ -82,28 +79,26 @@ void Synthesizer::advance_sample()
     size_t active_presses = k.presses.size();
     size_t active_releases = k.releases.size();
 
-    for (size_t j = 0; j < active_presses; j++) {
-      k.presses.at(j).offset++;
+    for ( size_t j = 0; j < active_presses; j++ ) {
+      k.presses.at( j ).offset++;
 
-      if ( note_repo.note_finished( true, i, k.presses.at(j).velocity, k.presses.at(j).offset ) ) {
-        k.presses.erase(k.presses.begin());
+      if ( note_repo.note_finished( true, i, k.presses.at( j ).velocity, k.presses.at( j ).offset ) ) {
+        k.presses.erase( k.presses.begin() );
         j--;
         active_presses--;
-      } else if ( ( k.presses.at(j).released && !sustain_down ) & ( k.presses.at(j).vol_ratio > 0 ) ) {
-        k.presses.at(j).vol_ratio -= 0.0001;
+      } else if ( ( k.presses.at( j ).released && !sustain_down ) & ( k.presses.at( j ).vol_ratio > 0 ) ) {
+        k.presses.at( j ).vol_ratio -= 0.0001;
       }
     }
 
-    for (size_t j = 0; j < active_releases; j++) {
-      k.releases.at(j).offset++;
+    for ( size_t j = 0; j < active_releases; j++ ) {
+      k.releases.at( j ).offset++;
 
-      if ( note_repo.note_finished( false, i, k.releases.at(j).velocity, k.releases.at(j).offset ) ) {
-        k.releases.erase(k.releases.begin());
+      if ( note_repo.note_finished( false, i, k.releases.at( j ).velocity, k.releases.at( j ).offset ) ) {
+        k.releases.erase( k.releases.begin() );
         j--;
         active_releases--;
       }
     }
-
-    
   }
 }

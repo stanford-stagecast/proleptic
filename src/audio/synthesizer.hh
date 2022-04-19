@@ -21,7 +21,6 @@ class Synthesizer
     std::vector<sound> releases;
   };
 
-  MidiProcessor midi_processor {};
   NoteRepository note_repo {};
   std::vector<key> keys {};
   bool sustain_down = false;
@@ -29,7 +28,7 @@ class Synthesizer
 public:
   Synthesizer();
 
-  void process_new_data( FileDescriptor& fd );
+  void process_new_data( uint8_t event_type, uint8_t event_note, uint8_t event_velocity );
 
   wav_frame_t calculate_curr_sample() const;
 

@@ -43,11 +43,24 @@ void program_body( const string_view device_prefix, const string& midi_filename 
 
   FileDescriptor piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDONLY ) ) };
   Synthesizer synth {};
+  MidiProcessor midi_processor {};
 
-  /* rule #1: read events from MIDI piano and adjust synthesizer state as a result */
-  event_loop->add_rule( "read MIDI data", piano, Direction::In, [&] { synth.process_new_data( piano ); } );
+  /* rule #1: read events from MIDI piano */
+  event_loop->add_rule( "read MIDI data", piano, Direction::In, [&] { midi_processor.read_from_fd( piano ); } );
 
-  /* rule #2: write synthesizer output to speaker (but no more than 1 millisecond into the future) */
+  /* rule #2: let synthesizer read in new MIDI processor data */
+  event_loop->add_rule(
+    "synthesizer processes data",
+    [&] {
+      while ( midi_processor.has_event() ) {
+        synth.process_new_data(
+          midi_processor.get_event_type(), midi_processor.get_event_note(), midi_processor.get_event_velocity() );
+      }
+    },
+    /* when should this rule run? */
+    [&] { return midi_processor.has_event(); } );
+
+  /* rule #3: write synthesizer output to speaker (but no more than 1 millisecond into the future) */
   event_loop->add_rule(
     "synthesize piano",
     [&] {
@@ -62,7 +75,7 @@ void program_body( const string_view device_prefix, const string& midi_filename 
     /* when should this rule run? commit to an output signal until 1 millisecond in the future */
     [&] { return samples_written <= playback_interface->cursor() + 48; } );
 
-  /* rule #3: play the output signal whenever space available in audio output buffer */
+  /* rule #4: play the output signal whenever space available in audio output buffer */
   event_loop->add_rule(
     "sound output",
     playback_interface->fd(), /* file descriptor event cares about */

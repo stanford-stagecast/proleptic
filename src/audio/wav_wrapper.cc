@@ -45,7 +45,6 @@ WavWrapper::WavWrapper( const string& filename )
     throw runtime_error( "unexpected read of " + to_string( retval ) + " samples" );
   }
 
-
   /* verify EOF */
   int16_t dummy;
   if ( 0 != handle_.read( &dummy, 1 ) ) {
@@ -92,5 +91,4 @@ void WavWrapper::bend_pitch( const double pitch_bend_ratio )
   new_samples.resize( NUM_CHANNELS * resample_info.output_frames_gen );
 
   samples_.swap( new_samples );
-
 }
