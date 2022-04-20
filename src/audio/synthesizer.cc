@@ -1,10 +1,6 @@
 #include "synthesizer.hh"
 #include <cmath>
 #include <iostream>
-#include <chrono>
-
-using namespace std;
-using namespace chrono;
 
 constexpr unsigned int NUM_KEYS = 88;
 constexpr unsigned int KEY_OFFSET = 21;
@@ -52,7 +48,7 @@ wav_frame_t Synthesizer::calculate_curr_sample() const
     size_t active_releases = k.releases.size();
 
     for ( size_t j = 0; j < active_presses; j++ ) {
-      auto t1 = high_resolution_clock::now();
+      // auto t1 = high_resolution_clock::now();
       float amplitude_multiplier = k.presses.at( j ).vol_ratio * 0.2; /* to avoid clipping */
 
       const std::pair<float, float> curr_sample
@@ -60,11 +56,12 @@ wav_frame_t Synthesizer::calculate_curr_sample() const
 
       total_sample.first += curr_sample.first * amplitude_multiplier;
       total_sample.second += curr_sample.second * amplitude_multiplier;
-      auto t2 = high_resolution_clock::now();
-      if (frames_processed % 50000 == 0) std::cerr << "Time to get one sample: " << duration_cast<nanoseconds>(t2 - t1).count() << "\n";
+      // auto t2 = high_resolution_clock::now();
+      // if (frames_processed % 50000 == 0) std::cerr << "Time to get one key press sample: " << duration_cast<nanoseconds>(t2 - t1).count() << "\n";
     }
 
     for ( size_t j = 0; j < active_releases; j++ ) {
+      //auto t1 = high_resolution_clock::now();
 
       float amplitude_multiplier = exp10( -37 / 20.0 ) * 0.2; /* to avoid clipping */
 
@@ -73,6 +70,8 @@ wav_frame_t Synthesizer::calculate_curr_sample() const
 
       total_sample.first += curr_sample.first * amplitude_multiplier;
       total_sample.second += curr_sample.second * amplitude_multiplier;
+      //auto t2 = high_resolution_clock::now();
+      //if (frames_processed % 50000 == 0) std::cerr << "Time to get one key release sample: " << duration_cast<nanoseconds>(t2 - t1).count() << "\n";
     }
   }
 

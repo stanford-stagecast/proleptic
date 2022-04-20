@@ -10,7 +10,10 @@
 #include "wav_wrapper.hh"
 #include <alsa/asoundlib.h>
 
+#include <chrono>
+
 using namespace std;
+using namespace chrono;
 
 void program_body( const string_view device_prefix )
 {
@@ -42,6 +45,8 @@ void program_body( const string_view device_prefix )
   size_t samples_written = 0;
 
   bool write_one = false;
+  bool release_one = false;
+  bool print_one = false;
 
   Synthesizer synth {};
 
@@ -49,16 +54,32 @@ void program_body( const string_view device_prefix )
   event_loop->add_rule(
     "synthesizer processes worst-case data",
     [&] {
-      synth.process_new_data( 144, 25, 65 );
+      for (size_t i = 22; i < 108; i++) {
+        synth.process_new_data( 144, i, 65 );
+      }
+      
       write_one = true;
     },
     /* when should this rule run? */
     [&] { return !write_one; } );
 
+  event_loop->add_rule(
+    "synthesizer processes worst-case release data",
+    [&] {
+      for (size_t i = 22; i < 108; i++) {
+        synth.process_new_data( 144, i, 65 );
+      }
+      release_one = true;
+    },
+    /* when should this rule run? */
+    [&] { return !release_one; } );
+
   /* rule #2: write synthesizer output to speaker (but no more than 1 millisecond into the future) */
   event_loop->add_rule(
     "synthesize piano",
     [&] {
+      auto t1 = high_resolution_clock::now();
+      size_t curr_sw = samples_written;
       while ( samples_written <= playback_interface->cursor() + 48 ) {
         pair<float, float> samp = synth.calculate_curr_sample();
         // cout << "total samp: " << samp.first << "\n";
@@ -66,6 +87,12 @@ void program_body( const string_view device_prefix )
         samples_written++;
         synth.advance_sample();
       }
+      auto t2 = high_resolution_clock::now();
+      if (release_one && !print_one) {
+        std::cerr << "Time to process " << (samples_written - curr_sw)/48.0 << " milliseconds of audio: " << duration_cast<microseconds>(t2 - t1).count()/1000.0 << "\n";
+        print_one = true;
+      }
+        
     },
     /* when should this rule run? commit to an output signal until 1 millisecond in the future */
     [&] { return samples_written <= playback_interface->cursor() + 48; } );
