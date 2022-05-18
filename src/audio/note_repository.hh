@@ -7,10 +7,13 @@ class NoteRepository
 {
   std::vector<NoteFiles> notes {};
 
-  void add_notes( const std::string& name, const unsigned int num_notes, const bool has_damper = true );
+  void add_notes( const std::string& sample_directory,
+                  const std::string& name,
+                  const unsigned int num_notes,
+                  const bool has_damper = true );
 
 public:
-  NoteRepository();
+  NoteRepository( const std::string& sample_directory );
 
   const wav_frame_t get_sample( const bool direction,
                                 const size_t note,

@@ -12,7 +12,10 @@ class NoteFiles
   bool has_damper_;
 
 public:
-  NoteFiles( const std::string& note, const size_t key_num, const bool has_damper );
+  NoteFiles( const std::string& sample_directory,
+             const std::string& note,
+             const size_t key_num,
+             const bool has_damper );
 
   const WavWrapper& getSlow() const { return slow; };
   const WavWrapper& getMed() const { return med; };

@@ -47,20 +47,3 @@ target_link_libraries ("synthesizer-test" ${Sndfile_LDFLAGS_OTHER})
 
 target_link_libraries ("synthesizer-test" ${Samplerate_LDFLAGS})
 target_link_libraries ("synthesizer-test" ${Samplerate_LDFLAGS_OTHER})
-
-add_executable ("synth-worst-case" "synth-worst-case.cc")
-target_link_libraries ("synth-worst-case" dbus)
-target_link_libraries ("synth-worst-case" stats)
-target_link_libraries ("synth-worst-case" audio)
-target_link_libraries ("synth-worst-case" util)
-
-target_link_libraries ("synth-worst-case" ${ALSA_LDFLAGS})
-target_link_libraries ("synth-worst-case" ${ALSA_LDFLAGS_OTHER})
-
-target_link_libraries ("synth-worst-case" ${DBus_LDFLAGS})
-target_link_libraries ("synth-worst-case" ${DBus_LDFLAGS_OTHER})
-target_link_libraries ("synth-worst-case" ${Sndfile_LDFLAGS})
-target_link_libraries ("synth-worst-case" ${Sndfile_LDFLAGS_OTHER})
-
-target_link_libraries ("synth-worst-case" ${Samplerate_LDFLAGS})
-target_link_libraries ("synth-worst-case" ${Samplerate_LDFLAGS_OTHER})

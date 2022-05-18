@@ -12,7 +12,7 @@
 
 using namespace std;
 
-void program_body( const string_view device_prefix, const string& midi_filename )
+void program_body( const string_view device_prefix, const string& midi_filename, const string& sample_directory )
 {
   /* speed up C++ I/O by decoupling from C standard I/O */
   ios::sync_with_stdio( false );
@@ -42,7 +42,7 @@ void program_body( const string_view device_prefix, const string& midi_filename 
   size_t samples_written = 0;
 
   FileDescriptor piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDONLY ) ) };
-  Synthesizer synth {};
+  Synthesizer synth { sample_directory };
   MidiProcessor midi_processor {};
 
   /* rule #1: read events from MIDI piano */
@@ -108,7 +108,7 @@ void program_body( const string_view device_prefix, const string& midi_filename 
 
 void usage_message( const string_view argv0 )
 {
-  cerr << "Usage: " << argv0 << " [device_prefix]\n";
+  cerr << "Usage: " << argv0 << " [device_prefix] [midi_device] [sample_directory]\n";
 
   cerr << "Available devices:";
 
@@ -133,12 +133,12 @@ int main( int argc, char* argv[] )
       abort();
     }
 
-    if ( argc != 3 ) {
+    if ( argc != 4 ) {
       usage_message( argv[0] );
       return EXIT_FAILURE;
     }
 
-    program_body( argv[1], argv[2] );
+    program_body( argv[1], argv[2], argv[3] );
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
     return EXIT_FAILURE;

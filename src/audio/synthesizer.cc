@@ -9,7 +9,10 @@ constexpr unsigned int KEY_DOWN = 144;
 constexpr unsigned int KEY_UP = 128;
 constexpr unsigned int SUSTAIN = 176;
 
-Synthesizer::Synthesizer()
+using namespace std;
+
+Synthesizer::Synthesizer( const string& sample_directory )
+  : note_repo( sample_directory )
 {
   for ( size_t i = 0; i < NUM_KEYS; i++ ) {
     keys.push_back( { {}, {} } );

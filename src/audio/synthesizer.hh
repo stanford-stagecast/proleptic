@@ -21,13 +21,13 @@ class Synthesizer
     std::vector<sound> releases;
   };
 
-  NoteRepository note_repo {};
+  NoteRepository note_repo;
   std::vector<key> keys {};
   bool sustain_down = false;
   size_t frames_processed = 0;
 
 public:
-  Synthesizer();
+  Synthesizer( const std::string& sample_directory );
 
   void process_new_data( uint8_t event_type, uint8_t event_note, uint8_t event_velocity );
 
