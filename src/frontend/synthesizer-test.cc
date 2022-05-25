@@ -61,11 +61,11 @@ void program_body( const string_view device_prefix, const string& midi_filename,
     /* when should this rule run? */
     [&] { return midi_processor.has_event(); } );
 
-  /* rule #3: write synthesizer output to speaker (but no more than 1 millisecond into the future) */
+  /* rule #3: write synthesizer output to speaker (but no more than 1.3 ms into the future) */
   event_loop->add_rule(
     "synthesize piano",
     [&] {
-      while ( samples_written <= playback_interface->cursor() + 48 ) {
+      while ( samples_written <= playback_interface->cursor() + 64 ) {
         pair<float, float> samp = synth.calculate_curr_sample();
         // cout << "total samp: " << samp.first << "\n";
         audio_signal.safe_set( samples_written, samp );
@@ -73,8 +73,8 @@ void program_body( const string_view device_prefix, const string& midi_filename,
         synth.advance_sample();
       }
     },
-    /* when should this rule run? commit to an output signal until 1 millisecond in the future */
-    [&] { return samples_written <= playback_interface->cursor() + 48; } );
+    /* when should this rule run? commit to an output signal until 1.3 ms in the future */
+    [&] { return samples_written <= playback_interface->cursor() + 64; } );
 
   /* rule #4: play the output signal whenever space available in audio output buffer */
   event_loop->add_rule(

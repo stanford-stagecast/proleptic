@@ -37,11 +37,11 @@ void program_body( const string_view device_prefix )
   ChannelPair audio_signal { 16384 };  // the output signal
   size_t next_sample_to_calculate = 0; // what's the next sample # to be written to the output signal?
 
-  /* rule #1: write a continuous sine wave (but no more than 1 millisecond into the future) */
+  /* rule #1: write a continuous sine wave (but no more than 1.3 ms into the future) */
   event_loop->add_rule(
     "calculate sine wave",
     [&] {
-      while ( next_sample_to_calculate <= playback_interface->cursor() + 48 ) {
+      while ( next_sample_to_calculate <= playback_interface->cursor() + 64 ) {
         const double time = next_sample_to_calculate / double( config.sample_rate );
         /* compute the sine wave amplitude (middle A, 440 Hz) */
         audio_signal.safe_set( next_sample_to_calculate,
@@ -49,8 +49,8 @@ void program_body( const string_view device_prefix )
         next_sample_to_calculate++;
       }
     },
-    /* when should this rule run? commit to an output signal until 1 millisecond in the future */
-    [&] { return next_sample_to_calculate <= playback_interface->cursor() + 48; } );
+    /* when should this rule run? commit to an output signal until 1.3 ms in the future */
+    [&] { return next_sample_to_calculate <= playback_interface->cursor() + 64; } );
 
   /* rule #2: play the output signal whenever space available in audio output buffer */
   event_loop->add_rule(
