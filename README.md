@@ -8,8 +8,8 @@ Pancake: an amendable piano synthesizer
 5. Run `./src/frontend/synthesizer-test [device_prefix] [midi_device] [sample_directory]`
     If you're working on the snr-piano machine:
     - device_prefix: Scarlett
-    - midi_device: /dev/midi1
-    - sample_directory: 
+    - midi_device: /dev/midi2
+    - sample_directory: /usr/local/share/slender/samples/
 
 ## File Overview
 - `synthesizer-test`: Entry point to the program. It runs an event loop which reads in new midi data, initiates the processing of midi data into audio, and sends the generated audio to the playback device.
