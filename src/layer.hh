@@ -12,16 +12,6 @@ public:
   using M_weights = Eigen::Matrix<T, T_input_size, T_output_size>;
   using M_biases = Eigen::Matrix<T, 1, T_output_size>;
 
-  void apply( const M_input& input, M_output& output ) const
-  {
-    output = ( ( input * weights_ ).rowwise() + biases_ ).cwiseMax( 0 );
-  }
-
-  void apply_without_activation( const M_input& input, M_output& output ) const
-  {
-    output = ( input * weights_ ).rowwise() + biases_;
-  }
-
   static constexpr size_t num_params = ( T_input_size + 1 ) * T_output_size;
   static constexpr size_t batch_size = T_batch_size;
   static constexpr size_t input_size = T_input_size;
@@ -32,6 +22,16 @@ public:
 
   M_weights& weights() { return weights_; }
   M_biases& biases() { return biases_; }
+
+  void apply_with_activation( const M_input& input, M_output& output ) const
+  {
+    output = ( ( input * weights_ ).rowwise() + biases_ ).cwiseMax( 0 );
+  }
+
+  void apply_without_activation( const M_input& input, M_output& output ) const
+  {
+    output = ( input * weights_ ).rowwise() + biases_;
+  }
 
 private:
   M_weights weights_ {};

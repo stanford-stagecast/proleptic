@@ -7,14 +7,14 @@
 using namespace std;
 
 // recursive definition (base case below)
-template<typename T, size_t T_batch_size, size_t i0, size_t o0, size_t... rest>
+template<typename T, size_t T_batch_size, size_t i0, size_t o0, size_t... o_rest>
 struct Network
 {
   using L_layer0 = Layer<T, T_batch_size, i0, o0>;
-  using N_rest = Network<T, T_batch_size, o0, rest...>;
+  using N_rest = Network<T, T_batch_size, o0, o_rest...>;
 
   L_layer0 layer0 {};
-  N_rest next {};
+  N_rest rest {};
 
   static constexpr size_t num_layers = N_rest::num_layers() + 1;
   static constexpr size_t input_size = i0;
@@ -35,9 +35,9 @@ struct Network
     const M_input* input_matrix = reinterpret_cast<M_input*>( input.data() );
     typename L_layer0::M_output* output_matrix = reinterpret_cast<typename L_layer0::M_output*>( output.data() );
 
-    layer0.apply( *input_matrix, *output_matrix );
+    layer0.apply_with_activation( *input_matrix, *output_matrix );
 
-    return next.apply( output, extra_buf, input );
+    return rest.apply( output, extra_buf, input );
   }
 };
 
