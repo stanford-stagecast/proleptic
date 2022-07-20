@@ -16,7 +16,7 @@ struct Network
   L_layer0 layer0 {};
   N_rest rest {};
 
-  static constexpr size_t num_layers = N_rest::num_layers() + 1;
+  static constexpr size_t num_layers = N_rest::num_layers + 1;
   static constexpr size_t input_size = i0;
   static constexpr size_t output_size = N_rest::output_size;
   static constexpr size_t storage_required
