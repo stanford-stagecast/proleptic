@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 #include <string>
 
 #include "network.hh"
@@ -10,14 +11,119 @@ void program_body( const string& iterations )
 {
   const unsigned int num_iterations = stoi( iterations );
 
-  using DNN = Network<float, 1, 16, 16, 1, 30, 2560, 1>;
-  DNN mynetwork;
+  using DNN = Network<float,
+                      1,
+                      1024,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256,
+                      256>;
+
+  auto mynetwork_ptr = make_unique<DNN>();
 
   DNN::M_input my_input;
   DNN::M_output my_output;
 
+  cout << "Number of layers: " << mynetwork_ptr->num_layers << "\n";
+
   for ( unsigned int i = 0; i < num_iterations; ++i ) {
-    mynetwork.apply( my_input, my_output );
+    mynetwork_ptr->apply( my_input, my_output );
   }
 }
 
