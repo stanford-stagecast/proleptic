@@ -116,14 +116,15 @@ void program_body( const string& iterations )
                       256>;
 
   auto mynetwork_ptr = make_unique<DNN>();
+  DNN& mynetwork = *mynetwork_ptr;
 
   DNN::M_input my_input;
   DNN::M_output my_output;
 
-  cout << "Number of layers: " << mynetwork_ptr->num_layers << "\n";
+  cout << "Number of layers: " << mynetwork.num_layers << "\n";
 
   for ( unsigned int i = 0; i < num_iterations; ++i ) {
-    mynetwork_ptr->apply( my_input, my_output );
+    mynetwork.apply( my_input, my_output );
   }
 }
 
