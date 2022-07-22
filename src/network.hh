@@ -28,6 +28,15 @@ public:
     rest.apply( activated_output_this_layer, output );
   }
 
+  template<size_t layer_num>
+  auto& get_layer()
+  {
+    if constexpr ( layer_num > 0 ) {
+      return get_layer<layer_num - 1>();
+    }
+    return layer0;
+  }
+
 private:
   L_layer0 layer0 {};
   N_rest rest {};
