@@ -2,6 +2,8 @@
 
 #include <Eigen/Dense>
 
+static constexpr float leaky_constant = 0.01;
+
 template<typename T, size_t T_batch_size, size_t T_input_size, size_t T_output_size>
 class Layer
 {
@@ -23,14 +25,14 @@ public:
   M_weights& weights() { return weights_; }
   M_biases& biases() { return biases_; }
 
-  void apply_with_activation( const M_input& input, M_output& output ) const
+  void apply_without_activation( const M_input& input, M_output& unactivated_output ) const
   {
-    output = ( ( input * weights_ ).rowwise() + biases_ ).cwiseMax( 0 );
+    unactivated_output = ( input * weights_ ).rowwise() + biases_;
   }
 
-  void apply_without_activation( const M_input& input, M_output& output ) const
+  void activate( const M_output& unactivated_output, M_output& activated_output ) const
   {
-    output = ( input * weights_ ).rowwise() + biases_;
+    activated_output = unactivated_output.cwiseMax( leaky_constant * unactivated_output );
   }
 
 private:
