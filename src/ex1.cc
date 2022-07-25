@@ -12,6 +12,8 @@
 
 using namespace std;
 
+static constexpr float note_timing_variation = 0.05; /* jitter = stddev of +/- 5% of the beat */
+
 void split_on_char( const string_view str, const char ch_to_find, vector<string_view>& ret )
 {
   ret.clear();
@@ -126,12 +128,19 @@ void program_body( const string& filename, const string& iterations_s )
   auto tempo_distribution = uniform_real_distribution<float>( 30, 240 ); // beats per minute
 
   const auto input_generator = [&]( DNN::M_input& sample_input, DNN::M_output& target_output ) {
-    const float tempo_sample = tempo_distribution( prng );
-    const float seconds_per_beat = 60.0 / tempo_sample;
+    const float tempo = tempo_distribution( prng );
+    target_output( 0 ) = tempo;
+
+    const float seconds_per_beat = 60.0 / tempo;
+
+    auto offset_distribution = uniform_real_distribution<float>( 0, seconds_per_beat );
+    const float offset = offset_distribution( prng );
+
+    auto noise_distribution = normal_distribution<float>( 0, note_timing_variation );
+
     for ( unsigned int note_num = 0; note_num < 16; note_num++ ) {
-      sample_input( note_num ) = seconds_per_beat * note_num;
+      sample_input( note_num ) = offset + seconds_per_beat * note_num + noise_distribution( prng );
     }
-    target_output( 0 ) = tempo_sample;
   };
 
   Sampler<DNN> sampler;
