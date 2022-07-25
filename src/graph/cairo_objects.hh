@@ -95,6 +95,21 @@ public:
 
     operator cairo_pattern_t*() { return pattern_.get(); }
   };
+
+  class Path
+  {
+    struct Deleter
+    {
+      void operator()( cairo_path_t* x ) const;
+    };
+
+    std::unique_ptr<cairo_path_t, Deleter> path_;
+
+  public:
+    Path( Cairo& cairo );
+
+    operator cairo_path_t*() { return path_.get(); }
+  };
 };
 
 template <class T>

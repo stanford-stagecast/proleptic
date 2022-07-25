@@ -154,26 +154,26 @@ void program_body( const string& filename, const string& iterations_s )
   }
 
   Cairo my_cairo { 640, 480 };
-
-  Pango my_pango { my_cairo };
-
-  Pango::Font my_font { "sans 30" };
-
-  Pango::Text my_text { my_cairo, my_pango, my_font, "Hello, world!" };
-
-  cairo_new_path( my_cairo );
   cairo_identity_matrix( my_cairo );
   cairo_set_source_rgba( my_cairo, 1, 0.5, 0.5, 1 );
 
-  my_text.draw_centered_at( my_cairo, 320, 240 );
+  cairo_new_path( my_cairo );
+  cairo_move_to( my_cairo, 0, 0 );
+  cairo_rel_move_to( my_cairo, 0, -5 );
+  cairo_rel_line_to( my_cairo, 5, 5 );
+  cairo_rel_line_to( my_cairo, -5, 5 );
+  cairo_rel_line_to( my_cairo, -5, -5 );
+  cairo_close_path( my_cairo );
 
+  Cairo::Path diamond { my_cairo };
+  cairo_translate( my_cairo, 100, 100 );
+  cairo_append_path( my_cairo, diamond );
+  cairo_identity_matrix( my_cairo );
+  cairo_translate( my_cairo, 200, 0 );
+  cairo_append_path( my_cairo, diamond );
   cairo_fill( my_cairo );
 
   my_cairo.finish();
-  my_cairo.flush();
-
-  fprintf( stderr, "svg ptr from ex1: %p\n", reinterpret_cast<const void*>( &my_cairo.svg() ) );
-
   cout << my_cairo.svg();
 }
 
