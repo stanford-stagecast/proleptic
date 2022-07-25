@@ -4,12 +4,13 @@
 #include <memory>
 #include <string>
 
+#include "dnn_types.hh"
 #include "network.hh"
 #include "pp.hh"
+#include "random.hh"
+#include "sampler.hh"
 
 using namespace std;
-
-using DNN = Network<float, 1, 16, 16, 1, 30, 2560, 1>;
 
 void split_on_char( const string_view str, const char ch_to_find, vector<string_view>& ret )
 {
@@ -110,26 +111,37 @@ void load_weights_and_biases( DNN& mynetwork, const string& filename )
   load_layer<4>( mynetwork, file );
 }
 
-void program_body( const string& filename )
+void program_body( const string& filename, const string& iterations_s )
 {
+  ios::sync_with_stdio( false );
+
   auto mynetwork_ptr = make_unique<DNN>();
   DNN& mynetwork = *mynetwork_ptr;
-
-  DNN::M_input my_input;
-
-  my_input << 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5;
-
-  cout << "input: " << my_input << "\n";
-
-  DNN::M_output my_output;
+  const size_t iterations = stoi( iterations_s );
 
   load_weights_and_biases( mynetwork, filename );
+  cerr << "Number of layers: " << mynetwork.num_layers << "\n";
 
-  cout << "Number of layers: " << mynetwork.num_layers << "\n";
+  auto prng = get_random_engine();
+  auto tempo_distribution = uniform_real_distribution<float>( 30, 240 ); // beats per minute
 
-  mynetwork.apply( my_input, my_output );
+  const auto input_generator = [&]( DNN::M_input& sample_input, DNN::M_output& target_output ) {
+    const float tempo_sample = tempo_distribution( prng );
+    const float seconds_per_beat = 60.0 / tempo_sample;
+    for ( unsigned int note_num = 0; note_num < 16; note_num++ ) {
+      sample_input( note_num ) = seconds_per_beat * note_num;
+    }
+    target_output( 0 ) = tempo_sample;
+  };
 
-  cout << my_output( 0, 0 ) << "\n";
+  Sampler<DNN> sampler;
+  Sampler<DNN>::OutputVector outputs;
+
+  sampler.sample( iterations, mynetwork, input_generator, outputs );
+
+  for ( const auto& o : outputs ) {
+    cout << o.first << " : " << o.second << "\n";
+  }
 }
 
 int main( int argc, char* argv[] )
@@ -138,13 +150,13 @@ int main( int argc, char* argv[] )
     abort();
   }
 
-  if ( argc != 2 ) {
-    cerr << "Usage: " << argv[0] << " filename\n";
+  if ( argc != 3 ) {
+    cerr << "Usage: " << argv[0] << " filename iterations\n";
     return EXIT_FAILURE;
   }
 
   try {
-    program_body( argv[1] );
+    program_body( argv[1], argv[2] );
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
     return EXIT_FAILURE;
