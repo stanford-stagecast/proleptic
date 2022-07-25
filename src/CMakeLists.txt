@@ -1,7 +1,10 @@
-macro (add_nn_exec exec_name)
+macro (add_exec exec_name)
     add_executable ("${exec_name}" "${exec_name}.cc")
-    target_link_libraries ("${exec_name}" nn ${Eigen_LDFLAGS} ${Eigen_LDFLAGS_OTHER})
-endmacro (add_nn_exec)
+    target_link_libraries ("${exec_name}" nn graph ${Eigen_LDFLAGS} ${Eigen_LDFLAGS_OTHER}
+      ${Cairo_LDFLAGS} ${Cairo_LDFLAGS_OTHER}
+      ${Pango_LDFLAGS} ${Pango_LDFLAGS_OTHER}
+      )
+endmacro (add_exec)
 
-add_nn_exec(ex1 ex1.cc)
-add_nn_exec(text_parser text_parser.cc)
+add_exec(ex1 ex1.cc)
+add_exec(text_parser text_parser.cc)

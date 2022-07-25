@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "cairo_objects.hh"
 #include "dnn_types.hh"
 #include "network.hh"
 #include "pp.hh"
@@ -115,7 +116,7 @@ void load_weights_and_biases( DNN& mynetwork, const string& filename )
 
 void program_body( const string& filename, const string& iterations_s )
 {
-  ios::sync_with_stdio( false );
+  //  ios::sync_with_stdio( false );
 
   auto mynetwork_ptr = make_unique<DNN>();
   DNN& mynetwork = *mynetwork_ptr;
@@ -149,8 +150,31 @@ void program_body( const string& filename, const string& iterations_s )
   sampler.sample( iterations, mynetwork, input_generator, outputs );
 
   for ( const auto& o : outputs ) {
-    cout << o.first << " : " << o.second << "\n";
+    cerr << o.first << " : " << o.second << "\n";
   }
+
+  Cairo my_cairo { 640, 480 };
+
+  Pango my_pango { my_cairo };
+
+  Pango::Font my_font { "sans 30" };
+
+  Pango::Text my_text { my_cairo, my_pango, my_font, "Hello, world!" };
+
+  cairo_new_path( my_cairo );
+  cairo_identity_matrix( my_cairo );
+  cairo_set_source_rgba( my_cairo, 1, 0.5, 0.5, 1 );
+
+  my_text.draw_centered_at( my_cairo, 320, 240 );
+
+  cairo_fill( my_cairo );
+
+  my_cairo.finish();
+  my_cairo.flush();
+
+  fprintf( stderr, "svg ptr from ex1: %p\n", reinterpret_cast<const void*>( &my_cairo.svg() ) );
+
+  cout << my_cairo.svg();
 }
 
 int main( int argc, char* argv[] )

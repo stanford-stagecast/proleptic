@@ -22,6 +22,8 @@ include_directories( SYSTEM ${Pango_INCLUDE_DIRS} )
 add_compile_options ( ${Pango_CFLAGS} )
 
 include_directories ("${PROJECT_SOURCE_DIR}/src/nn")
+include_directories ("${PROJECT_SOURCE_DIR}/src/graph")
 
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/nn")
+add_subdirectory ("${PROJECT_SOURCE_DIR}/src/graph")
