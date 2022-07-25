@@ -13,7 +13,7 @@ pkg_check_modules ( Eigen REQUIRED eigen3 )
 include_directories ( SYSTEM ${Eigen_INCLUDE_DIRS} )
 add_compile_options ( ${Eigen_CFLAGS} )
 
-include_directories ("${PROJECT_SOURCE_DIR}/src/lib")
+include_directories ("${PROJECT_SOURCE_DIR}/src/nn")
 
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src")
-add_subdirectory ("${PROJECT_SOURCE_DIR}/src/lib")
+add_subdirectory ("${PROJECT_SOURCE_DIR}/src/nn")
