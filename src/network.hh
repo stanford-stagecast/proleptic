@@ -19,7 +19,7 @@ private:
 
   using M_output_this_layer = typename L_layer0::M_output;
 
-  M_output_this_layer unactivated_output_this_layer {}, activated_output_this_layer {};
+  M_output_this_layer output_this_layer {};
 
 public:
   static constexpr size_t num_layers = N_rest::num_layers + 1;
@@ -31,9 +31,9 @@ public:
 
   void apply( const M_input& input, M_output& output )
   {
-    layer0.apply_without_activation( input, unactivated_output_this_layer );
-    layer0.activate( unactivated_output_this_layer, activated_output_this_layer );
-    rest.apply( activated_output_this_layer, output );
+    layer0.apply_without_activation( input, output_this_layer );
+    layer0.activate( output_this_layer );
+    rest.apply( output_this_layer, output );
   }
 
   template<size_t N, size_t i0_out, size_t o0_out, size_t... o_rest_out>

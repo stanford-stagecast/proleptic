@@ -30,9 +30,10 @@ public:
     unactivated_output = ( input * weights_ ).rowwise() + biases_;
   }
 
-  void activate( const M_output& unactivated_output, M_output& activated_output ) const
+  void activate( M_output& output ) const
   {
-    activated_output = unactivated_output.cwiseMax( leaky_constant * unactivated_output );
+    // apply "leaky" rectifier (leaky ReLU)
+    output = output.unaryExpr( []( const auto val ) { return val > 0 ? val : leaky_constant * val; } );
   }
 
 private:
