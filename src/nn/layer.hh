@@ -36,6 +36,8 @@ public:
     output = output.unaryExpr( []( const auto val ) { return val > 0 ? val : leaky_constant * val; } );
   }
 
+  bool operator==( const Layer& other ) const = default;
+
 private:
   M_weights weights_ {};
   M_biases biases_ {};

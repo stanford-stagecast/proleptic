@@ -71,6 +71,8 @@ public:
   static constexpr bool is_last_layer = false;
   const N_rest& rest() const { return rest_; }
   N_rest& rest() { return rest_; }
+
+  bool operator==( const Network& other ) const { return layer0_ == other.layer0_ and rest_ == other.rest_; }
 };
 
 // base case
@@ -115,4 +117,6 @@ public:
   }
 
   static constexpr bool is_last_layer = true;
+
+  bool operator==( const Network& other ) const { return layer0_ == other.layer0_; }
 };
