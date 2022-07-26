@@ -15,3 +15,6 @@ void serialize( const T_network& network, Serializer& out );
 template<typename T_network>
 void parse( T_network& layer, Parser& in );
 }
+
+using NetworkSerDes::parse;
+using NetworkSerDes::serialize;

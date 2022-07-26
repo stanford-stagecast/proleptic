@@ -116,9 +116,6 @@ void load_weights_and_biases( DNN& mynetwork, const string& filename )
   load_layer<4>( mynetwork, file );
 }
 
-using NetworkSerDes::parse;
-using NetworkSerDes::serialize;
-
 void program_body( const string& filename, const string& iterations_s )
 {
   //  ios::sync_with_stdio( false );
