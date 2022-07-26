@@ -112,54 +112,60 @@ public:
   };
 };
 
-template <class T>
-struct PangoDelete {
-    void operator()(T *x) const { g_object_unref(x); }
+template<class T>
+struct PangoDelete
+{
+  void operator()( T* x ) const { g_object_unref( x ); }
 };
 
-class Pango {
-    std::unique_ptr<PangoContext, PangoDelete<PangoContext>> context_;
-    std::unique_ptr<PangoLayout, PangoDelete<PangoLayout>> layout_;
+class Pango
+{
+  std::unique_ptr<PangoContext, PangoDelete<PangoContext>> context_;
+  std::unique_ptr<PangoLayout, PangoDelete<PangoLayout>> layout_;
+
+public:
+  Pango( Cairo& cairo );
+
+  operator PangoContext*() { return context_.get(); }
+  operator PangoLayout*() { return layout_.get(); }
+
+  struct Font
+  {
+    struct Deleter
+    {
+      void operator()( PangoFontDescription* x ) const;
+    };
+
+    std::unique_ptr<PangoFontDescription, Deleter> font;
+
+    Font( const std::string& description );
+
+    operator const PangoFontDescription*() const { return font.get(); }
+  };
+
+  class Text
+  {
+    struct Deleter
+    {
+      void operator()( cairo_path_t* x ) const;
+    };
+
+    std::unique_ptr<cairo_path_t, Deleter> path_;
+    Cairo::Extent<false> extent_;
 
   public:
-    Pango(Cairo &cairo);
+    Text( Cairo& cairo, Pango& pango, const Font& font, const std::string& text );
 
-    operator PangoContext *() { return context_.get(); }
-    operator PangoLayout *() { return layout_.get(); }
+    const Cairo::Extent<false>& extent( void ) const { return extent_; }
 
-    struct Font {
-        struct Deleter {
-            void operator()(PangoFontDescription *x) const;
-        };
+    void draw_centered_at( Cairo& cairo,
+                           const double x,
+                           const double y,
+                           const double max_width = std::numeric_limits<double>::max() ) const;
+    void draw_centered_rotated_at( Cairo& cairo, const double x, const double y ) const;
 
-        std::unique_ptr<PangoFontDescription, Deleter> font;
+    operator const cairo_path_t*() const { return path_.get(); }
+  };
 
-        Font(const std::string &description);
-
-        operator const PangoFontDescription *() const { return font.get(); }
-    };
-
-    class Text {
-        struct Deleter {
-            void operator()(cairo_path_t *x) const;
-        };
-
-        std::unique_ptr<cairo_path_t, Deleter> path_;
-        Cairo::Extent<false> extent_;
-
-      public:
-        Text(Cairo &cairo, Pango &pango, const Font &font, const std::string &text);
-
-        const Cairo::Extent<false> &extent(void) const { return extent_; }
-
-        void draw_centered_at(Cairo &cairo,
-                              const double x,
-                              const double y,
-                              const double max_width = std::numeric_limits<double>::max()) const;
-        void draw_centered_rotated_at(Cairo &cairo, const double x, const double y) const;
-
-        operator const cairo_path_t *() const { return path_.get(); }
-    };
-
-    void set_font(const Font &font);
+  void set_font( const Font& font );
 };

@@ -4,8 +4,8 @@
 #include <memory>
 #include <string>
 
-#include "cairo_objects.hh"
 #include "dnn_types.hh"
+#include "grapher.hh"
 #include "network.hh"
 #include "pp.hh"
 #include "random.hh"
@@ -149,32 +149,12 @@ void program_body( const string& filename, const string& iterations_s )
 
   sampler.sample( iterations, mynetwork, input_generator, outputs );
 
-  for ( const auto& o : outputs ) {
-    cerr << o.first << " : " << o.second << "\n";
-  }
+  Graph graph { { 640, 480 }, { 0, 270 }, { 0, 270 } };
 
-  Cairo my_cairo { 640, 480 };
-  cairo_identity_matrix( my_cairo );
-  cairo_set_source_rgba( my_cairo, 1, 0.5, 0.5, 1 );
+  graph.graph( outputs );
 
-  cairo_new_path( my_cairo );
-  cairo_move_to( my_cairo, 0, 0 );
-  cairo_rel_move_to( my_cairo, 0, -5 );
-  cairo_rel_line_to( my_cairo, 5, 5 );
-  cairo_rel_line_to( my_cairo, -5, 5 );
-  cairo_rel_line_to( my_cairo, -5, -5 );
-  cairo_close_path( my_cairo );
-
-  Cairo::Path diamond { my_cairo };
-  cairo_translate( my_cairo, 100, 100 );
-  cairo_append_path( my_cairo, diamond );
-  cairo_identity_matrix( my_cairo );
-  cairo_translate( my_cairo, 200, 0 );
-  cairo_append_path( my_cairo, diamond );
-  cairo_fill( my_cairo );
-
-  my_cairo.finish();
-  cout << my_cairo.svg();
+  graph.finish();
+  cout << graph.svg();
 }
 
 int main( int argc, char* argv[] )

@@ -1,11 +1,16 @@
 #pragma once
 
+#include <Eigen/Dense>
 #include <functional>
+#include <type_traits>
 
 template<class NetworkType>
 struct Sampler
 {
   using OutputVector = std::vector<std::pair<typename NetworkType::M_output, typename NetworkType::M_output>>;
+
+  // for graphing convenience:
+  static_assert( std::is_same<typename NetworkType::M_output, Eigen::Matrix<float, 1, 1>>::value );
 
   static void sample(
     const size_t N,
