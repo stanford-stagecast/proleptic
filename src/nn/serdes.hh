@@ -14,6 +14,11 @@ template<typename T_network>
 void serialize( const T_network& network, Serializer& out );
 template<typename T_network>
 void parse( T_network& layer, Parser& in );
+
+template<typename T_network>
+void serialize_internal( const T_network& network, Serializer& out );
+template<typename T_network>
+void parse_internal( T_network& layer, Parser& in );
 }
 
 using NetworkSerDes::parse;

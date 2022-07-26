@@ -57,15 +57,40 @@ void parse( T_layer& layer, Parser& in )
 
 namespace NetworkSerDes {
 template<typename T_network>
-void serialize( const T_network& network, Serializer& out )
+void serialize_internal( const T_network& network, Serializer& out )
 {
-  out.string( network_header_str_view );
-  LayerSerDes::serialize( network.template get_layer<0>(), out );
   if constexpr ( T_network::is_last_layer ) {
     return;
   } else {
     NetworkSerDes::serialize( network.rest(), out );
   }
+}
+
+template<typename T_network>
+void parse_internal( T_network& network, Parser& in )
+{
+  LayerSerDes::parse( network.template get_layer<0>(), in );
+
+  if constexpr ( T_network::is_last_layer ) {
+    return;
+  } else {
+    NetworkSerDes::parse( network.rest(), in );
+  }
+}
+
+template<typename T_network>
+void serialize( const T_network& network, Serializer& out )
+{
+  out.string( network_header_str_view );
+  LayerSerDes::serialize( network.template get_layer<0>(), out );
+
+  serialize_internal( network, out );
+
+  /* todo:
+     (1) generate 16 random inputs (type T_network::M_input)
+     (2) apply each one through the network to produce an output
+     (3) serialize each input (maybe with an "input   " header)
+         and its corresponding output (maybe with an "output  " header) */
 }
 
 template<typename T_network>
@@ -78,13 +103,17 @@ void parse( T_network& network, Parser& in )
     throw runtime_error( "missing network header" );
   }
 
-  LayerSerDes::parse( network.template get_layer<0>(), in );
+  parse_internal( network, in );
 
-  if constexpr ( T_network::is_last_layer ) {
-    return;
-  } else {
-    NetworkSerDes::parse( network.rest(), in );
-  }
+  /* todo:
+     (1) parse each of the 16 random inputs (each starting with the
+         "input   " header)
+     (2) parse each of the 16 corresponding outputs (each starting
+         with the "output  " header)
+     (3) apply the parsed network to each of the inputs
+     (4) confirm that the computed output matches the parsed expectation
+     (by "matched" maybe we mean it's within .01% or something -- doesn't
+     have to be perfectly exact in the == sense between two floats) */
 }
 }
 
