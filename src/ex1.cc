@@ -116,6 +116,7 @@ void load_weights_and_biases( DNN& mynetwork, const string& filename )
   load_layer<4>( mynetwork, file );
 }
 
+using NetworkSerDes::parse;
 using NetworkSerDes::serialize;
 
 void program_body( const string& filename, const string& iterations_s )
@@ -130,14 +131,21 @@ void program_body( const string& filename, const string& iterations_s )
   cerr << "Number of layers: " << mynetwork.num_layers << "\n";
 
   string serialized_nn;
-  serialized_nn.resize( 1048576 );
-  Serializer serializer( string_span::from_view( serialized_nn ) );
-  serialize( mynetwork, serializer );
+  {
+    serialized_nn.resize( 1048576 );
+    Serializer serializer( string_span::from_view( serialized_nn ) );
+    serialize( mynetwork, serializer );
+    serialized_nn.resize( serializer.bytes_written() );
+  }
 
-  serialized_nn.resize( serializer.bytes_written() );
+  cerr << "Parsing " << serialized_nn.size() << " bytes of serialized DNN.\n";
 
-  cout << serialized_nn;
-  return;
+  DNN mynetwork2;
+
+  {
+    Parser parser { serialized_nn };
+    parse( mynetwork2, parser );
+  }
 
   auto prng = get_random_engine();
   auto tempo_distribution = uniform_real_distribution<float>( 30, 240 ); // beats per minute
@@ -161,16 +169,14 @@ void program_body( const string& filename, const string& iterations_s )
   Sampler<DNN> sampler;
   Sampler<DNN>::OutputVector outputs;
 
-  sampler.sample( iterations, mynetwork, input_generator, outputs );
+  sampler.sample( iterations, mynetwork2, input_generator, outputs );
 
-  /*
- Graph graph { { 640, 480 }, { 30, 240 }, { -30, 270 } };
+  Graph graph { { 640, 480 }, { 0, 270 }, { 0, 270 } };
 
   graph.graph( outputs );
 
   graph.finish();
   cout << graph.svg();
-  */
 }
 
 int main( int argc, char* argv[] )
