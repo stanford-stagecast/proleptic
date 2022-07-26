@@ -13,14 +13,6 @@ pkg_check_modules ( Eigen REQUIRED eigen3 )
 include_directories ( SYSTEM ${Eigen_INCLUDE_DIRS} )
 add_compile_options ( ${Eigen_CFLAGS} )
 
-pkg_check_modules( Cairo REQUIRED cairo )
-include_directories( SYSTEM ${Cairo_INCLUDE_DIRS} )
-add_compile_options ( ${Cairo_CFLAGS} )
-
-pkg_check_modules( Pango REQUIRED pangocairo )
-include_directories( SYSTEM ${Pango_INCLUDE_DIRS} )
-add_compile_options ( ${Pango_CFLAGS} )
-
 include_directories ("${PROJECT_SOURCE_DIR}/src/nn")
 include_directories ("${PROJECT_SOURCE_DIR}/src/graph")
 

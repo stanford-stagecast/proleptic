@@ -1,9 +1,6 @@
 macro (add_exec exec_name)
     add_executable ("${exec_name}" "${exec_name}.cc")
-    target_link_libraries ("${exec_name}" nn graph ${Eigen_LDFLAGS} ${Eigen_LDFLAGS_OTHER}
-      ${Cairo_LDFLAGS} ${Cairo_LDFLAGS_OTHER}
-      ${Pango_LDFLAGS} ${Pango_LDFLAGS_OTHER}
-      )
+    target_link_libraries ("${exec_name}" nn graph ${Eigen_LDFLAGS} ${Eigen_LDFLAGS_OTHER})
 endmacro (add_exec)
 
 add_exec(ex1 ex1.cc)

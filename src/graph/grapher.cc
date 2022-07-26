@@ -1,8 +1,32 @@
 #include "grapher.hh"
 
+#include <charconv>
 #include <vector>
 
 using namespace std;
+
+static constexpr double reserved_area_size = 48;
+
+static unsigned int find_tic_spacing( const double extent )
+{
+  unsigned int tic_interval = 1;
+
+  while ( true ) {
+    if ( extent / tic_interval <= 15 ) {
+      return tic_interval;
+    }
+
+    if ( extent / ( tic_interval * 2 ) <= 15 ) {
+      return tic_interval * 2;
+    }
+
+    if ( extent / ( tic_interval * 5 ) <= 15 ) {
+      return tic_interval * 5;
+    }
+
+    tic_interval *= 10;
+  }
+}
 
 Graph::Graph( const pair<double, double> image_size,
               const pair<double, double> x_range,
@@ -10,42 +34,150 @@ Graph::Graph( const pair<double, double> image_size,
   : image_size_( image_size )
   , x_range_( x_range )
   , y_range_( y_range )
-  , cairo_( image_size.first, image_size.second )
-  , diamond_( [&]() {
-    cairo_new_path( cairo_ );
-    cairo_move_to( cairo_, 0, 0 );
-    cairo_rel_move_to( cairo_, 0, -5 );
-    cairo_rel_line_to( cairo_, 5, 5 );
-    cairo_rel_line_to( cairo_, -5, 5 );
-    cairo_rel_line_to( cairo_, -5, -5 );
-    cairo_close_path( cairo_ );
-    return Cairo::Path( cairo_ );
-  }() )
 {
-  cairo_identity_matrix( cairo_ );
-  cairo_set_source_rgba( cairo_, 0.5, 0.2, 0.5, 1 );
+  svg_.append( "<svg xmlns='http://www.w3.org/2000/svg' width='" + to_string( image_size.first ) + "' " );
+  svg_.append( "height='" + to_string( image_size.second ) + "' viewbox='0 0 " );
+  svg_.append( to_string( image_size.first ) + " " + to_string( image_size.second ) + "'>\n" );
+
+  // https://developer.mozilla.org/en-US/docs/Web/SVG/Element/marker
+  svg_.append( R"xml(
+    <defs>
+    <marker id="dot" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="10" markerHeight="10">
+      <polygon points="5,0 10,5 5,10 0,5" fill="darkblue" fill-opacity="0.25" />
+    </marker>
+  </defs>
+)xml" );
+
+  svg_.append( "<polyline fill='none' stroke='black' stroke-width='3px' points='" );
+  svg_.append( to_string( x_user_to_image( x_range_.first ) ) + ","
+               + to_string( y_user_to_image( x_range_.first ) ) );
+  svg_.append( " " );
+  svg_.append( to_string( x_user_to_image( x_range_.second ) ) + ","
+               + to_string( y_user_to_image( x_range_.second ) ) );
+  svg_.append( "' />" );
+
+  /* make axes */
+  svg_.append( "<polyline fill='none' stroke='#606060' stroke-width='1px' points='" );
+  svg_.append( to_string( x_user_to_image( x_range_.first ) ) + ","
+               + to_string( y_user_to_image( y_range_.first ) ) );
+  svg_.append( " " );
+  svg_.append( to_string( x_user_to_image( x_range_.second ) ) + ","
+               + to_string( y_user_to_image( y_range.first ) ) );
+  svg_.append( "' />" );
+
+  svg_.append( "<polyline fill='none' stroke='#606060' stroke-width='1px' points='" );
+  svg_.append( to_string( x_user_to_image( x_range_.first ) ) + ","
+               + to_string( y_user_to_image( y_range_.first ) ) );
+  svg_.append( " " );
+  svg_.append( to_string( x_user_to_image( x_range_.first ) ) + ","
+               + to_string( y_user_to_image( y_range_.second ) ) );
+  svg_.append( "' />" );
+
+  /* make tic marks and labels */
+  {
+    const unsigned int x_spacing = find_tic_spacing( x_range_.second - x_range_.first );
+    auto x_lower_limit = lrint( floor( x_range_.first ) );
+    x_lower_limit -= x_lower_limit % x_spacing;
+
+    if ( x_lower_limit < x_range_.first ) {
+      x_lower_limit += x_spacing;
+    }
+
+    auto tic = x_lower_limit;
+    while ( tic <= x_range_.second ) {
+      svg_.append( "<polyline fill='none' stroke='#606060' stroke-width='1px' points='"
+                   + to_string( x_user_to_image( tic ) ) + "," + to_string( y_user_to_image( y_range_.first ) + 5 )
+                   + " " + to_string( x_user_to_image( tic ) ) + ","
+                   + to_string( y_user_to_image( y_range_.first ) ) + "' />" );
+
+      svg_.append( "<text fill='#606060' font-size='14' x='" + to_string( x_user_to_image( tic ) ) + "' y='"
+                   + to_string( y_user_to_image( y_range_.first ) + 8 )
+                   + "' dominant-baseline='hanging' text-anchor='middle'>" + to_string( tic ) + "</text>" );
+      tic += x_spacing;
+    }
+  }
+
+  {
+    const unsigned int y_spacing = find_tic_spacing( y_range_.second - y_range_.first );
+    auto y_lower_limit = lrint( floor( y_range_.first ) );
+    y_lower_limit -= y_lower_limit % y_spacing;
+
+    if ( y_lower_limit < y_range_.first ) {
+      y_lower_limit += y_spacing;
+    }
+
+    auto tic = y_lower_limit;
+    while ( tic <= y_range_.second ) {
+      svg_.append( "<polyline fill='none' stroke='#606060' stroke-width='1px' points='"
+                   + to_string( x_user_to_image( x_range_.first ) - 5 ) + "," + to_string( y_user_to_image( tic ) )
+                   + " " + to_string( x_user_to_image( x_range_.first ) ) + ","
+                   + to_string( y_user_to_image( tic ) ) + "' />" );
+
+      svg_.append( "<text fill='#606060' font-size='14' y='" + to_string( y_user_to_image( tic ) ) + "' x='"
+                   + to_string( x_user_to_image( x_range_.first ) - 8 )
+                   + "' dominant-baseline='middle' text-anchor='end'>" + to_string( tic ) + "</text>" );
+      tic += y_spacing;
+    }
+  }
+}
+
+void Graph::finish()
+{
+  svg_.append( "<polyline fill='none' stroke='white' stroke-width='1px' points='" );
+  svg_.append( to_string( x_user_to_image( x_range_.first ) ) + ","
+               + to_string( y_user_to_image( x_range_.first ) ) );
+  svg_.append( " " );
+  svg_.append( to_string( x_user_to_image( x_range_.second ) ) + ","
+               + to_string( y_user_to_image( x_range_.second ) ) );
+  svg_.append( "' />" );
+
+  svg_.append( "\n</svg>\n" );
 }
 
 double Graph::x_user_to_image( double user_x ) const
 {
   const double user_domain_length = x_range_.second - x_range_.first;
   const double position_in_graph = ( user_x - x_range_.first ) / user_domain_length;
-  return position_in_graph * image_size_.first;
+  return reserved_area_size + position_in_graph * ( image_size_.first - reserved_area_size );
 }
 
 double Graph::y_user_to_image( double user_y ) const
 {
   const double user_range_length = y_range_.second - y_range_.first;
   const double position_in_graph = ( user_y - y_range_.first ) / user_range_length;
-  return image_size_.second - position_in_graph * image_size_.second;
+  return ( image_size_.second - reserved_area_size ) * ( 1 - position_in_graph );
 }
 
 void Graph::graph( const vector<pair<OneFloatM, OneFloatM>>& points )
 {
+  svg_.append( "<polyline fill='none' stroke='none' marker-start='url(#dot)' marker-mid='url(#dot)' "
+               "marker-end='url(#dot)' points='" );
+
+  const size_t current_size = svg_.size();
+  svg_.resize( svg_.size() + points.size() * 20 );
+
+  char* next_point = svg_.data() + current_size;
+  char* const last_byte = svg_.data() + svg_.size();
+
+  const chars_format fmt { chars_format::fixed };
+
   for ( const auto& pt : points ) {
-    cairo_identity_matrix( cairo_ );
-    cairo_translate( cairo_, x_user_to_image( pt.first( 0, 0 ) ), y_user_to_image( pt.second( 0, 0 ) ) );
-    cairo_append_path( cairo_, diamond_ );
-    cairo_fill( cairo_ );
+    const auto resx = to_chars( next_point, last_byte, x_user_to_image( pt.first( 0, 0 ) ), fmt, 2 );
+    if ( resx.ec != errc() ) {
+      throw runtime_error( "to_chars failure" );
+    }
+    *resx.ptr = ',';
+    next_point = resx.ptr + 1;
+
+    const auto resy = to_chars( next_point, last_byte, y_user_to_image( pt.second( 0, 0 ) ), fmt, 2 );
+    if ( resy.ec != errc() ) {
+      throw runtime_error( "to_chars failure" );
+    }
+    *resy.ptr = ' ';
+    next_point = resy.ptr + 1;
   }
+
+  svg_.resize( next_point - svg_.data() );
+
+  svg_.append( "'/>\n" );
 }

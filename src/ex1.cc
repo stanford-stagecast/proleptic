@@ -149,7 +149,7 @@ void program_body( const string& filename, const string& iterations_s )
 
   sampler.sample( iterations, mynetwork, input_generator, outputs );
 
-  Graph graph { { 640, 480 }, { 0, 270 }, { 0, 270 } };
+  Graph graph { { 640, 480 }, { 30, 240 }, { -30, 270 } };
 
   graph.graph( outputs );
 
