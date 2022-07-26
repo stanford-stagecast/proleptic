@@ -15,7 +15,9 @@ add_compile_options ( ${Eigen_CFLAGS} )
 
 include_directories ("${PROJECT_SOURCE_DIR}/src/nn")
 include_directories ("${PROJECT_SOURCE_DIR}/src/graph")
+include_directories ("${PROJECT_SOURCE_DIR}/src/util")
 
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/nn")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/graph")
+add_subdirectory ("${PROJECT_SOURCE_DIR}/src/util")

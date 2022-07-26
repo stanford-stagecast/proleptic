@@ -7,9 +7,11 @@
 #include "dnn_types.hh"
 #include "grapher.hh"
 #include "network.hh"
+#include "parser.hh"
 #include "pp.hh"
 #include "random.hh"
 #include "sampler.hh"
+#include "serdes.hh"
 
 using namespace std;
 
@@ -114,6 +116,8 @@ void load_weights_and_biases( DNN& mynetwork, const string& filename )
   load_layer<4>( mynetwork, file );
 }
 
+using NetworkSerDes::serialize;
+
 void program_body( const string& filename, const string& iterations_s )
 {
   //  ios::sync_with_stdio( false );
@@ -124,6 +128,16 @@ void program_body( const string& filename, const string& iterations_s )
 
   load_weights_and_biases( mynetwork, filename );
   cerr << "Number of layers: " << mynetwork.num_layers << "\n";
+
+  string serialized_nn;
+  serialized_nn.resize( 1048576 );
+  Serializer serializer( string_span::from_view( serialized_nn ) );
+  serialize( mynetwork, serializer );
+
+  serialized_nn.resize( serializer.bytes_written() );
+
+  cout << serialized_nn;
+  return;
 
   auto prng = get_random_engine();
   auto tempo_distribution = uniform_real_distribution<float>( 30, 240 ); // beats per minute
@@ -149,12 +163,14 @@ void program_body( const string& filename, const string& iterations_s )
 
   sampler.sample( iterations, mynetwork, input_generator, outputs );
 
-  Graph graph { { 640, 480 }, { 30, 240 }, { -30, 270 } };
+  /*
+ Graph graph { { 640, 480 }, { 30, 240 }, { -30, 270 } };
 
   graph.graph( outputs );
 
   graph.finish();
   cout << graph.svg();
+  */
 }
 
 int main( int argc, char* argv[] )
