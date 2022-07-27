@@ -89,6 +89,7 @@ void HTTPWriter<MessageType>::write_to( RingBuffer& buffer )
   }
 
   maybe_print( "Host", message_.headers.host, attempt );
+  maybe_print( "Content-type", message_.headers.content_type, attempt );
   maybe_print( "Connection", message_.headers.connection, attempt );
   maybe_print( "Upgrade", message_.headers.upgrade, attempt );
   maybe_print( "Origin", message_.headers.origin, attempt );

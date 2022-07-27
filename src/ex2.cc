@@ -43,16 +43,18 @@ int main()
     [&] { client_buffer.push_from_fd( connection ); },
     [&] { return not client_buffer.writable_region().empty(); } );
 
-  const string response_str = "Hello, everybody. Time for lunch!";
+  const string response_str = "<span style='color:blue;'>Hello, everybody. Time for lunch!</span>";
 
   events.add_rule(
     "Parse bytes from client buffer",
     [&] {
       if ( http_server.read( client_buffer, request_in_progress ) ) {
+        cerr << "Got request: " << request_in_progress.request_target << "\n";
         HTTPResponse the_response;
         the_response.http_version = "HTTP/1.1";
         the_response.status_code = "200";
         the_response.reason_phrase = "OK";
+        the_response.headers.content_type = "text/html";
         the_response.headers.content_length = response_str.size();
         the_response.body = response_str;
         http_server.push_response( move( the_response ) );
@@ -74,6 +76,8 @@ int main()
 
   while ( events.wait_next_event( -1 ) != EventLoop::Result::Exit ) {
   }
+
+  cerr << "Exiting...\n";
 
   return 0;
 }
