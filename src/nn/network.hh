@@ -31,13 +31,20 @@ public:
   using M_output = typename N_rest::template M_output<T_batch_size>;
 
   template<int T_batch_size>
-  void apply( const M_input<T_batch_size>& input, M_output<T_batch_size>& output ) const
+  struct Activations
   {
-    static typename L_layer0::template M_output<T_batch_size> output_this_layer;
+    typename L_layer0::template M_output<T_batch_size> layer0 {};
+    typename N_rest::template Activations<T_batch_size> rest {};
+    const M_output<T_batch_size>& output() const { return rest.output(); }
+    M_output<T_batch_size>& output() { return rest.output(); }
+  };
 
-    layer0_.apply_without_activation( input, output_this_layer );
-    layer0_.activate( output_this_layer );
-    rest_.apply( output_this_layer, output );
+  template<int T_batch_size>
+  void apply( const M_input<T_batch_size>& input, Activations<T_batch_size>& activations ) const
+  {
+    layer0_.apply_without_activation( input, activations.layer0 );
+    layer0_.activate( activations.layer0 );
+    rest_.apply( activations.layer0, activations.rest );
   }
 
   template<size_t N, int i0_out, int o0_out, int... o_rest_out>
@@ -101,9 +108,17 @@ public:
   using M_output = typename L_layer0::template M_output<T_batch_size>;
 
   template<int T_batch_size>
-  void apply( const M_input<T_batch_size>& input, M_output<T_batch_size>& output ) const
+  struct Activations
   {
-    layer0_.apply_without_activation( input, output );
+    typename L_layer0::template M_output<T_batch_size> layer0 {};
+    const M_output<T_batch_size>& output() const { return layer0; }
+    M_output<T_batch_size>& output() { return layer0; }
+  };
+
+  template<int T_batch_size>
+  void apply( const M_input<T_batch_size>& input, Activations<T_batch_size>& activations ) const
+  {
+    layer0_.apply_without_activation( input, activations.layer0 );
   }
 
   template<size_t N, int i0_out, int o0_out, int... o_rest_out>
