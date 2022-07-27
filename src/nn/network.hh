@@ -19,6 +19,7 @@ private:
 
 public:
   static constexpr size_t num_layers = N_rest::num_layers + 1;
+  static constexpr size_t num_params = L_layer0::num_params + N_rest::num_params;
   static constexpr size_t input_size = i0;
   static constexpr size_t output_size = N_rest::output_size;
   using type = T;
@@ -88,6 +89,7 @@ class Network<T, i0, o0>
 
 public:
   static constexpr size_t num_layers = 1;
+  static constexpr size_t num_params = L_layer0::num_params;
   static constexpr size_t input_size = L_layer0::input_size;
   static constexpr size_t output_size = L_layer0::output_size;
   using type = T;

@@ -62,7 +62,8 @@ void program_body( const string& filename, const string& iterations_s )
 
   cerr << "total outputs: " << outputs.size() << "\n";
 
-  Graph graph { { 640, 480 }, { 0, 270 }, { 0, 270 } };
+  Graph graph { { 640, 480 },  { 0, 270 },      { 0, 270 }, "Scatter plot for BPM prediction",
+                "bpm (truth)", "bpm (inferred)" };
 
   graph.graph( outputs );
 

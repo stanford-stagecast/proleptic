@@ -7,7 +7,7 @@
 
 using namespace std;
 
-static constexpr double reserved_area_size = 48;
+static constexpr double reserved_area_size = 64;
 
 static unsigned int find_tic_spacing( const double extent )
 {
@@ -32,7 +32,10 @@ static unsigned int find_tic_spacing( const double extent )
 
 Graph::Graph( const pair<double, double> image_size,
               const pair<double, double> x_range,
-              const pair<double, double> y_range )
+              const pair<double, double> y_range,
+              const string_view title,
+              const string_view x_label,
+              const string_view y_label )
   : image_size_( image_size )
   , x_range_( x_range )
   , y_range_( y_range )
@@ -121,6 +124,23 @@ Graph::Graph( const pair<double, double> image_size,
       tic += y_spacing;
     }
   }
+
+  svg_.append( "<text text-anchor='middle' dominant-baseline='hanging' font-size='14' y='" + to_string( 0 )
+               + "' x= '" + to_string( image_size_.first / 2 ) + "' > " );
+  svg_.append( title );
+  svg_.append( "</text>" );
+
+  svg_.append( "<text text-anchor='middle' dominant-baseline='auto' x='"
+               + to_string( x_user_to_image( ( x_range_.first + x_range_.second ) / 2 ) ) + "' y='"
+               + to_string( image_size_.second - 10 ) + "' fill='#606060' font-size='14'>" );
+  svg_.append( x_label );
+  svg_.append( "</text>" );
+
+  svg_.append( "<text text-anchor='middle' transform='translate(8, "
+               + to_string( y_user_to_image( ( y_range_.first + y_range_.second ) / 2 ) )
+               + ") rotate(270)' dominant-baseline='middle' fill='#606060' font-size='14'>" );
+  svg_.append( y_label );
+  svg_.append( "</text>" );
 }
 
 void Graph::finish()

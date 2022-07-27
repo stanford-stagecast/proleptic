@@ -15,7 +15,10 @@ class Graph
 public:
   Graph( const std::pair<double, double> image_size,
          const std::pair<double, double> x_range,
-         const std::pair<double, double> y_range );
+         const std::pair<double, double> y_range,
+         const std::string_view title,
+         const std::string_view x_label,
+         const std::string_view y_label );
 
   void graph( const std::vector<std::pair<float, float>>& data );
 

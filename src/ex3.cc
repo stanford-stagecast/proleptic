@@ -18,6 +18,24 @@ using namespace std;
 static constexpr size_t mebi = 1024 * 1024;
 static constexpr float note_timing_variation = 0.05; /* jitter = stddev of +/- 5% of the beat */
 
+static const string html_page = R"html(<!doctype html>
+<html>
+<body>
+  <div id='image'></div>
+
+  <script>
+    image_element = document.getElementById('image');
+    async function load_graph() {
+	image_element.innerHTML = await fetch('/input-output.svg').then(response => response.text());
+    };
+
+    window.onload = function(e) { setInterval(load_graph, 100) };
+  </script>
+</body>
+</html>
+
+)html";
+
 void program_body( const string& filename )
 {
   ios::sync_with_stdio( false );
@@ -75,7 +93,7 @@ void program_body( const string& filename )
   RingBuffer client_buffer { mebi }, server_buffer { mebi };
 
   HTTPServer http_server;
-  HTTPRequest request_in_progress;
+  HTTPRequest request;
 
   events.add_rule(
     "Read bytes from client",
@@ -87,25 +105,34 @@ void program_body( const string& filename )
   using MySampler = Sampler<64, DNN, float>;
   MySampler::Output outputs;
 
+  unsigned int frame_no = 0;
+
   events.add_rule(
     "Parse bytes from client buffer",
     [&] {
-      if ( http_server.read( client_buffer, request_in_progress ) ) {
-        cerr << "Got request: " << request_in_progress.request_target << "\n";
+      if ( http_server.read( client_buffer, request ) ) {
+        cerr << "Got request: " << request.request_target << "\n";
         HTTPResponse the_response;
         the_response.http_version = "HTTP/1.1";
         the_response.status_code = "200";
         the_response.reason_phrase = "OK";
-        the_response.headers.content_type = "image/svg+xml";
 
-        MySampler::sample( 16, mynetwork, input_generator, output_transformer, outputs );
-
-        Graph graph { { 640, 480 }, { 0, 270 }, { 0, 270 } };
-        graph.graph( outputs );
-        graph.finish();
-
-        the_response.headers.content_length = graph.svg().size();
-        the_response.body = move( graph.svg() );
+        if ( request.request_target == "/" ) {
+          the_response.headers.content_type = "text/html";
+          the_response.headers.content_length = html_page.size();
+          the_response.body = html_page;
+        } else {
+          the_response.headers.content_type = "image/svg+xml";
+          MySampler::sample( 8, mynetwork, input_generator, output_transformer, outputs );
+          const string info = "frame=" + to_string( frame_no++ ) + " layers=" + to_string( DNN::num_layers )
+                              + " params=" + to_string( DNN::num_params )
+                              + " points=" + to_string( outputs.size() );
+          Graph graph { { 640, 480 }, { 0, 270 }, { 0, 270 }, info, "bpm (true)", "bpm (inferred)" };
+          graph.graph( outputs );
+          graph.finish();
+          the_response.headers.content_length = graph.svg().size();
+          the_response.body = move( graph.svg() );
+        }
         http_server.push_response( move( the_response ) );
       }
     },
