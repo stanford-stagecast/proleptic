@@ -91,7 +91,8 @@ public:
   TerminusReader( Contained&& target )
     : target_( std::move( target ) )
     , chars_matched_()
-  {}
+  {
+  }
 
   bool finished() const { return chars_matched_ == TerminusLength; }
 
@@ -157,7 +158,8 @@ public:
 
   IgnoreInitialWhitespaceReader( Contained&& target )
     : target_( std::move( target ) )
-  {}
+  {
+  }
 
   void read_all( std::string_view input )
   {
@@ -202,7 +204,8 @@ public:
 
   IgnoreTrailingWhitespaceReader( Contained&& target )
     : target_( std::move( target ) )
-  {}
+  {
+  }
 
   void read_all( const std::string_view input ) { target_.read_all( input ); }
 
@@ -230,7 +233,8 @@ public:
   PairReader( Contained&& target )
     : first_( std::move( target.first ) )
     , second_( std::move( target.second ) )
-  {}
+  {
+  }
 
   size_t read( const std::string_view original_input )
   {
@@ -266,7 +270,8 @@ public:
   using State = decltype( current_line_ )::Contained;
   HTTPHeaderReader( State&& state )
     : current_line_( std::move( state ) )
-  {}
+  {
+  }
 
   bool finished() const { return finished_; }
 
@@ -343,7 +348,8 @@ public:
                              { std::move( target_.status_code ), std::move( target.reason_phrase ) } } )
     , header_reader_( std::move( state ) )
     , body_reader_()
-  {}
+  {
+  }
 
   bool finished() const { return body_finished_; }
 
@@ -431,7 +437,8 @@ public:
         { std::move( target_.method ), { std::move( target_.request_target ), std::move( target.http_version ) } } )
     , header_reader_( std::move( state ) )
     , body_reader_()
-  {}
+  {
+  }
 
   bool finished() const { return body_finished_; }
 
