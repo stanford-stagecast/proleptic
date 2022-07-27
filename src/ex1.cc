@@ -129,6 +129,7 @@ void program_body( const string& filename, const string& iterations_s )
 
   auto prng = get_random_engine();
   auto tempo_distribution = uniform_real_distribution<float>( 30, 240 ); // beats per minute
+  auto noise_distribution = normal_distribution<float>( 0, note_timing_variation );
 
   const auto input_generator = [&]( DNN::M_input<1>& sample_input, DNN::M_output<1>& target_output ) {
     const float tempo = tempo_distribution( prng );
@@ -139,10 +140,8 @@ void program_body( const string& filename, const string& iterations_s )
     auto offset_distribution = uniform_real_distribution<float>( 0, seconds_per_beat );
     const float offset = offset_distribution( prng );
 
-    auto noise_distribution = normal_distribution<float>( 0, note_timing_variation );
-
     for ( unsigned int note_num = 0; note_num < 16; note_num++ ) {
-      sample_input( note_num ) = offset + seconds_per_beat * note_num + noise_distribution( prng );
+      sample_input( note_num ) = offset + seconds_per_beat * note_num * ( 1 + noise_distribution( prng ) );
     }
   };
 
@@ -154,16 +153,14 @@ void program_body( const string& filename, const string& iterations_s )
 
   MySampler::sample( iterations, mynetwork, input_generator, output_transformer, outputs );
 
-  cout << "total outputs: " << outputs.size() << "\n";
+  cerr << "total outputs: " << outputs.size() << "\n";
 
-  /*
   Graph graph { { 640, 480 }, { 0, 270 }, { 0, 270 } };
 
   graph.graph( outputs );
 
   graph.finish();
   cout << graph.svg();
-  */
 }
 
 int main( int argc, char* argv[] )
