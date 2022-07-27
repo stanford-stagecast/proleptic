@@ -5,3 +5,4 @@ endmacro (add_exec)
 
 add_exec(ex1)
 add_exec(text_parser)
+add_exec(ex2)
