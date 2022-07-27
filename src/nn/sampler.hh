@@ -2,23 +2,27 @@
 
 #include <Eigen/Dense>
 #include <functional>
-#include <type_traits>
 
-template<class NetworkType>
+template<int T_batch_size, class NetworkType, typename OutputType>
 struct Sampler
 {
-  using OutputVector = std::vector<std::pair<typename NetworkType::M_output, typename NetworkType::M_output>>;
+  using Output = std::vector<std::pair<OutputType, OutputType>>;
 
-  // for graphing convenience:
-  static_assert( std::is_same<typename NetworkType::M_output, Eigen::Matrix<float, 1, 1>>::value );
+  using InputGenerator = std::function<void( typename NetworkType::template M_input<1>&,
+                                             typename NetworkType::template M_output<1>& )>;
 
-  static void sample(
-    const size_t N,
-    NetworkType& neuralnetwork,
-    const std::function<void( typename NetworkType::M_input&, typename NetworkType::M_output& )>& input_generator,
-    OutputVector& outputs );
+  using OutputTransformer = std::function<void( const typename NetworkType::template M_output<1>&, OutputType& )>;
 
-  // The input_generator writes a sample input and its corresponding target output.
-  // The sampler returns a vector of pairs of outputs. The first member of the pair is the target output,
-  // and the second is the actual output.
+  static void sample( const size_t num_batches,
+                      NetworkType& neuralnetwork,
+                      const InputGenerator& input_generator,
+                      const OutputTransformer& output_transformer,
+                      Output& outputs );
 };
+
+// The input_generator writes a sample input and its corresponding target output.
+
+// The output_transformer post-processes each output, e.g. to turn it into something graphable (like a float).
+
+// The sampler returns a vector of pairs of outputs. The first member of each pair is the target output,
+// and the second is the actual output.

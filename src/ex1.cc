@@ -118,7 +118,7 @@ void load_weights_and_biases( DNN& mynetwork, const string& filename )
 
 void program_body( const string& filename, const string& iterations_s )
 {
-  //  ios::sync_with_stdio( false );
+  ios::sync_with_stdio( false );
 
   auto mynetwork_ptr = make_unique<DNN>();
   DNN& mynetwork = *mynetwork_ptr;
@@ -127,29 +127,12 @@ void program_body( const string& filename, const string& iterations_s )
   load_weights_and_biases( mynetwork, filename );
   cerr << "Number of layers: " << mynetwork.num_layers << "\n";
 
-  string serialized_nn;
-  {
-    serialized_nn.resize( 1048576 );
-    Serializer serializer( string_span::from_view( serialized_nn ) );
-    serialize( mynetwork, serializer );
-    serialized_nn.resize( serializer.bytes_written() );
-  }
-
-  cerr << "Parsing " << serialized_nn.size() << " bytes of serialized DNN.\n";
-
-  DNN mynetwork2;
-
-  {
-    Parser parser { serialized_nn };
-    parse( mynetwork2, parser );
-  }
-
   auto prng = get_random_engine();
   auto tempo_distribution = uniform_real_distribution<float>( 30, 240 ); // beats per minute
 
-  const auto input_generator = [&]( DNN::M_input& sample_input, DNN::M_output& target_output ) {
+  const auto input_generator = [&]( DNN::M_input<1>& sample_input, DNN::M_output<1>& target_output ) {
     const float tempo = tempo_distribution( prng );
-    target_output( 0 ) = tempo;
+    target_output( 0, 0 ) = tempo;
 
     const float seconds_per_beat = 60.0 / tempo;
 
@@ -163,17 +146,24 @@ void program_body( const string& filename, const string& iterations_s )
     }
   };
 
-  Sampler<DNN> sampler;
-  Sampler<DNN>::OutputVector outputs;
+  const auto output_transformer = []( const auto& singleton, float& out ) { out = singleton( 0, 0 ); };
 
-  sampler.sample( iterations, mynetwork2, input_generator, outputs );
+  using MySampler = Sampler<64, DNN, float>;
 
+  MySampler::Output outputs;
+
+  MySampler::sample( iterations, mynetwork, input_generator, output_transformer, outputs );
+
+  cout << "total outputs: " << outputs.size() << "\n";
+
+  /*
   Graph graph { { 640, 480 }, { 0, 270 }, { 0, 270 } };
 
   graph.graph( outputs );
 
   graph.finish();
   cout << graph.svg();
+  */
 }
 
 int main( int argc, char* argv[] )

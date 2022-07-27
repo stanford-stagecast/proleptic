@@ -1,6 +1,8 @@
 #include "grapher.hh"
 
 #include <charconv>
+#include <cmath>
+#include <stdexcept>
 #include <vector>
 
 using namespace std;
@@ -148,7 +150,7 @@ double Graph::y_user_to_image( double user_y ) const
   return ( image_size_.second - reserved_area_size ) * ( 1 - position_in_graph );
 }
 
-void Graph::graph( const vector<pair<OneFloatM, OneFloatM>>& points )
+void Graph::graph( const vector<pair<float, float>>& points )
 {
   svg_.append( "<polyline fill='none' stroke='none' marker-start='url(#dot)' marker-mid='url(#dot)' "
                "marker-end='url(#dot)' points='" );
@@ -162,14 +164,14 @@ void Graph::graph( const vector<pair<OneFloatM, OneFloatM>>& points )
   const chars_format fmt { chars_format::fixed };
 
   for ( const auto& pt : points ) {
-    const auto resx = to_chars( next_point, last_byte, x_user_to_image( pt.first( 0, 0 ) ), fmt, 2 );
+    const auto resx = to_chars( next_point, last_byte, x_user_to_image( pt.first ), fmt, 2 );
     if ( resx.ec != errc() ) {
       throw runtime_error( "to_chars failure" );
     }
     *resx.ptr = ',';
     next_point = resx.ptr + 1;
 
-    const auto resy = to_chars( next_point, last_byte, y_user_to_image( pt.second( 0, 0 ) ), fmt, 2 );
+    const auto resy = to_chars( next_point, last_byte, y_user_to_image( pt.second ), fmt, 2 );
     if ( resy.ec != errc() ) {
       throw runtime_error( "to_chars failure" );
     }

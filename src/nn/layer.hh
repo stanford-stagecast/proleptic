@@ -4,18 +4,19 @@
 
 static constexpr float leaky_constant = 0.01;
 
-template<typename T, size_t T_batch_size, size_t T_input_size, size_t T_output_size>
+template<typename T, int T_input_size, int T_output_size>
 class Layer
 {
+  static_assert( T_input_size > 0 );
+  static_assert( T_output_size > 0 );
+
 public:
-  using M_input = Eigen::Matrix<T, T_batch_size, T_input_size>;
-  using M_output = Eigen::Matrix<T, T_batch_size, T_output_size>;
+  using type = T;
 
   using M_weights = Eigen::Matrix<T, T_input_size, T_output_size>;
   using M_biases = Eigen::Matrix<T, 1, T_output_size>;
 
   static constexpr size_t num_params = ( T_input_size + 1 ) * T_output_size;
-  static constexpr size_t batch_size = T_batch_size;
   static constexpr size_t input_size = T_input_size;
   static constexpr size_t output_size = T_output_size;
 
@@ -25,13 +26,24 @@ public:
   M_weights& weights() { return weights_; }
   M_biases& biases() { return biases_; }
 
-  void apply_without_activation( const M_input& input, M_output& unactivated_output ) const
+  template<int T_batch_size>
+  using M_input = Eigen::Matrix<T, T_batch_size, T_input_size>;
+
+  template<int T_batch_size>
+  using M_output = Eigen::Matrix<T, T_batch_size, T_output_size>;
+
+  template<int T_batch_size>
+  void apply_without_activation( const M_input<T_batch_size>& input,
+                                 M_output<T_batch_size>& unactivated_output ) const
   {
+    static_assert( T_batch_size > 0 );
     unactivated_output = ( input * weights_ ).rowwise() + biases_;
   }
 
-  void activate( M_output& output ) const
+  template<int T_batch_size>
+  void activate( M_output<T_batch_size>& output ) const
   {
+    static_assert( T_batch_size > 0 );
     // apply "leaky" rectifier (leaky ReLU)
     output = output.unaryExpr( []( const auto val ) { return val > 0 ? val : leaky_constant * val; } );
   }
