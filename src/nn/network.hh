@@ -31,7 +31,7 @@ public:
   using M_output = typename N_rest::template M_output<T_batch_size>;
 
   template<int T_batch_size>
-  void apply( const M_input<T_batch_size>& input, M_output<T_batch_size>& output )
+  void apply( const M_input<T_batch_size>& input, M_output<T_batch_size>& output ) const
   {
     static typename L_layer0::template M_output<T_batch_size> output_this_layer;
 
@@ -101,7 +101,7 @@ public:
   using M_output = typename L_layer0::template M_output<T_batch_size>;
 
   template<int T_batch_size>
-  void apply( const M_input<T_batch_size>& input, M_output<T_batch_size>& output )
+  void apply( const M_input<T_batch_size>& input, M_output<T_batch_size>& output ) const
   {
     layer0_.apply_without_activation( input, output );
   }
