@@ -35,7 +35,7 @@ void randomize_layer( T_layer& layer, RandomState& rng )
 template<typename T_network>
 void randomize_network( T_network& network, RandomState& rng )
 {
-  randomize_layer( network.template get_layer<0>(), rng );
+  randomize_layer( network.first_layer(), rng );
 
   if constexpr ( T_network::is_last_layer ) {
     return;

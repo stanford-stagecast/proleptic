@@ -111,7 +111,6 @@ void program_body( const string& filename )
     "Parse bytes from client buffer",
     [&] {
       if ( http_server.read( client_buffer, request ) ) {
-        cerr << "Got request: " << request.request_target << "\n";
         HTTPResponse the_response;
         the_response.http_version = "HTTP/1.1";
         the_response.status_code = "200";

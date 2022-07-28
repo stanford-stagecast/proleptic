@@ -69,7 +69,7 @@ void serialize_internal( const T_network& network, Serializer& out )
 template<typename T_network>
 void parse_internal( T_network& network, Parser& in )
 {
-  LayerSerDes::parse( network.template get_layer<0>(), in );
+  LayerSerDes::parse( network.first_layer(), in );
 
   if constexpr ( T_network::is_last_layer ) {
     return;
@@ -82,7 +82,7 @@ template<typename T_network>
 void serialize( const T_network& network, Serializer& out )
 {
   out.string( network_header_str_view );
-  LayerSerDes::serialize( network.template get_layer<0>(), out );
+  LayerSerDes::serialize( network.first_layer(), out );
 
   serialize_internal( network, out );
 
