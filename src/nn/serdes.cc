@@ -183,10 +183,10 @@ void parse( T_network& network, Parser& in )
   }
 
   // read in output
-  typename T_network::template Activations<16> activations;
+  typename T_network::template Activations<16> expected_activations;
 
-  for ( unsigned int i = 0; i < activations.output().size(); ++i ) {
-    in.floating( *( activations.output().data() + i ) );
+  for ( unsigned int i = 0; i < expected_activations.output().size(); ++i ) {
+    in.floating( *( expected_activations.output().data() + i ) );
   }
 
   // read in end of test
@@ -197,6 +197,14 @@ void parse( T_network& network, Parser& in )
   in.string( test_end_point_span );
   if ( test_end_point != roundtrip_test_end_str ) {
     throw runtime_error( "mismatched roundtrip test ends" );
+  }
+
+  // confirm that the network's output matches the serialized expectation
+  typename T_network::template Activations<16> activations;
+  network.apply( my_input, activations );
+
+  if ( activations.output() != expected_activations.output() ) {
+    throw runtime_error( "DNN roundtrip failure" );
   }
 }
 }
