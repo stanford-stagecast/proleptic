@@ -99,7 +99,7 @@ void serialize( const T_network& network, Serializer& out )
 
   serialize_internal( network, out );
 
-  /* Consistency check for serialization and parsing 
+  /* Consistency check for serialization and parsing
      (1) generate 16 random inputs (type T_network::M_input)
      (2) apply each one through the network to produce an output
      (3) serialize each input (maybe with an "input   " header)
@@ -145,7 +145,7 @@ void parse( T_network& network, Parser& in )
 
   parse_internal( network, in );
 
-  /* Consistency check for serialization and parsing 
+  /* Consistency check for serialization and parsing
      (1) parse each of the 16 random inputs (each starting with the
          "input   " header)
      (2) parse each of the 16 corresponding outputs (each starting
