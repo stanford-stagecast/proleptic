@@ -203,7 +203,7 @@ void parse( T_network& network, Parser& in )
   typename T_network::template Activations<16> activations;
   network.apply( my_input, activations );
 
-  if ( activations.output() != expected_activations.output() ) {
+  if ( ( activations.output() - expected_activations.output() ).cwiseAbs().maxCoeff() > 1e-5 ) {
     throw runtime_error( "DNN roundtrip failure" );
   }
 }
