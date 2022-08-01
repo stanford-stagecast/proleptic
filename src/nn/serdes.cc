@@ -12,7 +12,7 @@ static constexpr string_view network_header_str_view { network_header_str.data()
 
 static constexpr array<char, 8> test_input_header_str { 'i', 'n', 'p', 'u', 't', ' ', ' ', ' ' };
 static constexpr array<char, 8> test_output_header_str { 'o', 'u', 't', 'p', 'u', 't', ' ', ' ' };
-static constexpr array<char, 8> roundtrip_test_end_str { 's', 't', 'o', 'p', 'h', 'e', 'r', 'e' };
+static constexpr array<char, 8> roundtrip_test_end_str { 'f', 'i', 'n', 'i', 's', 'h', 'e', 'd' };
 
 static constexpr string_view test_input_header_str_view { test_input_header_str.data(),
                                                           test_input_header_str.size() };
