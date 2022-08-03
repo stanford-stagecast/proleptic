@@ -128,7 +128,8 @@ void program_body( const string& filename )
                               + " points=" + to_string( outputs.size() );
           Graph graph { { 640, 480 }, { 0, 270 }, { 0, 270 }, info, "bpm (true)", "bpm (inferred)" };
           graph.draw_identity_function( "black", 3 );
-          graph.draw_points( outputs );
+          sort( outputs.begin(), outputs.end(), []( auto x, auto y ) { return x.first < y.first; } );
+          graph.draw_line( outputs );
           graph.draw_identity_function( "white", 1 );
           graph.finish();
           the_response.headers.content_length = graph.svg().size();

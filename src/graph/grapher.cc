@@ -173,10 +173,25 @@ void Graph::begin_points()
                "marker-end='url(#dot)' points='" );
 }
 
+void Graph::begin_line()
+{
+  svg_.append( "<polyline fill='none' stroke='darkblue' points='" );
+}
+
 void Graph::draw_points( const vector<pair<float, float>>& points )
 {
   begin_points();
+  add_vertices( points );
+}
 
+void Graph::draw_line( const vector<pair<float, float>>& points )
+{
+  begin_line();
+  add_vertices( points );
+}
+
+void Graph::add_vertices( const vector<pair<float, float>>& points )
+{
   const size_t current_size = svg_.size();
   svg_.resize( svg_.size() + points.size() * 20 );
 
