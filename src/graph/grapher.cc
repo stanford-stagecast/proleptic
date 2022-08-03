@@ -53,14 +53,6 @@ Graph::Graph( const pair<double, double> image_size,
   </defs>
 )xml" );
 
-  svg_.append( "<polyline fill='none' stroke='black' stroke-width='3px' points='" );
-  svg_.append( to_string( x_user_to_image( x_range_.first ) ) + ","
-               + to_string( y_user_to_image( x_range_.first ) ) );
-  svg_.append( " " );
-  svg_.append( to_string( x_user_to_image( x_range_.second ) ) + ","
-               + to_string( y_user_to_image( x_range_.second ) ) );
-  svg_.append( "' />" );
-
   /* make axes */
   svg_.append( "<polyline fill='none' stroke='#606060' stroke-width='1px' points='" );
   svg_.append( to_string( x_user_to_image( x_range_.first ) ) + ","
@@ -145,15 +137,20 @@ Graph::Graph( const pair<double, double> image_size,
 
 void Graph::finish()
 {
-  svg_.append( "<polyline fill='none' stroke='white' stroke-width='1px' points='" );
+  svg_.append( "\n</svg>\n" );
+}
+
+void Graph::draw_identity_function( const string_view color, const unsigned int width )
+{
+  svg_.append( "<g><polyline fill='none' stroke='" );
+  svg_.append( color );
+  svg_.append( "' stroke-width='" + to_string( width ) + "px' points='" );
   svg_.append( to_string( x_user_to_image( x_range_.first ) ) + ","
                + to_string( y_user_to_image( x_range_.first ) ) );
   svg_.append( " " );
   svg_.append( to_string( x_user_to_image( x_range_.second ) ) + ","
                + to_string( y_user_to_image( x_range_.second ) ) );
-  svg_.append( "' />" );
-
-  svg_.append( "\n</svg>\n" );
+  svg_.append( "' /></g>" );
 }
 
 double Graph::x_user_to_image( double user_x ) const
@@ -172,7 +169,7 @@ double Graph::y_user_to_image( double user_y ) const
 
 void Graph::graph( const vector<pair<float, float>>& points )
 {
-  svg_.append( "<polyline fill='none' stroke='none' marker-start='url(#dot)' marker-mid='url(#dot)' "
+  svg_.append( "<g><polyline fill='none' stroke='none' marker-start='url(#dot)' marker-mid='url(#dot)' "
                "marker-end='url(#dot)' points='" );
 
   const size_t current_size = svg_.size();
@@ -201,5 +198,5 @@ void Graph::graph( const vector<pair<float, float>>& points )
 
   svg_.resize( next_point - svg_.data() );
 
-  svg_.append( "'/>\n" );
+  svg_.append( "'/></g>\n" );
 }

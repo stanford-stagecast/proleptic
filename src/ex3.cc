@@ -127,7 +127,9 @@ void program_body( const string& filename )
                               + " params=" + to_string( DNN::num_params )
                               + " points=" + to_string( outputs.size() );
           Graph graph { { 640, 480 }, { 0, 270 }, { 0, 270 }, info, "bpm (true)", "bpm (inferred)" };
+          graph.draw_identity_function( "black", 3 );
           graph.graph( outputs );
+          graph.draw_identity_function( "white", 1 );
           graph.finish();
           the_response.headers.content_length = graph.svg().size();
           the_response.body = move( graph.svg() );

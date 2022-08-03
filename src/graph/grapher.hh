@@ -22,6 +22,8 @@ public:
 
   void graph( const std::vector<std::pair<float, float>>& data );
 
+  void draw_identity_function( const std::string_view color, const unsigned int width );
+
   void finish();
   const std::string& svg() const { return svg_; }
 };
