@@ -65,7 +65,9 @@ void program_body( const string& filename, const string& iterations_s )
   Graph graph { { 640, 480 },  { 0, 270 },      { 0, 270 }, "Scatter plot for BPM prediction",
                 "bpm (truth)", "bpm (inferred)" };
 
-  graph.graph( outputs );
+  graph.draw_identity_function( "black", 3 );
+  graph.draw_points( outputs );
+  graph.draw_identity_function( "white", 1 );
 
   graph.finish();
   cout << graph.svg();

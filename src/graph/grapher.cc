@@ -142,7 +142,7 @@ void Graph::finish()
 
 void Graph::draw_identity_function( const string_view color, const unsigned int width )
 {
-  svg_.append( "<g><polyline fill='none' stroke='" );
+  svg_.append( "<polyline fill='none' stroke='" );
   svg_.append( color );
   svg_.append( "' stroke-width='" + to_string( width ) + "px' points='" );
   svg_.append( to_string( x_user_to_image( x_range_.first ) ) + ","
@@ -150,7 +150,7 @@ void Graph::draw_identity_function( const string_view color, const unsigned int 
   svg_.append( " " );
   svg_.append( to_string( x_user_to_image( x_range_.second ) ) + ","
                + to_string( y_user_to_image( x_range_.second ) ) );
-  svg_.append( "' /></g>" );
+  svg_.append( "' />" );
 }
 
 double Graph::x_user_to_image( double user_x ) const
@@ -167,10 +167,15 @@ double Graph::y_user_to_image( double user_y ) const
   return ( image_size_.second - reserved_area_size ) * ( 1 - position_in_graph );
 }
 
-void Graph::graph( const vector<pair<float, float>>& points )
+void Graph::begin_points()
 {
-  svg_.append( "<g><polyline fill='none' stroke='none' marker-start='url(#dot)' marker-mid='url(#dot)' "
+  svg_.append( "<polyline fill='none' stroke='none' marker-start='url(#dot)' marker-mid='url(#dot)' "
                "marker-end='url(#dot)' points='" );
+}
+
+void Graph::draw_points( const vector<pair<float, float>>& points )
+{
+  begin_points();
 
   const size_t current_size = svg_.size();
   svg_.resize( svg_.size() + points.size() * 20 );
@@ -198,5 +203,5 @@ void Graph::graph( const vector<pair<float, float>>& points )
 
   svg_.resize( next_point - svg_.data() );
 
-  svg_.append( "'/></g>\n" );
+  svg_.append( "'/>\n" );
 }

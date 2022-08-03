@@ -12,6 +12,8 @@ class Graph
 
   std::string svg_ {};
 
+  void begin_points();
+
 public:
   Graph( const std::pair<double, double> image_size,
          const std::pair<double, double> x_range,
@@ -20,7 +22,7 @@ public:
          const std::string_view x_label,
          const std::string_view y_label );
 
-  void graph( const std::vector<std::pair<float, float>>& data );
+  void draw_points( const std::vector<std::pair<float, float>>& data );
 
   void draw_identity_function( const std::string_view color, const unsigned int width );
 
