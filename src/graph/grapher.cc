@@ -81,17 +81,17 @@ Graph::Graph( const pair<double, double> image_size,
       x_lower_limit += x_spacing;
     }
 
+    unsigned int tic_count = 0;
+
     auto tic = x_lower_limit;
     while ( tic <= x_range_.second ) {
-      svg_.append( "<polyline fill='none' stroke='#606060' stroke-width='1px' points='"
-                   + to_string( x_user_to_image( tic ) ) + "," + to_string( y_user_to_image( y_range_.first ) + 5 )
-                   + " " + to_string( x_user_to_image( tic ) ) + ","
-                   + to_string( y_user_to_image( y_range_.first ) ) + "' />" );
-
-      svg_.append( "<text fill='#606060' font-size='14' x='" + to_string( x_user_to_image( tic ) ) + "' y='"
-                   + to_string( y_user_to_image( y_range_.first ) + 8 )
-                   + "' dominant-baseline='hanging' text-anchor='middle'>" + to_string( tic ) + "</text>" );
+      tic_count++;
+      add_x_tic( tic, to_string( tic ) );
       tic += x_spacing;
+    }
+
+    if ( tic_count < 2 ) {
+      add_x_tic( x_range_.second, to_string( x_range_.second ) );
     }
   }
 
@@ -104,17 +104,17 @@ Graph::Graph( const pair<double, double> image_size,
       y_lower_limit += y_spacing;
     }
 
+    unsigned int tic_count = 0;
+
     auto tic = y_lower_limit;
     while ( tic <= y_range_.second ) {
-      svg_.append( "<polyline fill='none' stroke='#606060' stroke-width='1px' points='"
-                   + to_string( x_user_to_image( x_range_.first ) - 5 ) + "," + to_string( y_user_to_image( tic ) )
-                   + " " + to_string( x_user_to_image( x_range_.first ) ) + ","
-                   + to_string( y_user_to_image( tic ) ) + "' />" );
-
-      svg_.append( "<text fill='#606060' font-size='14' y='" + to_string( y_user_to_image( tic ) ) + "' x='"
-                   + to_string( x_user_to_image( x_range_.first ) - 8 )
-                   + "' dominant-baseline='middle' text-anchor='end'>" + to_string( tic ) + "</text>" );
+      tic_count++;
+      add_y_tic( tic, to_string( tic ) );
       tic += y_spacing;
+    }
+
+    if ( tic_count < 2 ) {
+      add_y_tic( y_range_.second, to_string( y_range_.second ) );
     }
   }
 
@@ -133,6 +133,34 @@ Graph::Graph( const pair<double, double> image_size,
                + to_string( y_user_to_image( ( y_range_.first + y_range_.second ) / 2 ) )
                + ") rotate(270)' dominant-baseline='middle' fill='#606060' font-size='14'>" );
   svg_.append( y_label );
+  svg_.append( "</text>" );
+}
+
+void Graph::add_x_tic( const double tic, const string_view label )
+{
+  svg_.append( "<polyline fill='none' stroke='#606060' stroke-width='1px' points='"
+               + to_string( x_user_to_image( tic ) ) + "," + to_string( y_user_to_image( y_range_.first ) + 5 )
+               + " " + to_string( x_user_to_image( tic ) ) + "," + to_string( y_user_to_image( y_range_.first ) )
+               + "' />" );
+
+  svg_.append( "<text fill='#606060' font-size='14' x='" + to_string( x_user_to_image( tic ) ) + "' y='"
+               + to_string( y_user_to_image( y_range_.first ) + 8 )
+               + "' dominant-baseline='hanging' text-anchor='middle'>" );
+  svg_.append( label );
+  svg_.append( "</text>" );
+}
+
+void Graph::add_y_tic( const double tic, const string_view label )
+{
+  svg_.append( "<polyline fill='none' stroke='#606060' stroke-width='1px' points='"
+               + to_string( x_user_to_image( x_range_.first ) - 5 ) + "," + to_string( y_user_to_image( tic ) )
+               + " " + to_string( x_user_to_image( x_range_.first ) ) + "," + to_string( y_user_to_image( tic ) )
+               + "' />" );
+
+  svg_.append( "<text fill='#606060' font-size='14' y='" + to_string( y_user_to_image( tic ) ) + "' x='"
+               + to_string( x_user_to_image( x_range_.first ) - 8 )
+               + "' dominant-baseline='middle' text-anchor='end'>" );
+  svg_.append( label );
   svg_.append( "</text>" );
 }
 

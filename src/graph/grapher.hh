@@ -16,6 +16,8 @@ class Graph
   void begin_line();
 
   void add_vertices( const std::vector<std::pair<float, float>>& data );
+  void add_x_tic( const double tic, const std::string_view label );
+  void add_y_tic( const double tic, const std::string_view label );
 
 public:
   Graph( const std::pair<double, double> image_size,
