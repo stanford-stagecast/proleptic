@@ -164,9 +164,10 @@ void program_body( const string& filename )
     [&] { client_buffer.push_from_fd( connection ); },
     [&] { return not client_buffer.writable_region().empty(); } );
 
-  vector<pair<float, float>> weight_range( mynetwork.num_layers );
-  vector<pair<float, float>> bias_range( mynetwork.num_layers );
-  vector<pair<float, float>> activation_range( mynetwork.num_layers );
+  const pair<float, float> init { numeric_limits<float>::max(), 0 };
+  vector<pair<float, float>> weight_range( mynetwork.num_layers, init );
+  vector<pair<float, float>> bias_range( mynetwork.num_layers, init );
+  vector<pair<float, float>> activation_range( mynetwork.num_layers, init );
 
   events.add_rule(
     "Parse bytes from client buffer",

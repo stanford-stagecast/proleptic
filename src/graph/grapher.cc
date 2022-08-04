@@ -1,5 +1,6 @@
 #include "grapher.hh"
 
+#include <array>
 #include <charconv>
 #include <cmath>
 #include <stdexcept>
@@ -7,7 +8,7 @@
 
 using namespace std;
 
-static constexpr double left_bottom_margin = 64;
+static constexpr double left_bottom_margin = 48;
 static constexpr double right_top_margin = 16;
 
 static unsigned int find_tic_spacing( const double extent )
@@ -31,6 +32,15 @@ static unsigned int find_tic_spacing( const double extent )
   }
 }
 
+static pair<double, double> fix_range( const pair<double, double>& range )
+{
+  if ( range.first == range.second ) {
+    return { range.first - 0.01, range.second + 0.01 };
+  }
+
+  return range;
+}
+
 Graph::Graph( const pair<double, double> image_size,
               const pair<double, double> x_range,
               const pair<double, double> y_range,
@@ -38,8 +48,8 @@ Graph::Graph( const pair<double, double> image_size,
               const string_view x_label,
               const string_view y_label )
   : image_size_( image_size )
-  , x_range_( x_range )
-  , y_range_( y_range )
+  , x_range_( fix_range( x_range ) )
+  , y_range_( fix_range( y_range ) )
 {
   svg_.append( "<svg xmlns='http://www.w3.org/2000/svg' width='" + to_string( image_size.first ) + "' " );
   svg_.append( "height='" + to_string( image_size.second ) + "' viewbox='0 0 " );
@@ -81,17 +91,24 @@ Graph::Graph( const pair<double, double> image_size,
       x_lower_limit += x_spacing;
     }
 
-    unsigned int tic_count = 0;
+    bool has_tic = false;
 
     auto tic = x_lower_limit;
     while ( tic <= x_range_.second ) {
-      tic_count++;
+      has_tic = true;
       add_x_tic( tic, to_string( tic ) );
       tic += x_spacing;
     }
 
-    if ( tic_count < 2 ) {
-      add_x_tic( x_range_.second, to_string( x_range_.second ) );
+    if ( not has_tic ) {
+      const double middle = ( x_range_.first + x_range_.second ) / 2;
+      array<char, 32> middle_str {};
+      const auto res
+        = to_chars( middle_str.data(), middle_str.data() + middle_str.size(), middle, chars_format::fixed, 2 );
+      if ( res.ec != errc() ) {
+        throw runtime_error( "to_chars failure" );
+      }
+      add_x_tic( middle, string_view( middle_str.data(), res.ptr - middle_str.data() ) );
     }
   }
 
@@ -104,17 +121,24 @@ Graph::Graph( const pair<double, double> image_size,
       y_lower_limit += y_spacing;
     }
 
-    unsigned int tic_count = 0;
+    bool has_tic = false;
 
     auto tic = y_lower_limit;
     while ( tic <= y_range_.second ) {
-      tic_count++;
+      has_tic = true;
       add_y_tic( tic, to_string( tic ) );
       tic += y_spacing;
     }
 
-    if ( tic_count < 2 ) {
-      add_y_tic( y_range_.second, to_string( y_range_.second ) );
+    if ( not has_tic ) {
+      const double middle = ( y_range_.first + y_range_.second ) / 2;
+      array<char, 32> middle_str {};
+      const auto res
+        = to_chars( middle_str.data(), middle_str.data() + middle_str.size(), middle, chars_format::fixed, 2 );
+      if ( res.ec != errc() ) {
+        throw runtime_error( "to_chars failure" );
+      }
+      add_y_tic( middle, string_view( middle_str.data(), res.ptr - middle_str.data() ) );
     }
   }
 
