@@ -47,17 +47,27 @@ public:
 
   // A recursive type that contains the activations of the whole neural network
   template<int T_batch_size>
-  struct Activations
+  class Activations
   {
     // Activations (outputs) of the current layer
-    typename L_layer0::template M_output<T_batch_size> layer0 {};
+    typename L_layer0::template M_output<T_batch_size> layer0_ {};
 
-    // Actiations of the rest of the neural network
-    typename N_rest::template Activations<T_batch_size> rest {};
+    // Activations of the rest of the neural network
+    typename N_rest::template Activations<T_batch_size> rest_ {};
 
+  public:
     // Accessors
-    const M_output<T_batch_size>& output() const { return rest.output(); }
-    M_output<T_batch_size>& output() { return rest.output(); }
+    const decltype( layer0_ )& first_layer() const { return layer0_; }
+    decltype( layer0_ )& first_layer() { return layer0_; }
+
+    const decltype( rest_ )& rest() const { return rest_; }
+    decltype( rest_ )& rest() { return rest_; }
+
+    const M_output<T_batch_size>& output() const { return rest().output(); }
+    M_output<T_batch_size>& output() { return rest().output(); }
+
+    // Helpful boolean to indicate if this is the last layer
+    static constexpr bool is_last_layer = false;
   };
 
   // Apply the neural network to a given input, writing the activations as output.
@@ -65,9 +75,9 @@ public:
   template<int T_batch_size>
   void apply( const M_input<T_batch_size>& input, Activations<T_batch_size>& activations ) const
   {
-    layer0_.apply_without_activation( input, activations.layer0 );
-    layer0_.activate( activations.layer0 );
-    rest_.apply( activations.layer0, activations.rest );
+    layer0_.apply_without_activation( input, activations.first_layer() );
+    layer0_.activate( activations.first_layer() );
+    rest_.apply( activations.first_layer(), activations.rest() );
   }
 
   // Helpful boolean to indicate if this is the last layer
@@ -86,13 +96,10 @@ private:
 template<class T, int i0, int o0>
 class Network<T, i0, o0>
 {
+public:
   // Type of the layer
   using L_layer0 = Layer<T, i0, o0>;
 
-  // What the network contains: one layer
-  L_layer0 layer0_ {};
-
-public:
   // The type of entry (e.g. float or double)
   using type = T;
 
@@ -115,11 +122,20 @@ public:
 
   // The base case of a recursive type that contains the activations
   template<int T_batch_size>
-  struct Activations
+  class Activations
   {
-    typename L_layer0::template M_output<T_batch_size> layer0 {};
-    const M_output<T_batch_size>& output() const { return layer0; }
-    M_output<T_batch_size>& output() { return layer0; }
+    typename L_layer0::template M_output<T_batch_size> layer0_ {};
+
+  public:
+    // Accessors
+    const M_output<T_batch_size>& output() const { return layer0_; }
+    M_output<T_batch_size>& output() { return layer0_; }
+
+    const M_output<T_batch_size>& first_layer() const { return layer0_; }
+    M_output<T_batch_size>& first_layer() { return layer0_; }
+
+    // Helpful boolean to indicate if this is the last layer
+    static constexpr bool is_last_layer = true;
   };
 
   // Apply the neural network to a given input, writing the activations as output.
@@ -127,11 +143,15 @@ public:
   template<int T_batch_size>
   void apply( const M_input<T_batch_size>& input, Activations<T_batch_size>& activations ) const
   {
-    layer0_.apply_without_activation( input, activations.layer0 );
+    layer0_.apply_without_activation( input, activations.first_layer() );
   }
 
   // Helpful boolean to indicate if this is the last layer
   static constexpr bool is_last_layer = true;
 
   bool operator==( const Network& other ) const = default;
+
+private:
+  // What the network contains: one layer
+  L_layer0 layer0_ {};
 };

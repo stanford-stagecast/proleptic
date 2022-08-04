@@ -7,7 +7,8 @@
 
 using namespace std;
 
-static constexpr double reserved_area_size = 64;
+static constexpr double left_bottom_margin = 64;
+static constexpr double right_top_margin = 16;
 
 static unsigned int find_tic_spacing( const double extent )
 {
@@ -117,7 +118,7 @@ Graph::Graph( const pair<double, double> image_size,
     }
   }
 
-  svg_.append( "<text text-anchor='middle' dominant-baseline='hanging' font-size='14' y='" + to_string( 0 )
+  svg_.append( "<text text-anchor='middle' dominant-baseline='hanging' font-size='14' y='" + to_string( 4 )
                + "' x= '" + to_string( image_size_.first / 2 ) + "' > " );
   svg_.append( title );
   svg_.append( "</text>" );
@@ -153,18 +154,19 @@ void Graph::draw_identity_function( const string_view color, const unsigned int 
   svg_.append( "' />" );
 }
 
-double Graph::x_user_to_image( double user_x ) const
+double Graph::x_user_to_image( const double user_x ) const
 {
   const double user_domain_length = x_range_.second - x_range_.first;
   const double position_in_graph = ( user_x - x_range_.first ) / user_domain_length;
-  return reserved_area_size + position_in_graph * ( image_size_.first - reserved_area_size );
+  return left_bottom_margin + position_in_graph * ( image_size_.first - left_bottom_margin - right_top_margin );
 }
 
-double Graph::y_user_to_image( double user_y ) const
+double Graph::y_user_to_image( const double user_y ) const
 {
   const double user_range_length = y_range_.second - y_range_.first;
   const double position_in_graph = ( user_y - y_range_.first ) / user_range_length;
-  return ( image_size_.second - reserved_area_size ) * ( 1 - position_in_graph );
+  return right_top_margin
+         + ( image_size_.second - left_bottom_margin - right_top_margin ) * ( 1 - position_in_graph );
 }
 
 void Graph::begin_points()
