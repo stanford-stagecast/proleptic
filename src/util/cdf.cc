@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 #include "cdf.hh"
 
@@ -9,6 +10,10 @@ void make_cdf( vector<float>& values, const unsigned int num_samples, vector<pai
 {
   sort( values.begin(), values.end() );
   cdf.clear();
+
+  if ( values.empty() ) {
+    throw runtime_error( "empty CDF" );
+  }
 
   const double bin_size = 1.0 / double( num_samples );
   double actual_fraction = 0.0;
@@ -20,7 +25,5 @@ void make_cdf( vector<float>& values, const unsigned int num_samples, vector<pai
     cdf.emplace_back( values.at( index ), actual_fraction );
   }
 
-  if ( not values.empty() ) {
-    cdf.emplace_back( values.back(), 1.0 );
-  }
+  cdf.emplace_back( values.back(), 1.0 );
 }

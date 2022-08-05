@@ -134,6 +134,7 @@ void program_body( const string& filename )
         } else {
           the_response.headers.content_type = "image/svg+xml";
 
+          graph.reset_activations();
           for ( size_t batch = 0; batch < num_batches; ++batch ) {
             // step 1: generate one batch of input
             for ( size_t elem = 0; elem < BATCH_SIZE; ++elem ) {
@@ -145,7 +146,7 @@ void program_body( const string& filename )
             mynetwork.apply( input_batch, activations );
 
             // step 3: grab the activations
-            /* XXX */
+            graph.add_activations( activations );
           }
           the_response.body = graph.graph();
         }

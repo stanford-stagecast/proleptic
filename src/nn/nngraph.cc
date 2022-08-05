@@ -14,9 +14,9 @@ AutoCDF::AutoCDF( const string_view title, const string_view xlabel )
 {
 }
 
-std::string AutoCDF::graph( const unsigned int width, const unsigned int height )
+std::string AutoCDF::graph( const unsigned int width, const unsigned int height, vector<float>& values )
 {
-  make_cdf( values_, num_cdf_points, cdf_ );
+  make_cdf( values, num_cdf_points, cdf_ );
 
   if ( cdf_.empty() ) {
     throw runtime_error( "empty CDF" );
@@ -70,31 +70,47 @@ struct GetActivations
 
 template<class Network>
 NetworkGraph<Network>::NetworkGraph()
-  : weights_()
-  , biases_()
+  : weight_values_( Network::num_layers )
+  , bias_values_( Network::num_layers )
+  , activation_values_( Network::num_layers )
   , weight_svgs_( Network::num_layers )
   , bias_svgs_( Network::num_layers )
 {
   for ( size_t i = 0; i < Network::num_layers; ++i ) {
-    weights_.emplace_back( "CDF of weights @ layer " + to_string( i ), "weight" );
-    biases_.emplace_back( "CDF of biases @ layer " + to_string( i ), "bias" );
+    weight_cdfs_.emplace_back( "CDF of weights @ layer " + to_string( i ), "weight" );
+    bias_cdfs_.emplace_back( "CDF of biases @ layer " + to_string( i ), "bias" );
+    activation_cdfs_.emplace_back( "CDF of activations @ layer " + to_string( i ), "activation" );
+  }
+}
+
+static void clear_all( vector<vector<float>>& vec )
+{
+  for ( auto& v : vec ) {
+    v.clear();
   }
 }
 
 template<class Network>
 void NetworkGraph<Network>::initialize( const Network& net )
 {
-  for ( size_t i = 0; i < Network::num_layers; ++i ) {
-    auto& weight_cdf = weights_.at( i );
-    weight_cdf.values().clear();
-    extract<GetWeights>( net, i, weight_cdf.values() );
-    weight_svgs_.at( i ) = weight_cdf.graph( 640, 480 );
+  reset_activations();
 
-    auto& bias_cdf = biases_.at( i );
-    bias_cdf.values().clear();
-    extract<GetBiases>( net, i, bias_cdf.values() );
-    bias_svgs_.at( i ) = bias_cdf.graph( 640, 480 );
+  /* precompute weight and bias graphs */
+  for ( size_t i = 0; i < Network::num_layers; ++i ) {
+    weight_values_.at( i ).clear();
+    extract<GetWeights>( net, i, weight_values_.at( i ) );
+    weight_svgs_.at( i ) = weight_cdfs_.at( i ).graph( 640, 480, weight_values_.at( i ) );
+
+    bias_values_.at( i ).clear();
+    extract<GetBiases>( net, i, bias_values_.at( i ) );
+    bias_svgs_.at( i ) = bias_cdfs_.at( i ).graph( 640, 480, bias_values_.at( i ) );
   }
+}
+
+template<class Network>
+void NetworkGraph<Network>::reset_activations()
+{
+  clear_all( activation_values_ );
 }
 
 template<class Network>
@@ -102,11 +118,25 @@ string NetworkGraph<Network>::graph()
 {
   string svg;
   for ( size_t i = 0; i < Network::num_layers; ++i ) {
+    /* weight and bias graphs are precomputed until the network changes */
     svg.append( weight_svgs_.at( i ) );
     svg.append( bias_svgs_.at( i ) );
+    svg.append( activation_cdfs_.at( i ).graph( 640, 480, activation_values_.at( i ) ) );
+
     svg.append( "<p>" );
   }
   return svg;
 }
 
+template<class Network>
+template<int T_batch_size>
+void NetworkGraph<Network>::add_activations(
+  const typename Network::template Activations<T_batch_size>& activations )
+{
+  for ( size_t i = 0; i < Network::num_layers; ++i ) {
+    extract<GetActivations>( activations, i, activation_values_.at( i ) );
+  }
+}
+
 template class NetworkGraph<DNN>;
+template void NetworkGraph<DNN>::add_activations<BATCH_SIZE>( const DNN::Activations<BATCH_SIZE>& activations );

@@ -82,7 +82,7 @@ Graph::Graph( const pair<double, double> image_size,
   svg_.append( "' />" );
 
   if ( x_range_.first < 0 and x_range_.second > 0 ) {
-    svg_.append( "<polyline fill='none' stroke='#C0C0C0' stroke-width='0.5px' points='" );
+    svg_.append( "<polyline fill='none' stroke='#A0A0A0' stroke-width='0.5px' points='" );
     svg_.append( to_string( x_user_to_image( 0 ) ) + "," + to_string( y_user_to_image( y_range_.first ) ) );
     svg_.append( " " );
     svg_.append( to_string( x_user_to_image( 0 ) ) + "," + to_string( y_user_to_image( y_range.second ) ) );
@@ -90,7 +90,7 @@ Graph::Graph( const pair<double, double> image_size,
   }
 
   if ( y_range_.first < 0 and y_range_.second > 0 ) {
-    svg_.append( "<polyline fill='none' stroke='#C0C0C0' stroke-width='0.5px' points='" );
+    svg_.append( "<polyline fill='none' stroke='#A0A0A0' stroke-width='0.5px' points='" );
     svg_.append( to_string( x_user_to_image( x_range_.first ) ) + "," + to_string( y_user_to_image( 0 ) ) );
     svg_.append( " " );
     svg_.append( to_string( x_user_to_image( x_range_.second ) ) + "," + to_string( y_user_to_image( 0 ) ) );
