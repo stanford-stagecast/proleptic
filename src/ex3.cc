@@ -77,12 +77,16 @@ void program_body( const string& filename )
     }
   };
 
+  const auto output_transformer = []( const auto& singleton, float& out ) { out = singleton( 0, 0 ); };
+
   DNN::M_input<BATCH_SIZE> input_batch;
 
   DNN::M_input<1> single_input;
   DNN::M_output<1> single_output;
 
   DNN::Activations<BATCH_SIZE> activations;
+
+  vector<pair<float, float>> target_actual_inference;
 
   /* listen for connections */
   TCPSocket server_socket {};
@@ -134,21 +138,39 @@ void program_body( const string& filename )
         } else {
           the_response.headers.content_type = "image/svg+xml";
 
+          target_actual_inference.clear();
           graph.reset_activations();
+
           for ( size_t batch = 0; batch < num_batches; ++batch ) {
             // step 1: generate one batch of input
             for ( size_t elem = 0; elem < BATCH_SIZE; ++elem ) {
               input_generator( single_input, single_output );
               input_batch.row( elem ) = single_input;
+              target_actual_inference.emplace_back();
+              output_transformer( single_output, target_actual_inference.at( batch * BATCH_SIZE + elem ).first );
             }
 
             // step 2: apply the network to the batch
             mynetwork.apply( input_batch, activations );
 
-            // step 3: grab the activations
+            // step 3: grab the actual inference outputs
+            for ( unsigned int elem = 0; elem < BATCH_SIZE; ++elem ) {
+              output_transformer( activations.output().row( elem ),
+                                  target_actual_inference.at( batch * BATCH_SIZE + elem ).second );
+            }
+
+            // step 4: grab all the activations
             graph.add_activations( activations );
           }
-          the_response.body = graph.graph();
+
+          the_response.body.append( graph.io_graph( target_actual_inference, "Target vs. Inferred", "bpm" ) );
+          the_response.body.append( "<p>" );
+
+          auto layer_graphs = graph.layer_graphs();
+          for ( const auto& layer : layer_graphs ) {
+            the_response.body.append( layer );
+            the_response.body.append( "<p>" );
+          }
         }
         the_response.headers.content_length = the_response.body.size();
         http_server.push_response( move( the_response ) );

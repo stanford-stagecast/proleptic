@@ -114,18 +114,18 @@ void NetworkGraph<Network>::reset_activations()
 }
 
 template<class Network>
-string NetworkGraph<Network>::graph()
+vector<string> NetworkGraph<Network>::layer_graphs()
 {
-  string svg;
+  vector<string> layers;
   for ( size_t i = 0; i < Network::num_layers; ++i ) {
+    layers.emplace_back();
+    auto& svg = layers.back();
     /* weight and bias graphs are precomputed until the network changes */
     svg.append( weight_svgs_.at( i ) );
     svg.append( bias_svgs_.at( i ) );
     svg.append( activation_cdfs_.at( i ).graph( 640, 480, activation_values_.at( i ) ) );
-
-    svg.append( "<p>" );
   }
-  return svg;
+  return layers;
 }
 
 template<class Network>
@@ -136,6 +136,31 @@ void NetworkGraph<Network>::add_activations(
   for ( size_t i = 0; i < Network::num_layers; ++i ) {
     extract<GetActivations>( activations, i, activation_values_.at( i ) );
   }
+}
+
+template<class Network>
+string NetworkGraph<Network>::io_graph( const vector<pair<float, float>>& target_vs_actual,
+                                        const string_view title,
+                                        const string_view quantity )
+{
+  const auto [xmin, xmax] = minmax_element(
+    target_vs_actual.begin(), target_vs_actual.end(), []( auto x, auto y ) { return x.first < y.first; } );
+
+  const auto [ymin, ymax] = minmax_element(
+    target_vs_actual.begin(), target_vs_actual.end(), []( auto x, auto y ) { return x.second < y.second; } );
+
+  io_xrange_ = { min( io_xrange_.first, xmin->first ), max( io_xrange_.second, xmax->first ) };
+  io_yrange_ = { min( io_yrange_.first, ymin->second ), max( io_yrange_.second, ymax->second ) };
+
+  Graph graph {
+    { 1280, 720 }, io_xrange_, io_yrange_, title, string( quantity ) + " (true)", string( quantity ) + " (inferred)"
+  };
+
+  graph.draw_identity_function( "black", 3 );
+  graph.draw_points( target_vs_actual );
+  graph.draw_identity_function( "white", 1 );
+  graph.finish();
+  return move( graph.svg() );
 }
 
 template class NetworkGraph<DNN>;

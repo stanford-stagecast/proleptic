@@ -4,10 +4,11 @@
 #include <utility>
 #include <vector>
 
+static constexpr std::pair<float, float> init_range = { std::numeric_limits<double>::max(), 0 };
+
 class AutoCDF
 {
   static constexpr unsigned int num_cdf_points = 1000;
-  static constexpr std::pair<float, float> init_range = { std::numeric_limits<double>::max(), 0 };
 
   std::vector<std::pair<float, float>> cdf_ {};
 
@@ -28,6 +29,8 @@ class NetworkGraph
   std::vector<AutoCDF> weight_cdfs_ {}, bias_cdfs_ {}, activation_cdfs_ {};
   std::vector<std::string> weight_svgs_, bias_svgs_;
 
+  std::pair<float, float> io_xrange_ { init_range }, io_yrange_ { init_range };
+
 public:
   NetworkGraph();
   void initialize( const Network& net );
@@ -37,5 +40,9 @@ public:
   template<int T_batch_size>
   void add_activations( const typename Network::template Activations<T_batch_size>& activations );
 
-  std::string graph();
+  std::string io_graph( const std::vector<std::pair<float, float>>& target_vs_actual,
+                        const std::string_view title,
+                        const std::string_view quantity );
+
+  std::vector<std::string> layer_graphs();
 };
