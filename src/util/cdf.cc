@@ -8,6 +8,8 @@ using namespace std;
 void make_cdf( vector<float>& values, const unsigned int num_samples, vector<pair<float, float>>& cdf )
 {
   sort( values.begin(), values.end() );
+  cdf.clear();
+
   const double bin_size = 1.0 / double( num_samples );
   double actual_fraction = 0.0;
 

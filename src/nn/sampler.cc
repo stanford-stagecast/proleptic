@@ -40,5 +40,4 @@ void Sampler<T_batch_size, NetworkType, OutputType>::sample( const size_t num_ba
   }
 }
 
-template struct Sampler<1, DNN, float>;
-template struct Sampler<64, DNN, float>;
+template struct Sampler<BATCH_SIZE, DNN, float>;

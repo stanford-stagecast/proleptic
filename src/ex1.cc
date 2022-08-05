@@ -54,7 +54,7 @@ void program_body( const string& filename, const string& iterations_s )
 
   const auto output_transformer = []( const auto& singleton, float& out ) { out = singleton( 0, 0 ); };
 
-  using MySampler = Sampler<64, DNN, float>;
+  using MySampler = Sampler<BATCH_SIZE, DNN, float>;
 
   MySampler::Output outputs;
 
