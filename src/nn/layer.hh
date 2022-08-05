@@ -2,11 +2,10 @@
 
 #include <Eigen/Dense>
 
-static constexpr float leaky_constant = 0.01;
+// The Layer class models a neural-network layer that transforms
+// a vector of size "T_input_size" into a vector of size "T_output_size".
+// The actual operations are external to the layer and are implemented in "nnops.hh".
 
-// The Layer class models a fully-connected neural-network layer
-// with leaky ReLU activation. The layer transforms a vector
-// of size "T_input_size" into a vector of size "T_output_size".
 template<typename T, int T_input_size, int T_output_size>
 class Layer
 {
@@ -39,23 +38,7 @@ public:
   template<int T_batch_size>
   using M_output = Eigen::Matrix<T, T_batch_size, T_output_size>;
 
-  // Apply the linear part of the fully-connected layer (matrix multiplication)
-  template<int T_batch_size>
-  void apply_without_activation( const M_input<T_batch_size>& input,
-                                 M_output<T_batch_size>& unactivated_output ) const
-  {
-    static_assert( T_batch_size > 0 );
-    unactivated_output = ( input * weights_ ).rowwise() + biases_;
-  }
-
-  // Apply the nonlinear part of the layer ("leaky ReLU")
-  template<int T_batch_size>
-  void activate( M_output<T_batch_size>& output ) const
-  {
-    static_assert( T_batch_size > 0 );
-    output = output.unaryExpr( []( const auto val ) { return val > 0 ? val : leaky_constant * val; } );
-  }
-
+  // Comparison
   bool operator==( const Layer& other ) const = default;
 
 private:

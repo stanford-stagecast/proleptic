@@ -4,6 +4,7 @@
 #include <tuple>
 
 #include "layer.hh"
+#include "nnops.hh"
 
 // The Network class models a sequence of neural-network layers.
 // It transforms a vector of size "i0" into a vector whose size is the output size
@@ -75,8 +76,8 @@ public:
   template<int T_batch_size>
   void apply( const M_input<T_batch_size>& input, Activations<T_batch_size>& activations ) const
   {
-    layer0_.apply_without_activation( input, activations.first_layer() );
-    layer0_.activate( activations.first_layer() );
+    apply_fully_connected<L_layer0, T_batch_size>( layer0_, input, activations.first_layer() );
+    activate<L_layer0, T_batch_size>( activations.first_layer() );
     rest_.apply( activations.first_layer(), activations.rest() );
   }
 
@@ -143,7 +144,7 @@ public:
   template<int T_batch_size>
   void apply( const M_input<T_batch_size>& input, Activations<T_batch_size>& activations ) const
   {
-    layer0_.apply_without_activation( input, activations.first_layer() );
+    apply_fully_connected<L_layer0, T_batch_size>( layer0_, input, activations.first_layer() );
   }
 
   // Helpful boolean to indicate if this is the last layer
