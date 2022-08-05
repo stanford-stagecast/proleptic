@@ -151,7 +151,7 @@ void program_body( const string& filename )
             }
 
             // step 2: apply the network to the batch
-            mynetwork.apply( input_batch, activations );
+            apply<BATCH_SIZE>( mynetwork, input_batch, activations );
 
             // step 3: grab the actual inference outputs
             for ( unsigned int elem = 0; elem < BATCH_SIZE; ++elem ) {

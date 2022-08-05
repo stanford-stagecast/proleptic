@@ -71,19 +71,10 @@ public:
     static constexpr bool is_last_layer = false;
   };
 
-  // Apply the neural network to a given input, writing the activations as output.
-  // This applies the current layer and then recurses to the rest of the network.
-  template<int T_batch_size>
-  void apply( const M_input<T_batch_size>& input, Activations<T_batch_size>& activations ) const
-  {
-    apply_fully_connected<L_layer0, T_batch_size>( layer0_, input, activations.first_layer() );
-    activate<L_layer0, T_batch_size>( activations.first_layer() );
-    rest_.apply( activations.first_layer(), activations.rest() );
-  }
-
   // Helpful boolean to indicate if this is the last layer
   static constexpr bool is_last_layer = false;
 
+  // Comparison
   bool operator==( const Network& other ) const = default;
 
 private:
@@ -138,14 +129,6 @@ public:
     // Helpful boolean to indicate if this is the last layer
     static constexpr bool is_last_layer = true;
   };
-
-  // Apply the neural network to a given input, writing the activations as output.
-  // This just applies the current layer (the last layer in a network).
-  template<int T_batch_size>
-  void apply( const M_input<T_batch_size>& input, Activations<T_batch_size>& activations ) const
-  {
-    apply_fully_connected<L_layer0, T_batch_size>( layer0_, input, activations.first_layer() );
-  }
 
   // Helpful boolean to indicate if this is the last layer
   static constexpr bool is_last_layer = true;

@@ -111,7 +111,7 @@ void serialize( const T_network& network, Serializer& out )
 
   // initialize output container
   typename T_network::template Activations<16> activations;
-  network.apply( my_input, activations );
+  apply<16>( network, my_input, activations );
 
   // serialize input header
   out.string( test_input_header_str_view );
@@ -201,7 +201,7 @@ void parse( T_network& network, Parser& in )
 
   // confirm that the network's output matches the serialized expectation
   typename T_network::template Activations<16> activations;
-  network.apply( my_input, activations );
+  apply<16>( network, my_input, activations );
 
   if ( ( activations.output() - expected_activations.output() ).cwiseAbs().maxCoeff() > 1e-5 ) {
     throw runtime_error( "DNN roundtrip failure" );

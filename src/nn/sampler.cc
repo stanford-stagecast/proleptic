@@ -1,6 +1,7 @@
 #include "sampler.hh"
 #include "dnn_types.hh"
 #include "network.hh"
+#include "nnops.hh"
 
 using namespace std;
 
@@ -31,7 +32,7 @@ void Sampler<T_batch_size, NetworkType, OutputType>::sample( const size_t num_ba
     }
 
     // step 2: apply the network to the batch
-    neuralnetwork.apply( input_batch, activations );
+    apply<T_batch_size>( neuralnetwork, input_batch, activations );
 
     // step 3: transform the actual outputs
     for ( size_t elem = 0; elem < T_batch_size; ++elem ) {
