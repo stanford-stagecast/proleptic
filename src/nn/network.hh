@@ -41,7 +41,7 @@ public:
 
   // Types of the input and output matrices (templated by batch size)
   template<int T_batch_size>
-  using M_input = typename L_layer0::template M_input<T_batch_size>;
+  using M_input = typename LayerInference<L_layer0>::template M_input<T_batch_size>;
 
   template<int T_batch_size>
   using M_output = typename N_rest::template M_output<T_batch_size>;
@@ -51,7 +51,7 @@ public:
   class Activations
   {
     // Activations (outputs) of the current layer
-    typename L_layer0::template M_output<T_batch_size> layer0_ {};
+    typename LayerInference<L_layer0>::template M_output<T_batch_size> layer0_ {};
 
     // Activations of the rest of the neural network
     typename N_rest::template Activations<T_batch_size> rest_ {};
@@ -107,16 +107,16 @@ public:
 
   // Types of the input and output matrices (templated by batch size)
   template<int T_batch_size>
-  using M_input = typename L_layer0::template M_input<T_batch_size>;
+  using M_input = typename LayerInference<L_layer0>::template M_input<T_batch_size>;
 
   template<int T_batch_size>
-  using M_output = typename L_layer0::template M_output<T_batch_size>;
+  using M_output = typename LayerInference<L_layer0>::template M_output<T_batch_size>;
 
   // The base case of a recursive type that contains the activations
   template<int T_batch_size>
   class Activations
   {
-    typename L_layer0::template M_output<T_batch_size> layer0_ {};
+    typename LayerInference<L_layer0>::template M_output<T_batch_size> layer0_ {};
 
   public:
     // Accessors

@@ -31,13 +31,6 @@ public:
   M_weights& weights() { return weights_; }
   M_biases& biases() { return biases_; }
 
-  // Types of the input and output matrices (templated by batch size)
-  template<int T_batch_size>
-  using M_input = Eigen::Matrix<T, T_batch_size, T_input_size>;
-
-  template<int T_batch_size>
-  using M_output = Eigen::Matrix<T, T_batch_size, T_output_size>;
-
   // Comparison
   bool operator==( const Layer& other ) const = default;
 
