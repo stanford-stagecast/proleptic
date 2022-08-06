@@ -4,12 +4,12 @@
 #include "exception.hh"
 #include "grapher.hh"
 #include "http_server.hh"
+#include "inference.hh"
 #include "mmap.hh"
 #include "network.hh"
 #include "nngraph.hh"
 #include "parser.hh"
 #include "random.hh"
-#include "sampler.hh"
 #include "serdes.hh"
 #include "socket.hh"
 
@@ -63,7 +63,10 @@ void program_body( const string& filename )
   auto tempo_distribution = uniform_real_distribution<float>( 30, 240 ); // beats per minute
   auto noise_distribution = normal_distribution<float>( 0, note_timing_variation );
 
-  const auto input_generator = [&]( DNN::M_input<1>& sample_input, DNN::M_output<1>& target_output ) {
+  using SingleInput = NetworkInference<DNN, 1>::Input;
+  using SingleOutput = NetworkInference<DNN, 1>::Output;
+
+  const auto input_generator = [&]( SingleInput& sample_input, SingleOutput& target_output ) {
     const float tempo = tempo_distribution( prng );
     target_output( 0, 0 ) = tempo;
 
@@ -79,12 +82,10 @@ void program_body( const string& filename )
 
   const auto output_transformer = []( const auto& singleton, float& out ) { out = singleton( 0, 0 ); };
 
-  DNN::M_input<BATCH_SIZE> input_batch;
-
-  DNN::M_input<1> single_input;
-  DNN::M_output<1> single_output;
-
-  DNN::Activations<BATCH_SIZE> activations;
+  NetworkInference<DNN, BATCH_SIZE> inference;
+  NetworkInference<DNN, BATCH_SIZE>::Input input_batch;
+  SingleInput single_input;
+  SingleOutput single_output;
 
   vector<pair<float, float>> target_actual_inference;
 
@@ -151,16 +152,16 @@ void program_body( const string& filename )
             }
 
             // step 2: apply the network to the batch
-            apply<BATCH_SIZE>( mynetwork, input_batch, activations );
+            inference.apply( mynetwork, input_batch );
 
             // step 3: grab the actual inference outputs
             for ( unsigned int elem = 0; elem < BATCH_SIZE; ++elem ) {
-              output_transformer( activations.output().row( elem ),
+              output_transformer( inference.output().row( elem ),
                                   target_actual_inference.at( batch * BATCH_SIZE + elem ).second );
             }
 
             // step 4: grab all the activations
-            graph.add_activations( activations );
+            graph.add_activations( inference );
           }
 
           the_response.body.append( graph.io_graph( target_actual_inference, "Target vs. Inferred", "bpm" ) );

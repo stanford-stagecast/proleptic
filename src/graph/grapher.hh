@@ -35,5 +35,5 @@ public:
   void finish();
 
   const std::string& svg() const { return svg_; }
-  std::string && mut_svg() { return std::move( svg_ ); }
+  std::string&& mut_svg() { return std::move( svg_ ); }
 };

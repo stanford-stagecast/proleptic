@@ -35,10 +35,10 @@ template<template<typename> typename Getter, class T>
 void extract( const T& obj, const size_t layer_no, vector<float>& vec )
 {
   if ( layer_no > 0 ) {
-    if constexpr ( T::is_last_layer ) {
+    if constexpr ( T::is_last ) {
       throw runtime_error( "layer_no out of range" );
     } else {
-      return extract<Getter>( obj.rest(), layer_no - 1, vec );
+      return extract<Getter>( obj.rest, layer_no - 1, vec );
     }
   }
 
@@ -53,19 +53,19 @@ void extract( const T& obj, const size_t layer_no, vector<float>& vec )
 template<class T>
 struct GetWeights
 {
-  static constexpr auto& get( const T& net ) { return net.first_layer().weights(); }
+  static constexpr auto& get( const T& net ) { return net.first.weights; }
 };
 
 template<class T>
 struct GetBiases
 {
-  static constexpr auto& get( const T& net ) { return net.first_layer().biases(); }
+  static constexpr auto& get( const T& net ) { return net.first.biases; }
 };
 
 template<class T>
 struct GetActivations
 {
-  static constexpr auto& get( const T& act ) { return act.first_layer(); }
+  static constexpr auto& get( const T& act ) { return act.first; }
 };
 
 template<class Network>
@@ -129,9 +129,8 @@ vector<string> NetworkGraph<Network>::layer_graphs()
 }
 
 template<class Network>
-template<int T_batch_size>
-void NetworkGraph<Network>::add_activations(
-  const typename Network::template Activations<T_batch_size>& activations )
+template<int batch_size>
+void NetworkGraph<Network>::add_activations( const NetworkInference<Network, batch_size>& activations )
 {
   for ( size_t i = 0; i < Network::num_layers; ++i ) {
     extract<GetActivations>( activations, i, activation_values_.at( i ) );
@@ -164,4 +163,4 @@ string NetworkGraph<Network>::io_graph( const vector<pair<float, float>>& target
 }
 
 template class NetworkGraph<DNN>;
-template void NetworkGraph<DNN>::add_activations<BATCH_SIZE>( const DNN::Activations<BATCH_SIZE>& activations );
+template void NetworkGraph<DNN>::add_activations<BATCH_SIZE>( const NetworkInference<DNN, BATCH_SIZE>& inference );

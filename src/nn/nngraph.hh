@@ -4,6 +4,8 @@
 #include <utility>
 #include <vector>
 
+#include "inference.hh"
+
 static constexpr std::pair<float, float> init_range = { std::numeric_limits<double>::max(), 0 };
 
 class AutoCDF
@@ -37,8 +39,8 @@ public:
 
   void reset_activations();
 
-  template<int T_batch_size>
-  void add_activations( const typename Network::template Activations<T_batch_size>& activations );
+  template<int batch_size>
+  void add_activations( const NetworkInference<Network, batch_size>& activations );
 
   std::string io_graph( const std::vector<std::pair<float, float>>& target_vs_actual,
                         const std::string_view title,

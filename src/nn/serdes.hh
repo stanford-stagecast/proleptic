@@ -3,22 +3,22 @@
 #include "parser.hh"
 
 namespace LayerSerDes {
-template<typename T_layer>
-void serialize( const T_layer& layer, Serializer& out );
-template<typename T_layer>
-void parse( T_layer& layer, Parser& in );
+template<typename LayerT>
+void serialize( const LayerT& layer, Serializer& out );
+template<typename LayerT>
+void parse( LayerT& layer, Parser& in );
 }
 
 namespace NetworkSerDes {
-template<typename T_network>
-void serialize( const T_network& network, Serializer& out );
-template<typename T_network>
-void parse( T_network& layer, Parser& in );
+template<typename NetworkT>
+void serialize( const NetworkT& network, Serializer& out );
+template<typename NetworkT>
+void parse( NetworkT& layer, Parser& in );
 
-template<typename T_network>
-void serialize_internal( const T_network& network, Serializer& out );
-template<typename T_network>
-void parse_internal( T_network& layer, Parser& in );
+template<typename NetworkT>
+void serialize_internal( const NetworkT& network, Serializer& out );
+template<typename NetworkT>
+void parse_internal( NetworkT& layer, Parser& in );
 }
 
 using NetworkSerDes::parse;

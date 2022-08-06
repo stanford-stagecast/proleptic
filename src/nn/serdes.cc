@@ -1,5 +1,6 @@
 #include "serdes.hh"
 #include "dnn_types.hh"
+#include "inference.hh"
 
 using namespace std;
 
@@ -23,25 +24,27 @@ static constexpr string_view test_output_header_str_view { test_output_header_st
 static constexpr string_view roundtrip_test_end_str_view { roundtrip_test_end_str.data(),
                                                            roundtrip_test_end_str.size() };
 
+static constexpr unsigned int num_examples = 16;
+
 namespace LayerSerDes {
-template<typename T_layer>
-void serialize( const T_layer& layer, Serializer& out )
+template<typename LayerT>
+void serialize( const LayerT& layer, Serializer& out )
 {
   out.string( layer_header_str_view );
-  out.integer( T_layer::input_size );
-  out.integer( T_layer::output_size );
+  out.integer( LayerT::input_size );
+  out.integer( LayerT::output_size );
 
-  for ( unsigned int i = 0; i < layer.weights().size(); ++i ) {
-    out.floating( *( layer.weights().data() + i ) );
+  for ( unsigned int i = 0; i < layer.weights.size(); ++i ) {
+    out.floating( *( layer.weights.data() + i ) );
   }
 
-  for ( unsigned int i = 0; i < layer.biases().size(); ++i ) {
-    out.floating( *( layer.biases().data() + i ) );
+  for ( unsigned int i = 0; i < layer.biases.size(); ++i ) {
+    out.floating( *( layer.biases.data() + i ) );
   }
 }
 
-template<typename T_layer>
-void parse( T_layer& layer, Parser& in )
+template<typename LayerT>
+void parse( LayerT& layer, Parser& in )
 {
   array<char, 8> layer_header;
   string_span layer_header_span { layer_header.data(), layer_header.size() };
@@ -54,64 +57,62 @@ void parse( T_layer& layer, Parser& in )
   in.integer( input_size );
   in.integer( output_size );
 
-  if ( input_size != T_layer::input_size or output_size != T_layer::output_size ) {
+  if ( input_size != LayerT::input_size or output_size != LayerT::output_size ) {
     throw runtime_error( "input or output size mismatch" );
   }
 
-  for ( unsigned int i = 0; i < layer.weights().size(); ++i ) {
-    in.floating( *( layer.weights().data() + i ) );
+  for ( unsigned int i = 0; i < layer.weights.size(); ++i ) {
+    in.floating( *( layer.weights.data() + i ) );
   }
 
-  for ( unsigned int i = 0; i < layer.biases().size(); ++i ) {
-    in.floating( *( layer.biases().data() + i ) );
+  for ( unsigned int i = 0; i < layer.biases.size(); ++i ) {
+    in.floating( *( layer.biases.data() + i ) );
   }
 }
 }
 
 namespace NetworkSerDes {
-template<typename T_network>
-void serialize_internal( const T_network& network, Serializer& out )
+template<typename NetworkT>
+void serialize_internal( const NetworkT& network, Serializer& out )
 {
-  if constexpr ( T_network::is_last_layer ) {
-    return;
-  } else {
-    NetworkSerDes::serialize( network.rest(), out );
+  if constexpr ( not NetworkT::is_last ) {
+    NetworkSerDes::serialize( network.rest, out );
   }
 }
 
-template<typename T_network>
-void parse_internal( T_network& network, Parser& in )
+template<typename NetworkT>
+void parse_internal( NetworkT& network, Parser& in )
 {
-  LayerSerDes::parse( network.first_layer(), in );
+  LayerSerDes::parse( network.first, in );
 
-  if constexpr ( T_network::is_last_layer ) {
-    return;
-  } else {
-    NetworkSerDes::parse( network.rest(), in );
+  if constexpr ( not NetworkT::is_last ) {
+    NetworkSerDes::parse( network.rest, in );
   }
 }
 
-template<typename T_network>
-void serialize( const T_network& network, Serializer& out )
+template<typename NetworkT>
+void serialize( const NetworkT& network, Serializer& out )
 {
   out.string( network_header_str_view );
-  LayerSerDes::serialize( network.first_layer(), out );
+  LayerSerDes::serialize( network.first, out );
 
   serialize_internal( network, out );
 
   /* Consistency check for serialization and parsing
-     (1) generate 16 random inputs (type T_network::M_input)
+     (1) generate 16 random inputs
      (2) apply each one through the network to produce an output
      (3) serialize each input (maybe with an "input   " header)
          and its corresponding output (maybe with an "output  " header) */
 
+  using Infer = NetworkInference<NetworkT, num_examples>;
+
   // initialize some random input
-  typename T_network::template M_input<16> my_input;
+  typename Infer::Input my_input;
   my_input.Random();
 
   // initialize output container
-  typename T_network::template Activations<16> activations;
-  apply<16>( network, my_input, activations );
+  Infer inference;
+  inference.apply( network, my_input );
 
   // serialize input header
   out.string( test_input_header_str_view );
@@ -125,16 +126,16 @@ void serialize( const T_network& network, Serializer& out )
   out.string( test_output_header_str_view );
 
   // serialize output
-  for ( unsigned int i = 0; i < activations.output().size(); ++i ) {
-    out.floating( *( activations.output().data() + i ) );
+  for ( unsigned int i = 0; i < inference.output().size(); ++i ) {
+    out.floating( *( inference.output().data() + i ) );
   }
 
   // serialize end of test
   out.string( roundtrip_test_end_str_view );
 }
 
-template<typename T_network>
-void parse( T_network& network, Parser& in )
+template<typename NetworkT>
+void parse( NetworkT& network, Parser& in )
 {
   array<char, 8> network_header;
   string_span network_header_span { network_header.data(), network_header.size() };
@@ -155,6 +156,8 @@ void parse( T_network& network, Parser& in )
      (by "matched" maybe we mean it's within .01% or something -- doesn't
      have to be perfectly exact in the == sense between two floats) */
 
+  using Infer = NetworkInference<NetworkT, num_examples>;
+
   // input header demarcates input
   array<char, 8> test_input_header;
   string_span test_input_header_span { test_input_header.data(), test_input_header.size() };
@@ -166,7 +169,7 @@ void parse( T_network& network, Parser& in )
   }
 
   // read in input
-  typename T_network::template M_input<16> my_input;
+  typename Infer::Input my_input;
 
   for ( unsigned int i = 0; i < my_input.size(); ++i ) {
     in.floating( *( my_input.data() + i ) );
@@ -183,10 +186,9 @@ void parse( T_network& network, Parser& in )
   }
 
   // read in output
-  typename T_network::template Activations<16> expected_activations;
-
-  for ( unsigned int i = 0; i < expected_activations.output().size(); ++i ) {
-    in.floating( *( expected_activations.output().data() + i ) );
+  typename Infer::Output expected_output;
+  for ( unsigned int i = 0; i < expected_output.size(); ++i ) {
+    in.floating( *( expected_output.data() + i ) );
   }
 
   // read in end of test
@@ -200,10 +202,10 @@ void parse( T_network& network, Parser& in )
   }
 
   // confirm that the network's output matches the serialized expectation
-  typename T_network::template Activations<16> activations;
-  apply<16>( network, my_input, activations );
+  Infer inference;
+  inference.apply( network, my_input );
 
-  if ( ( activations.output() - expected_activations.output() ).cwiseAbs().maxCoeff() > 1e-5 ) {
+  if ( ( inference.output() - expected_output ).cwiseAbs().maxCoeff() > 1e-5 ) {
     throw runtime_error( "DNN roundtrip failure" );
   }
 }
