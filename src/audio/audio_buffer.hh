@@ -12,7 +12,8 @@ public:
   ChannelPair( const size_t capacity )
     : ch1_( capacity )
     , ch2_( capacity )
-  {}
+  {
+  }
 
   size_t range_begin() const { return ch1_.range_begin(); }
   size_t range_end() const { return ch1_.range_end(); }

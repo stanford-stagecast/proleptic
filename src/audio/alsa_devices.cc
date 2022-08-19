@@ -32,7 +32,8 @@ public:
   alsa_error( const string& context, const int err )
     : system_error( err, alsa_error_category() )
     , what_( context + ": " + system_error::what() )
-  {}
+  {
+  }
 
   const char* what() const noexcept override { return what_.c_str(); }
 };
