@@ -8,7 +8,7 @@ Pancake: an amendable piano synthesizer
 5. Run `./src/frontend/synthesizer-test [device_prefix] [midi_device] [sample_directory]`
     If you're working on the snr-piano machine:
     - device_prefix: Scarlett
-    - midi_device: /dev/midi2
+    - midi_device: /dev/snd/midi*
     - sample_directory: /usr/local/share/slender/samples/
 
 ## File Overview
