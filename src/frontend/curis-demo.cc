@@ -1,16 +1,19 @@
+#include <alsa/asoundlib.h>
 #include <iostream>
 
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
 #include "eventloop.hh"
+#include "midi_processor.hh"
 #include "stats_printer.hh"
-#include <alsa/asoundlib.h>
 
 using namespace std;
 
 static constexpr unsigned int audio_horizon = 16; /* samples */
+static constexpr float max_amplitude = 0.9;
+static constexpr float note_decay_rate = 0.9998;
 
-void program_body( const string_view device_prefix )
+void program_body( const string_view audio_device, const string& midi_device )
 {
   /* speed up C++ I/O by decoupling from C standard I/O */
   ios::sync_with_stdio( false );
@@ -19,13 +22,13 @@ void program_body( const string_view device_prefix )
   auto event_loop = make_shared<EventLoop>();
 
   /* find the audio device */
-  auto [name, interface_name] = ALSADevices::find_device( { device_prefix } );
+  auto [name, interface_name] = ALSADevices::find_device( { audio_device } );
 
   /* claim exclusive access to the audio device */
   const auto device_claim = AudioDeviceClaim::try_claim( name );
 
   /* use ALSA to initialize and configure audio device */
-  const auto short_name = device_prefix.substr( 0, 16 );
+  const auto short_name = audio_device.substr( 0, 16 );
   auto playback_interface = make_shared<AudioInterface>( interface_name, short_name, SND_PCM_STREAM_PLAYBACK );
   AudioInterface::Configuration config;
   config.sample_rate = 48000;           /* samples per second */
@@ -35,12 +38,16 @@ void program_body( const string_view device_prefix )
   playback_interface->set_config( config );
   playback_interface->initialize();
 
+  /* open the MIDI device */
+  FileDescriptor piano { CheckSystemCall( midi_device, open( midi_device.c_str(), O_RDONLY ) ) };
+  MidiProcessor midi;
+
   /* get ready to play an audio signal */
   ChannelPair audio_signal { 16384 };  // the output signal
   size_t next_sample_to_calculate = 0; // what's the next sample # to be written to the output signal?
 
   /* current amplitude of the sine waves */
-  float amp_left = 0.9, amp_right = 0.5;
+  float amp_left = 0, amp_right = 0;
 
   /* rule #1: write a continuous sine wave (but no more than 1.3 ms into the future) */
   event_loop->add_rule(
@@ -52,6 +59,7 @@ void program_body( const string_view device_prefix )
         audio_signal.safe_set(
           next_sample_to_calculate,
           { amp_left * sin( 2 * M_PI * 440 * time ), amp_right * sin( 2 * M_PI * 440 * time ) } );
+        amp_left *= note_decay_rate;
         next_sample_to_calculate++;
       }
     },
@@ -78,6 +86,27 @@ void program_body( const string_view device_prefix )
           return true;
     } );
 
+  /* rule #3: read MIDI data */
+  event_loop->add_rule(
+    "read MIDI event",
+    piano,
+    Direction::In,
+    [&] { midi.read_from_fd( piano ); },
+    [&] { return not midi.data_timeout(); } );
+
+  /* rule #4: process MIDI data */
+  event_loop->add_rule(
+    "process MIDI event",
+    [&] {
+      while ( midi.has_event() ) {
+        if ( midi.get_event_type() == 144 ) { /* key down */
+          amp_left = max_amplitude;
+        }
+        midi.pop_event();
+      }
+    },
+    [&] { return midi.has_event(); } );
+
   /* add a task that prints statistics occasionally */
   StatsPrinterTask stats_printer { event_loop };
 
@@ -90,9 +119,9 @@ void program_body( const string_view device_prefix )
 
 void usage_message( const string_view argv0 )
 {
-  cerr << "Usage: " << argv0 << " [device_prefix]\n";
+  cerr << "Usage: " << argv0 << " [audio_device] [midi_device]\n";
 
-  cerr << "Available devices:";
+  cerr << "Available audio devices:";
 
   const auto devices = ALSADevices::list();
 
@@ -115,12 +144,12 @@ int main( int argc, char* argv[] )
       abort();
     }
 
-    if ( argc != 2 ) {
+    if ( argc != 3 ) {
       usage_message( argv[0] );
       return EXIT_FAILURE;
     }
 
-    program_body( argv[1] );
+    program_body( argv[1], argv[2] );
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
     return EXIT_FAILURE;
