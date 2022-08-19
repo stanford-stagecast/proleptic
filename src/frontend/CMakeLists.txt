@@ -47,3 +47,18 @@ target_link_libraries ("synthesizer-test" ${Sndfile_LDFLAGS_OTHER})
 
 target_link_libraries ("synthesizer-test" ${Samplerate_LDFLAGS})
 target_link_libraries ("synthesizer-test" ${Samplerate_LDFLAGS_OTHER})
+
+
+add_executable ("curis-demo" "curis-demo.cc")
+target_link_libraries ("curis-demo" dbus)
+target_link_libraries ("curis-demo" stats)
+target_link_libraries ("curis-demo" audio)
+target_link_libraries ("curis-demo" util)
+
+target_link_libraries ("curis-demo" ${ALSA_LDFLAGS})
+target_link_libraries ("curis-demo" ${ALSA_LDFLAGS_OTHER})
+
+target_link_libraries ("curis-demo" ${DBus_LDFLAGS})
+target_link_libraries ("curis-demo" ${DBus_LDFLAGS_OTHER})
+target_link_libraries ("curis-demo" ${Sndfile_LDFLAGS})
+target_link_libraries ("curis-demo" ${Sndfile_LDFLAGS_OTHER})
