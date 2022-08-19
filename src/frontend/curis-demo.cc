@@ -8,6 +8,8 @@
 
 using namespace std;
 
+static constexpr unsigned int audio_horizon = 16; /* samples */
+
 void program_body( const string_view device_prefix )
 {
   /* speed up C++ I/O by decoupling from C standard I/O */
@@ -26,10 +28,10 @@ void program_body( const string_view device_prefix )
   const auto short_name = device_prefix.substr( 0, 16 );
   auto playback_interface = make_shared<AudioInterface>( interface_name, short_name, SND_PCM_STREAM_PLAYBACK );
   AudioInterface::Configuration config;
-  config.sample_rate = 48000; /* samples per second */
-  config.buffer_size = 96;    /* maximum samples of queued audio = 2 milliseconds */
-  config.period_size = 16;    /* chunk size for kernel's management of audio buffer */
-  config.avail_minimum = 64;  /* device is writeable with 64 samples can be written */
+  config.sample_rate = 48000;           /* samples per second */
+  config.buffer_size = 48;              /* maximum samples of queued audio = 1 millisecond */
+  config.period_size = 16;              /* chunk size for kernel's management of audio buffer */
+  config.avail_minimum = audio_horizon; /* device is writeable when full horizon can be written */
   playback_interface->set_config( config );
   playback_interface->initialize();
 
@@ -37,20 +39,24 @@ void program_body( const string_view device_prefix )
   ChannelPair audio_signal { 16384 };  // the output signal
   size_t next_sample_to_calculate = 0; // what's the next sample # to be written to the output signal?
 
+  /* current amplitude of the sine waves */
+  float amp_left = 0.9, amp_right = 0.5;
+
   /* rule #1: write a continuous sine wave (but no more than 1.3 ms into the future) */
   event_loop->add_rule(
     "calculate sine wave",
     [&] {
-      while ( next_sample_to_calculate <= playback_interface->cursor() + 64 ) {
+      while ( next_sample_to_calculate <= playback_interface->cursor() + audio_horizon ) {
         const double time = next_sample_to_calculate / double( config.sample_rate );
         /* compute the sine wave amplitude (middle A, 440 Hz) */
-        audio_signal.safe_set( next_sample_to_calculate,
-                               { 0.99 * sin( 2 * M_PI * 440 * time ), 0.99 * sin( 2 * M_PI * 440 * time ) } );
+        audio_signal.safe_set(
+          next_sample_to_calculate,
+          { amp_left * sin( 2 * M_PI * 440 * time ), amp_right * sin( 2 * M_PI * 440 * time ) } );
         next_sample_to_calculate++;
       }
     },
-    /* when should this rule run? commit to an output signal until 1.3 ms in the future */
-    [&] { return next_sample_to_calculate <= playback_interface->cursor() + 64; } );
+    /* when should this rule run? commit to an output signal until some horizon in the future */
+    [&] { return next_sample_to_calculate <= playback_interface->cursor() + audio_horizon; } );
 
   /* rule #2: play the output signal whenever space available in audio output buffer */
   event_loop->add_rule(
