@@ -20,11 +20,14 @@ struct LayerInference
   using Output = Eigen::Matrix<typename Layer::type, batch_size, Layer::output_size>;
 
   // Apply the linear part of a fully-connected layer (matrix multiplication)
-  static void apply_fully_connected_layer( const Layer& layer, const Input& input, Output& unactivated_output )
+  void apply_fully_connected_layer( const Layer& layer, const Input& input )
   {
     static_assert( batch_size > 0 );
-    unactivated_output = ( input * layer.weights ).rowwise() + layer.biases;
+    output = ( input * layer.weights ).rowwise() + layer.biases; // unactivated
   }
+
+  // Activations (outputs) from the layer
+  Output output {};
 };
 
 // Apply the nonlinear part of the layer ("leaky ReLU")
@@ -58,7 +61,7 @@ struct NetworkInferenceHelper<Network, batch_size, false>
   using Output = typename RestInfer::Output;
 
   // Activations (outputs)
-  Layer0Output first {};
+  LayerInfer first {};
   RestInfer rest {};
 
   // Accessors
@@ -69,9 +72,9 @@ struct NetworkInferenceHelper<Network, batch_size, false>
   // This applies the current layer and then recurses to the rest.
   void apply( const Network& network, const Input& input )
   {
-    LayerInfer::apply_fully_connected_layer( network.first, input, first );
-    apply_leaky_relu( first );
-    rest.apply( network.rest, first );
+    first.apply_fully_connected_layer( network.first, input );
+    apply_leaky_relu( first.output );
+    rest.apply( network.rest, first.output );
   }
 };
 
@@ -91,16 +94,16 @@ struct NetworkInferenceHelper<Network, batch_size, true>
   using Output = typename LayerInfer::Output;
 
   // Activations (outputs)
-  Output first {};
+  LayerInfer first {};
 
   // Accessors
-  const Output& output() const { return first; }
-  Output& output() { return first; }
+  const Output& output() const { return first.output; }
+  Output& output() { return first.output; }
 
   // Apply the neural network to a given input, writing the activations as output.
   // This applies the current (last) layer only, with no activation function.
   void apply( const Network& network, const Input& input )
   {
-    LayerInfer::apply_fully_connected_layer( network.first, input, first );
+    first.apply_fully_connected_layer( network.first, input );
   }
 };

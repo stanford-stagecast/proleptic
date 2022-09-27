@@ -65,7 +65,7 @@ struct GetBiases
 template<class T>
 struct GetActivations
 {
-  static constexpr auto& get( const T& act ) { return act.first; }
+  static constexpr auto& get( const T& act ) { return act.first.output; }
 };
 
 template<NetworkT Network>
