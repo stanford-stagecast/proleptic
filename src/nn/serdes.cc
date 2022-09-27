@@ -27,7 +27,7 @@ static constexpr string_view roundtrip_test_end_str_view { roundtrip_test_end_st
 static constexpr unsigned int num_examples = 16;
 
 namespace LayerSerDes {
-template<typename LayerT>
+template<LayerT LayerT>
 void serialize( const LayerT& layer, Serializer& out )
 {
   out.string( layer_header_str_view );
@@ -43,7 +43,7 @@ void serialize( const LayerT& layer, Serializer& out )
   }
 }
 
-template<typename LayerT>
+template<LayerT LayerT>
 void parse( LayerT& layer, Parser& in )
 {
   array<char, 8> layer_header;
@@ -72,7 +72,7 @@ void parse( LayerT& layer, Parser& in )
 }
 
 namespace NetworkSerDes {
-template<typename NetworkT>
+template<NetworkT NetworkT>
 void serialize_internal( const NetworkT& network, Serializer& out )
 {
   if constexpr ( not NetworkT::is_last ) {
@@ -80,7 +80,7 @@ void serialize_internal( const NetworkT& network, Serializer& out )
   }
 }
 
-template<typename NetworkT>
+template<NetworkT NetworkT>
 void parse_internal( NetworkT& network, Parser& in )
 {
   LayerSerDes::parse( network.first, in );
@@ -90,7 +90,7 @@ void parse_internal( NetworkT& network, Parser& in )
   }
 }
 
-template<typename NetworkT>
+template<NetworkT NetworkT>
 void serialize( const NetworkT& network, Serializer& out )
 {
   out.string( network_header_str_view );
@@ -134,7 +134,7 @@ void serialize( const NetworkT& network, Serializer& out )
   out.string( roundtrip_test_end_str_view );
 }
 
-template<typename NetworkT>
+template<NetworkT NetworkT>
 void parse( NetworkT& network, Parser& in )
 {
   array<char, 8> network_header;

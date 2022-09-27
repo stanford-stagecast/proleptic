@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "inference.hh"
+#include "network.hh"
 
 static constexpr std::pair<float, float> init_range = { std::numeric_limits<double>::max(), 0 };
 
@@ -24,7 +25,7 @@ public:
   std::string graph( const unsigned int width, const unsigned int height, std::vector<float>& values );
 };
 
-template<class Network>
+template<NetworkT Network>
 class NetworkGraph
 {
   std::vector<std::vector<float>> weight_values_, bias_values_, activation_values_;

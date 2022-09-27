@@ -1,12 +1,13 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <concepts>
 
 // The Layer models a neural-network layer that transforms a vector
 // of size "input_size" into a vector of size "output_size".
 // The operations are external to the layer and are implemented in "inference.hh".
 
-template<typename T, int input_size_T, int output_size_T>
+template<std::floating_point T, int input_size_T, int output_size_T>
 struct Layer
 {
   // Helpful constants
@@ -28,3 +29,10 @@ struct Layer
   // Comparison
   bool operator==( const Layer& other ) const = default;
 };
+
+template<class ProposedLayer>
+concept LayerT = requires( ProposedLayer c )
+{
+  []<typename T, int in, int out>( Layer<T, in, out>& ) {}( c );
+};
+;

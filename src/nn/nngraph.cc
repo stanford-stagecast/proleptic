@@ -68,7 +68,7 @@ struct GetActivations
   static constexpr auto& get( const T& act ) { return act.first; }
 };
 
-template<class Network>
+template<NetworkT Network>
 NetworkGraph<Network>::NetworkGraph()
   : weight_values_( Network::num_layers )
   , bias_values_( Network::num_layers )
@@ -90,7 +90,7 @@ static void clear_all( vector<vector<float>>& vec )
   }
 }
 
-template<class Network>
+template<NetworkT Network>
 void NetworkGraph<Network>::initialize( const Network& net )
 {
   reset_activations();
@@ -107,13 +107,13 @@ void NetworkGraph<Network>::initialize( const Network& net )
   }
 }
 
-template<class Network>
+template<NetworkT Network>
 void NetworkGraph<Network>::reset_activations()
 {
   clear_all( activation_values_ );
 }
 
-template<class Network>
+template<NetworkT Network>
 vector<string> NetworkGraph<Network>::layer_graphs()
 {
   vector<string> layers;
@@ -128,7 +128,7 @@ vector<string> NetworkGraph<Network>::layer_graphs()
   return layers;
 }
 
-template<class Network>
+template<NetworkT Network>
 template<int batch_size>
 void NetworkGraph<Network>::add_activations( const NetworkInference<Network, batch_size>& activations )
 {
@@ -137,7 +137,7 @@ void NetworkGraph<Network>::add_activations( const NetworkInference<Network, bat
   }
 }
 
-template<class Network>
+template<NetworkT Network>
 string NetworkGraph<Network>::io_graph( const vector<pair<float, float>>& target_vs_actual,
                                         const string_view title,
                                         const string_view quantity )

@@ -1,14 +1,18 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <concepts>
 #include <type_traits>
+
+#include "layer.hh"
+#include "network.hh"
 
 // These functions model the application of a network of fully-connected
 // layers with "leaky ReLU" activation.
 
 static constexpr float leaky_constant = 0.01;
 
-template<class LayerT, int batch_size>
+template<LayerT LayerT, int batch_size>
 struct LayerInference
 {
   // Types of the input and output matrices
@@ -30,13 +34,13 @@ static void apply_leaky_relu( MatrixT& output )
   output.noalias() = output.unaryExpr( []( const auto val ) { return val > 0 ? val : leaky_constant * val; } );
 }
 
-template<class NetworkT, int batch_size, bool is_last_T>
+template<NetworkT NetworkT, int batch_size, bool is_last_T>
 struct NetworkInferenceHelper;
 
-template<class NetworkT, int batch_size>
+template<NetworkT NetworkT, int batch_size>
 using NetworkInference = NetworkInferenceHelper<NetworkT, batch_size, NetworkT::is_last>;
 
-template<class NetworkT, int batch_size>
+template<NetworkT NetworkT, int batch_size>
 struct NetworkInferenceHelper<NetworkT, batch_size, false>
 {
   static_assert( not NetworkT::is_last );
@@ -70,7 +74,7 @@ struct NetworkInferenceHelper<NetworkT, batch_size, false>
   }
 };
 
-template<class NetworkT, int batch_size>
+template<NetworkT NetworkT, int batch_size>
 struct NetworkInferenceHelper<NetworkT, batch_size, true>
 {
   static_assert( NetworkT::is_last );

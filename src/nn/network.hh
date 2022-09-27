@@ -1,5 +1,7 @@
 #pragma once
 
+#include <concepts>
+
 #include "layer.hh"
 
 // The Network models a sequence of neural-network layers.
@@ -12,7 +14,7 @@
 // and "o0" is its output size (also the input size of the next layer).
 // The rest of the input/output sizes come afterward; each layer's output size
 // is the input size of the next layer.
-template<typename T, int i0, int o0, int... o_rest>
+template<std::floating_point T, int i0, int o0, int... o_rest>
 struct Network
 {
   // Type of the entries, the first layer, and the rest of the network
@@ -37,7 +39,7 @@ struct Network
 
 // Here is the base case. This is similar to the recursive case, but has no "rest" member.
 // It only contains one layer, defined by one input size and one output size.
-template<typename T, int i0, int o0>
+template<std::floating_point T, int i0, int o0>
 struct Network<T, i0, o0>
 {
   // Type of the entries and sole layer
@@ -57,3 +59,10 @@ struct Network<T, i0, o0>
   // Comparison
   bool operator==( const Network& other ) const = default;
 };
+
+template<class ProposedNetwork>
+concept NetworkT = requires( ProposedNetwork c )
+{
+  []<typename T, int i0, int o0, int... o_rest>( Network<T, i0, o0, o_rest...>& ) {}( c );
+};
+;

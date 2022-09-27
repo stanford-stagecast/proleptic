@@ -20,7 +20,7 @@ struct RandomState
   float sample() { return parameter_distribution( prng ); }
 };
 
-template<typename LayerT>
+template<LayerT LayerT>
 void randomize_layer( LayerT& layer, RandomState& rng )
 {
   for ( unsigned int i = 0; i < layer.weights.size(); ++i ) {
@@ -32,7 +32,7 @@ void randomize_layer( LayerT& layer, RandomState& rng )
   }
 }
 
-template<typename NetworkT>
+template<NetworkT NetworkT>
 void randomize_network( NetworkT& network, RandomState& rng )
 {
   randomize_layer( network.first, rng );
