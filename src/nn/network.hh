@@ -65,4 +65,3 @@ concept NetworkT = requires( ProposedNetwork c )
 {
   []<typename T, int i0, int o0, int... o_rest>( Network<T, i0, o0, o_rest...>& ) {}( c );
 };
-;

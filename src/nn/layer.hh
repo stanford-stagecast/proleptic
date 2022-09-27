@@ -35,4 +35,3 @@ concept LayerT = requires( ProposedLayer c )
 {
   []<typename T, int in, int out>( Layer<T, in, out>& ) {}( c );
 };
-;
