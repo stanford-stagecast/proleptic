@@ -20,8 +20,8 @@ struct RandomState
   float sample() { return parameter_distribution( prng ); }
 };
 
-template<LayerT LayerT>
-void randomize_layer( LayerT& layer, RandomState& rng )
+template<LayerT Layer>
+void randomize_layer( Layer& layer, RandomState& rng )
 {
   for ( unsigned int i = 0; i < layer.weights.size(); ++i ) {
     *( layer.weights.data() + i ) = rng.sample();
@@ -32,12 +32,12 @@ void randomize_layer( LayerT& layer, RandomState& rng )
   }
 }
 
-template<NetworkT NetworkT>
-void randomize_network( NetworkT& network, RandomState& rng )
+template<NetworkT Network>
+void randomize_network( Network& network, RandomState& rng )
 {
   randomize_layer( network.first, rng );
 
-  if constexpr ( not NetworkT::is_last ) {
+  if constexpr ( not Network::is_last ) {
     randomize_network( network.rest, rng );
   }
 }

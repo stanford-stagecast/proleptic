@@ -27,12 +27,12 @@ static constexpr string_view roundtrip_test_end_str_view { roundtrip_test_end_st
 static constexpr unsigned int num_examples = 16;
 
 namespace LayerSerDes {
-template<LayerT LayerT>
-void serialize( const LayerT& layer, Serializer& out )
+template<LayerT Layer>
+void serialize( const Layer& layer, Serializer& out )
 {
   out.string( layer_header_str_view );
-  out.integer( LayerT::input_size );
-  out.integer( LayerT::output_size );
+  out.integer( Layer::input_size );
+  out.integer( Layer::output_size );
 
   for ( unsigned int i = 0; i < layer.weights.size(); ++i ) {
     out.floating( *( layer.weights.data() + i ) );
@@ -43,8 +43,8 @@ void serialize( const LayerT& layer, Serializer& out )
   }
 }
 
-template<LayerT LayerT>
-void parse( LayerT& layer, Parser& in )
+template<LayerT Layer>
+void parse( Layer& layer, Parser& in )
 {
   array<char, 8> layer_header;
   string_span layer_header_span { layer_header.data(), layer_header.size() };
@@ -57,7 +57,7 @@ void parse( LayerT& layer, Parser& in )
   in.integer( input_size );
   in.integer( output_size );
 
-  if ( input_size != LayerT::input_size or output_size != LayerT::output_size ) {
+  if ( input_size != Layer::input_size or output_size != Layer::output_size ) {
     throw runtime_error( "input or output size mismatch" );
   }
 
@@ -72,26 +72,26 @@ void parse( LayerT& layer, Parser& in )
 }
 
 namespace NetworkSerDes {
-template<NetworkT NetworkT>
-void serialize_internal( const NetworkT& network, Serializer& out )
+template<NetworkT Network>
+void serialize_internal( const Network& network, Serializer& out )
 {
-  if constexpr ( not NetworkT::is_last ) {
+  if constexpr ( not Network::is_last ) {
     NetworkSerDes::serialize( network.rest, out );
   }
 }
 
-template<NetworkT NetworkT>
-void parse_internal( NetworkT& network, Parser& in )
+template<NetworkT Network>
+void parse_internal( Network& network, Parser& in )
 {
   LayerSerDes::parse( network.first, in );
 
-  if constexpr ( not NetworkT::is_last ) {
+  if constexpr ( not Network::is_last ) {
     NetworkSerDes::parse( network.rest, in );
   }
 }
 
-template<NetworkT NetworkT>
-void serialize( const NetworkT& network, Serializer& out )
+template<NetworkT Network>
+void serialize( const Network& network, Serializer& out )
 {
   out.string( network_header_str_view );
   LayerSerDes::serialize( network.first, out );
@@ -104,7 +104,7 @@ void serialize( const NetworkT& network, Serializer& out )
      (3) serialize each input (maybe with an "input   " header)
          and its corresponding output (maybe with an "output  " header) */
 
-  using Infer = NetworkInference<NetworkT, num_examples>;
+  using Infer = NetworkInference<Network, num_examples>;
 
   // initialize some random input
   typename Infer::Input my_input;
@@ -134,8 +134,8 @@ void serialize( const NetworkT& network, Serializer& out )
   out.string( roundtrip_test_end_str_view );
 }
 
-template<NetworkT NetworkT>
-void parse( NetworkT& network, Parser& in )
+template<NetworkT Network>
+void parse( Network& network, Parser& in )
 {
   array<char, 8> network_header;
   string_span network_header_span { network_header.data(), network_header.size() };
@@ -156,7 +156,7 @@ void parse( NetworkT& network, Parser& in )
      (by "matched" maybe we mean it's within .01% or something -- doesn't
      have to be perfectly exact in the == sense between two floats) */
 
-  using Infer = NetworkInference<NetworkT, num_examples>;
+  using Infer = NetworkInference<Network, num_examples>;
 
   // input header demarcates input
   array<char, 8> test_input_header;

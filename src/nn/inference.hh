@@ -12,15 +12,15 @@
 
 static constexpr float leaky_constant = 0.01;
 
-template<LayerT LayerT, int batch_size>
+template<LayerT Layer, int batch_size>
 struct LayerInference
 {
   // Types of the input and output matrices
-  using Input = Eigen::Matrix<typename LayerT::type, batch_size, LayerT::input_size>;
-  using Output = Eigen::Matrix<typename LayerT::type, batch_size, LayerT::output_size>;
+  using Input = Eigen::Matrix<typename Layer::type, batch_size, Layer::input_size>;
+  using Output = Eigen::Matrix<typename Layer::type, batch_size, Layer::output_size>;
 
   // Apply the linear part of a fully-connected layer (matrix multiplication)
-  static void apply_fully_connected_layer( const LayerT& layer, const Input& input, Output& unactivated_output )
+  static void apply_fully_connected_layer( const Layer& layer, const Input& input, Output& unactivated_output )
   {
     static_assert( batch_size > 0 );
     unactivated_output = ( input * layer.weights ).rowwise() + layer.biases;
@@ -34,22 +34,22 @@ static void apply_leaky_relu( MatrixT& output )
   output.noalias() = output.unaryExpr( []( const auto val ) { return val > 0 ? val : leaky_constant * val; } );
 }
 
-template<NetworkT NetworkT, int batch_size, bool is_last_T>
+template<NetworkT Network, int batch_size, bool is_last_T>
 struct NetworkInferenceHelper;
 
-template<NetworkT NetworkT, int batch_size>
-using NetworkInference = NetworkInferenceHelper<NetworkT, batch_size, NetworkT::is_last>;
+template<NetworkT Network, int batch_size>
+using NetworkInference = NetworkInferenceHelper<Network, batch_size, Network::is_last>;
 
-template<NetworkT NetworkT, int batch_size>
-struct NetworkInferenceHelper<NetworkT, batch_size, false>
+template<NetworkT Network, int batch_size>
+struct NetworkInferenceHelper<Network, batch_size, false>
 {
-  static_assert( not NetworkT::is_last );
+  static_assert( not Network::is_last );
 
   // Helpful boolean to indicate if this is the last layer
   static constexpr bool is_last = false;
 
-  using LayerInfer = LayerInference<typename NetworkT::Layer0, batch_size>;
-  using RestInfer = NetworkInference<typename NetworkT::Rest, batch_size>;
+  using LayerInfer = LayerInference<typename Network::Layer0, batch_size>;
+  using RestInfer = NetworkInference<typename Network::Rest, batch_size>;
 
   // Types of the input and output matrices
   using Input = typename LayerInfer::Input;
@@ -66,7 +66,7 @@ struct NetworkInferenceHelper<NetworkT, batch_size, false>
 
   // Apply the neural network to a given input, writing the activations as output.
   // This applies the current layer and then recurses to the rest.
-  void apply( const NetworkT& network, const Input& input )
+  void apply( const Network& network, const Input& input )
   {
     LayerInfer::apply_fully_connected_layer( network.first, input, first );
     apply_leaky_relu( first );
@@ -74,15 +74,15 @@ struct NetworkInferenceHelper<NetworkT, batch_size, false>
   }
 };
 
-template<NetworkT NetworkT, int batch_size>
-struct NetworkInferenceHelper<NetworkT, batch_size, true>
+template<NetworkT Network, int batch_size>
+struct NetworkInferenceHelper<Network, batch_size, true>
 {
-  static_assert( NetworkT::is_last );
+  static_assert( Network::is_last );
 
   // Helpful boolean to indicate if this is the last layer
   static constexpr bool is_last = true;
 
-  using LayerInfer = LayerInference<typename NetworkT::Layer0, batch_size>;
+  using LayerInfer = LayerInference<typename Network::Layer0, batch_size>;
 
   // Types of the input and output matrices
   using Input = typename LayerInfer::Input;
@@ -97,7 +97,7 @@ struct NetworkInferenceHelper<NetworkT, batch_size, true>
 
   // Apply the neural network to a given input, writing the activations as output.
   // This applies the current (last) layer only, with no activation function.
-  void apply( const NetworkT& network, const Input& input )
+  void apply( const Network& network, const Input& input )
   {
     LayerInfer::apply_fully_connected_layer( network.first, input, first );
   }
