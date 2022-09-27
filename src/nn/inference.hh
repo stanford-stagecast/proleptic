@@ -40,6 +40,7 @@ struct NetworkInferenceHelper;
 template<NetworkT Network, int batch_size>
 using NetworkInference = NetworkInferenceHelper<Network, batch_size, Network::is_last>;
 
+// Here is the recursive case: inference for a non-terminal Network.
 template<NetworkT Network, int batch_size>
 struct NetworkInferenceHelper<Network, batch_size, false>
 {
@@ -74,6 +75,7 @@ struct NetworkInferenceHelper<Network, batch_size, false>
   }
 };
 
+// Here is the base case: inference for a single-layer Network.
 template<NetworkT Network, int batch_size>
 struct NetworkInferenceHelper<Network, batch_size, true>
 {
