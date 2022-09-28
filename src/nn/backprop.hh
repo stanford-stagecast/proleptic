@@ -26,10 +26,7 @@ struct LayerBackPropagation
     weight_times_error.noalias() = error * layer.weights.transpose();
 
     bias_gradient.noalias() = error.colwise().sum();
-
-    for ( unsigned int batch = 0; batch < batch_size; ++batch ) {
-      weight_gradient.noalias() += input.row( batch ).transpose() * error.row( batch );
-    }
+    weight_gradient.noalias() = input.transpose() * error;
   }
 
   // State for this layer's backpropagation
