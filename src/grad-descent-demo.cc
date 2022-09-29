@@ -10,6 +10,7 @@
 #include "parser.hh"
 #include "random.hh"
 #include "serdes.hh"
+#include "training.hh"
 
 #include <algorithm>
 #include <functional>
@@ -66,6 +67,7 @@ struct GradientDescentTest
   using Infer = NetworkInference<Network, 1>;
   using BackProp = NetworkBackPropagation<Network, 1>;
   using GradientDescent = NetworkGradientDescent<Network, 1>;
+  using Training = NetworkTraining<Network, 1>;
   using Output = typename Infer::Output;
   using Input = typename Infer::Input;
   using Datum = pair<Input, Output>;
@@ -89,31 +91,18 @@ struct GradientDescentTest
 
       total_loss += loss( y, y_hat ).mean();
     }
-
     return total_loss / data.size();
   }
 
-  float train( const vector<Datum>& data )
+  void train( const vector<Datum>& data )
   {
-    float total_loss = 0.f;
     for ( Datum datum : data ) {
       Input x = datum.first;
       Output y = datum.second;
 
-      Infer infer;
-      infer.apply( nn, x );
-      Output y_hat = infer.output();
-
-      total_loss += loss( y, y_hat ).mean();
-
-      BackProp backprop;
-      backprop.differentiate( nn, x, infer, pd_loss_wrt_outputs( y, y_hat ) );
-
-      GradientDescent gradient_descent;
-      gradient_descent.update( nn, backprop, learning_rate );
+      Training training;
+      training.train( nn, x, y, pd_loss_wrt_outputs, learning_rate );
     }
-
-    return total_loss / data.size();
   }
 };
 
@@ -149,7 +138,7 @@ void one_layer_network_test( RandomState& rng )
   cout << endl << "One layer network [3x + 1]:" << endl;
   cout << fixed << setprecision( 10 );
   cout << "\tLoss before: " << test.test( test_data ) << endl;
-  cout << "\tLoss during: " << test.train( training_data ) << endl;
+  test.train( training_data );
   cout << "\tLoss after:  " << test.test( test_data ) << endl;
 
   auto x = test_data[0].first;
@@ -195,7 +184,7 @@ void multi_layer_network_test( RandomState& rng )
   cout << endl << "Multi-layer network [pow(x, 2)]:" << endl;
   cout << fixed << setprecision( 10 );
   cout << "\tLoss before: " << test.test( test_data ) << endl;
-  cout << "\tLoss during: " << test.train( training_data ) << endl;
+  test.train( training_data );
   cout << "\tLoss after:  " << test.test( test_data ) << endl;
 
   auto x = test_data[0].first;
@@ -242,7 +231,7 @@ void multi_output_network_test( RandomState& rng )
   cout << endl << "Multi-output network [3.00 < x < 7.00]:" << endl;
   cout << fixed << setprecision( 10 );
   cout << "\tLoss before: " << test.test( test_data ) << endl;
-  cout << "\tLoss during: " << test.train( training_data ) << endl;
+  test.train( training_data );
   cout << "\tLoss after:  " << test.test( test_data ) << endl;
 
   auto x = test_data[0].first;
