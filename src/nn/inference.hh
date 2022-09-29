@@ -107,3 +107,15 @@ struct NetworkInferenceHelper<Network, batch_size, true>
     first.apply_fully_connected_layer( network.first, input );
   }
 };
+
+template<class ProposedLayerInference>
+concept LayerInferenceT = requires( ProposedLayerInference c )
+{
+  []<LayerT Layer, int batch_size>( LayerInference<Layer, batch_size>& ) {}( c );
+};
+
+template<class ProposedNetworkInference>
+concept NetworkInferenceT = requires( ProposedNetworkInference c )
+{
+  []<NetworkT Network, int batch_size>( NetworkInference<Network, batch_size>& ) {}( c );
+};

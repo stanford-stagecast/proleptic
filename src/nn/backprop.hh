@@ -94,3 +94,15 @@ struct NetworkBackPropagationHelper<Network, batch_size, true>
     first.differentiate( network.first, input, inference.first, pd_loss_wrt_outputs );
   }
 };
+
+template<class ProposedLayerBackPropagation>
+concept LayerBackPropagationT = requires( ProposedLayerBackPropagation c )
+{
+  []<LayerT Layer, int batch_size>( LayerBackPropagation<Layer, batch_size>& ) {}( c );
+};
+
+template<class ProposedNetworkBackPropagation>
+concept NetworkBackPropagationT = requires( ProposedNetworkBackPropagation c )
+{
+  []<NetworkT Network, int batch_size>( NetworkBackPropagation<Network, batch_size>& ) {}( c );
+};
