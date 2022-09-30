@@ -11,6 +11,15 @@ env:
   BUILD_TYPE: Release
 
 jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: install tools
+    - run: sudo apt-get install clang-format
+    - run: ./scripts/clang-format-diff.sh
+
   build:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
     # You can convert this to a matrix build if you need cross-platform coverage.
@@ -20,7 +29,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Configures
+    - name: Configure
       run: sudo apt install libeigen3-dev g++-11 && sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 99 && sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 99
 
     - name: Configure CMake
