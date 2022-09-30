@@ -3,6 +3,9 @@
 set -o errexit
 set -o pipefail
 
+# origin/main isn't fetched by default on GitHub runners
+git fetch --all
+
 FORMAT_MSG=$(git clang-format origin/main -q --diff -- src/)
 if [ -n "$FORMAT_MSG" -a "$FORMAT_MSG" != "no modified files to format" ]
 then

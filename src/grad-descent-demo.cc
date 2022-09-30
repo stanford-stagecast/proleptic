@@ -49,14 +49,14 @@ void randomize_network( Network& network, RandomState& rng )
 }
 
 template<class Output>
-Output quadratic_loss( Output truth, Output predicted )
+Output quadratic_loss( const Output& truth, const Output& predicted )
 {
   Output difference = predicted - truth;
   return 0.5f * difference.cwiseProduct( difference );
 }
 
 template<class Output>
-Output pd_quadratic_loss_wrt_outputs( Output truth, Output predicted )
+Output pd_quadratic_loss_wrt_outputs( const Output& truth, const Output& predicted )
 {
   return predicted - truth;
 }
@@ -101,7 +101,8 @@ struct GradientDescentTest
       Output y = datum.second;
 
       Training training;
-      training.train( nn, x, y, pd_loss_wrt_outputs, learning_rate );
+      training.train(
+        nn, x, [&]( auto y_hat ) { return pd_loss_wrt_outputs( y, y_hat ); }, learning_rate );
     }
   }
 };
