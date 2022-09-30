@@ -44,10 +44,16 @@ void randomize_network( Network& network, RandomState& rng )
   }
 }
 
-template<LayerT Layer, NetworkT Network, NetworkInferenceT NetworkInference, 
+template<LayerT Layer,
+         NetworkT Network,
+         NetworkInferenceT NetworkInference,
          LayerBackPropagationT LayerBackPropagation>
-bool test_layer( Layer& layer, auto input, Network& network, NetworkInference& infer, 
-                 LayerBackPropagation& backprop, float original_inference_result)
+bool test_layer( Layer& layer,
+                 auto input,
+                 Network& network,
+                 NetworkInference& infer,
+                 LayerBackPropagation& backprop,
+                 float original_inference_result )
 {
   bool test_pass_flag = true;
   float current_weight_gradient, current_bias_gradient;
@@ -58,9 +64,9 @@ bool test_layer( Layer& layer, auto input, Network& network, NetworkInference& i
     // do a new inference and check the output
     infer.apply( network, input );
     float new_inference_result = infer.output()( 0, 0 );
-    current_weight_gradient = * (backprop.weight_gradient.data() + i);
-    if (abs(new_inference_result - original_inference_result - 
-        0.001 * current_weight_gradient) > abs(0.01 * original_inference_result)) {
+    current_weight_gradient = *( backprop.weight_gradient.data() + i );
+    if ( abs( new_inference_result - original_inference_result - 0.001 * current_weight_gradient )
+         > abs( 0.01 * original_inference_result ) ) {
       test_pass_flag = false;
     }
 
@@ -73,9 +79,9 @@ bool test_layer( Layer& layer, auto input, Network& network, NetworkInference& i
     // do a new inference and check the output
     infer.apply( network, input );
     float new_inference_result = infer.output()( 0, 0 );
-    current_bias_gradient = * (backprop.bias_gradient.data() + i);
-    if (abs(new_inference_result - original_inference_result - 
-        0.001 * current_bias_gradient) > abs(0.01 * original_inference_result)) {
+    current_bias_gradient = *( backprop.bias_gradient.data() + i );
+    if ( abs( new_inference_result - original_inference_result - 0.001 * current_bias_gradient )
+         > abs( 0.01 * original_inference_result ) ) {
       test_pass_flag = false;
     }
 
@@ -85,23 +91,24 @@ bool test_layer( Layer& layer, auto input, Network& network, NetworkInference& i
   return test_pass_flag;
 }
 
-template<NetworkT Network, NetworkInferenceT NetworkInference, 
-         NetworkBackPropagationT NetworkBackPropagation>
-bool test_network( Network& network, auto input, NetworkInference& infer, 
-                   NetworkBackPropagation& backprop, float original_inference_result)
+template<NetworkT Network, NetworkInferenceT NetworkInference, NetworkBackPropagationT NetworkBackPropagation>
+bool test_network( Network& network,
+                   auto input,
+                   NetworkInference& infer,
+                   NetworkBackPropagation& backprop,
+                   float original_inference_result )
 {
   bool test_pass_flag = true;
 
-  test_pass_flag = test_layer( network.first, input, network, infer, 
-                               backprop.first, original_inference_result );
+  test_pass_flag = test_layer( network.first, input, network, infer, backprop.first, original_inference_result );
 
-  if (!test_pass_flag) {
+  if ( !test_pass_flag ) {
     return test_pass_flag;
   }
 
   if constexpr ( not Network::is_last ) {
-    test_pass_flag = test_network( network.rest, infer.first.output, infer.rest, 
-                                   backprop.rest, original_inference_result );
+    test_pass_flag
+      = test_network( network.rest, infer.first.output, infer.rest, backprop.rest, original_inference_result );
   }
 
   return test_pass_flag;
@@ -138,11 +145,12 @@ void program_body()
 
   // testing through numerical differentiation
   bool test_pass_flag = test_network( nn, input, infer, backprop, original_inference_result );
-  if (test_pass_flag) {
-    cout << "Backprop test passed." << "\n";
-  }
-  else {
-    cout << "Backprop test NOT passed." << "\n";
+  if ( test_pass_flag ) {
+    cout << "Backprop test passed."
+         << "\n";
+  } else {
+    cout << "Backprop test NOT passed."
+         << "\n";
   }
 }
 
