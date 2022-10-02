@@ -20,8 +20,8 @@ struct LayerBackPropagation
                       const Inference& inference,
                       const WeightTimesErrorNextLayer& wte_next_layer )
   {
-    typename Inference::Output pd_activation_wrt_unactivated_output
-      = inference.output.unaryExpr( []( const auto val ) { return val > 0 ? 1 : leaky_constant; } );
+    typename Inference::Output pd_activation_wrt_unactivated_output = inference.output.unaryExpr(
+      []( const auto val ) -> typename Layer::type { return val > 0 ? 1.0 : leaky_constant; } );
     Error error = wte_next_layer.cwiseProduct( pd_activation_wrt_unactivated_output );
     weight_times_error.noalias() = error * layer.weights.transpose();
 
