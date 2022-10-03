@@ -18,10 +18,16 @@ struct LayerBackPropagation
   void differentiate( const Layer& layer,
                       const typename Inference::Input& input,
                       const Inference& inference,
-                      const WeightTimesErrorNextLayer& wte_next_layer )
+                      const WeightTimesErrorNextLayer& wte_next_layer,
+                      const bool is_last )
   {
-    typename Inference::Output pd_activation_wrt_unactivated_output = inference.output.unaryExpr(
-      []( const auto val ) -> typename Layer::type { return val > 0 ? 1.0 : leaky_constant; } );
+    typename Inference::Output pd_activation_wrt_unactivated_output;
+    if ( !is_last ) {
+      pd_activation_wrt_unactivated_output = inference.output.unaryExpr(
+        []( const auto val ) -> typename Layer::type { return val > 0 ? 1.0 : leaky_constant; } );
+    } else {
+      pd_activation_wrt_unactivated_output = Inference::Output::Ones();
+    }
     Error error = wte_next_layer.cwiseProduct( pd_activation_wrt_unactivated_output );
     weight_times_error.noalias() = error * layer.weights.transpose();
 
@@ -66,7 +72,7 @@ struct NetworkBackPropagationHelper<Network, batch_size, false>
   {
     rest.differentiate( network.rest, inference.first.output, inference.rest, pd_loss_wrt_outputs );
 
-    first.differentiate( network.first, input, inference.first, rest.first.weight_times_error );
+    first.differentiate( network.first, input, inference.first, rest.first.weight_times_error, is_last );
   }
 };
 
@@ -91,7 +97,7 @@ struct NetworkBackPropagationHelper<Network, batch_size, true>
                       const NetworkInfer& inference,
                       const typename NetworkInfer::Output& pd_loss_wrt_outputs )
   {
-    first.differentiate( network.first, input, inference.first, pd_loss_wrt_outputs );
+    first.differentiate( network.first, input, inference.first, pd_loss_wrt_outputs, is_last );
   }
 };
 
