@@ -4,4 +4,5 @@ macro (add_exec exec_name)
 endmacro (add_exec)
 
 add_exec(serdes-roundtrip)
+add_exec(gradient-descent)
 

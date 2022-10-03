@@ -95,11 +95,13 @@ void program_body( ostream& output )
          << "\n";
 
     // train the network using gradient descent
-    auto predicted = trainer.train(
+    NetworkInference<DNN, batch_size> infer;
+    infer.apply( nn, timestamps );
+    auto predicted_before_update = infer.output();
+    trainer.train(
       nn, timestamps, [&expected]( const auto& prediction ) { return prediction - expected; }, learning_rate );
-
-    auto predicted_before_update = get<0>( predicted );
-    auto predicted_after_update = get<1>( predicted );
+    infer.apply( nn, timestamps );
+    auto predicted_after_update = infer.output();
 
     cout << "ground truth tempo = " << tempo << "\n";
     cout << "predicted tempo (before update) = " << predicted_before_update( 0, 0 ) << "\n";

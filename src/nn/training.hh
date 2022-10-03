@@ -20,10 +20,10 @@ struct NetworkTraining
   using Output = typename Infer::Output;
   using PdLossWrtOutputs = typename Infer::Output;
 
-  std::tuple<Output, Output> train( Network& nn,
-                                    const Input& input,
-                                    const std::function<PdLossWrtOutputs( const Output )>& pd_loss_wrt_outputs,
-                                    float learning_rate )
+  void train( Network& nn,
+              const Input& input,
+              const std::function<PdLossWrtOutputs( const Output )>& pd_loss_wrt_outputs,
+              float learning_rate )
   {
     Infer infer;
     infer.apply( nn, input );
@@ -36,12 +36,5 @@ struct NetworkTraining
 
     GradientDescent gradient_descent;
     gradient_descent.update( nn, backprop, learning_rate );
-
-    // predict again after weight update
-    infer.apply( nn, input );
-    Output output_after_update = infer.output();
-    std::tuple<Output, Output> outputs = std::make_tuple( output, output_after_update );
-
-    return outputs;
   }
 };
