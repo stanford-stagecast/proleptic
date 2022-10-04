@@ -1,5 +1,6 @@
 #include <alsa/asoundlib.h>
 #include <iostream>
+#include <chrono>
 
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
@@ -8,6 +9,7 @@
 #include "stats_printer.hh"
 
 using namespace std;
+using namespace chrono;
 
 static constexpr unsigned int audio_horizon = 16; /* samples */
 static constexpr float max_amplitude = 0.9;
@@ -49,10 +51,20 @@ void program_body( const string_view audio_device, const string& midi_device )
   /* current amplitude of the sine waves */
   float amp_left = 0, amp_right = 0;
 
+  steady_clock::time_point next_note_pred { steady_clock::now() };
+  bool new_pred = false;
+
+
   /* rule #1: write a continuous sine wave (but no more than 1.3 ms into the future) */
   event_loop->add_rule(
     "calculate sine wave",
     [&] {
+      auto duration = std::chrono::duration<float>(0.2);
+      auto anotherTime = steady_clock::now() - duration;
+      if ( new_pred && anotherTime >= next_note_pred ) {
+        new_pred = false;
+        amp_right = max_amplitude;
+      }
       while ( next_sample_to_calculate <= playback_interface->cursor() + audio_horizon ) {
         const double time = next_sample_to_calculate / double( config.sample_rate );
         /* compute the sine wave amplitude (middle A, 440 Hz) */
@@ -60,6 +72,7 @@ void program_body( const string_view audio_device, const string& midi_device )
           next_sample_to_calculate,
           { amp_left * sin( 2 * M_PI * 440 * time ), amp_right * sin( 2 * M_PI * 440 * time ) } );
         amp_left *= note_decay_rate;
+        amp_right *= note_decay_rate;
         next_sample_to_calculate++;
       }
     },
@@ -101,6 +114,8 @@ void program_body( const string_view audio_device, const string& midi_device )
       while ( midi.has_event() ) {
         if ( midi.get_event_type() == 144 ) { /* key down */
           amp_left = max_amplitude;
+          next_note_pred = steady_clock::now();
+          new_pred = true;
         }
         midi.pop_event();
       }
