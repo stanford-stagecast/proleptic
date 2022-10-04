@@ -1,0 +1,172 @@
+#include "backprop.hh"
+#include "cdf.hh"
+#include "dnn_types.hh"
+#include "eventloop.hh"
+#include "exception.hh"
+#include "grapher.hh"
+#include "inference.hh"
+#include "mmap.hh"
+#include "parser.hh"
+#include "random.hh"
+#include "serdes.hh"
+#include "training.hh"
+
+#include <fstream>
+#include <iostream>
+
+using namespace std;
+
+// Input generation parameters
+static constexpr float note_timing_variation = 0.05;
+static auto prng = get_random_engine();
+static auto tempo_distribution = uniform_real_distribution<float>( 30, 240 );
+static auto tempo_delta_distribution = normal_distribution<float>( 0, 20 );
+static auto noise_distribution = normal_distribution<float>( 0, note_timing_variation );
+static auto offset_distribution = uniform_real_distribution<float>( 0, 1 );
+static constexpr int input_size = 16;
+
+// Training parameters
+static constexpr int number_of_iterations = 100000;
+static constexpr float learning_rate = 0.0001;
+static constexpr int batch_size = 1;
+
+struct RandomState
+{
+  default_random_engine prng { get_random_engine() };
+  normal_distribution<float> parameter_distribution { 0.0, 0.1 };
+
+  float sample() { return parameter_distribution( prng ); }
+};
+
+template<LayerT Layer>
+void randomize_layer( Layer& layer, RandomState& rng )
+{
+  for ( unsigned int i = 0; i < layer.weights.size(); ++i ) {
+    *( layer.weights.data() + i ) = rng.sample();
+  }
+
+  for ( unsigned int i = 0; i < layer.biases.size(); ++i ) {
+    *( layer.biases.data() + i ) = rng.sample();
+  }
+}
+
+template<NetworkT Network>
+void randomize_network( Network& network, RandomState& rng )
+{
+  randomize_layer( network.first, rng );
+
+  if constexpr ( not Network::is_last ) {
+    randomize_network( network.rest, rng );
+  }
+}
+
+Eigen::Matrix<float, batch_size, input_size> generate_input_notes( const float final_tempo )
+{
+  Eigen::Matrix<float, batch_size, input_size> input_notes;
+  const float tempo_difference = tempo_delta_distribution( prng );
+  const float starting_tempo = clamp( final_tempo - tempo_difference, 30.f, 240.f );
+  const float tempo_delta = ( final_tempo - starting_tempo ) / input_size;
+
+  const float final_seconds_per_beat = 60.0 / final_tempo;
+
+  const float offset = offset_distribution( prng ) * final_seconds_per_beat;
+  for ( auto batch = 0; batch < batch_size; batch++ ) {
+    float current_time = 0;
+    float tempo = final_tempo;
+    for ( auto i = 0; i < input_size; i++ ) {
+      float seconds_per_beat = 60.0 / tempo;
+      tempo -= tempo_delta;
+      const float noise = noise_distribution( prng );
+      input_notes( batch, i ) = current_time * ( 1 + noise ) + offset;
+      current_time += seconds_per_beat;
+    }
+  }
+  return input_notes;
+}
+
+void program_body( ostream& output )
+{
+  ios::sync_with_stdio( false );
+
+  // initialize a randomized network
+  DNN nn;
+  RandomState rng;
+  randomize_network( nn, rng );
+
+  // initialize the training struct
+  NetworkTraining<DNN, batch_size> trainer;
+
+  for ( int iter_index = 0; iter_index < number_of_iterations; ++iter_index ) {
+    cout << "iteration " << iter_index << "\n";
+    const float tempo = tempo_distribution( prng );
+    auto expected = Eigen::Matrix<float, batch_size, 1>::Constant( tempo );
+
+    auto timestamps = generate_input_notes( tempo );
+    cout << "timestamps = (" << timestamps << " )"
+         << "\n";
+
+    // train the network using gradient descent
+    NetworkInference<DNN, batch_size> infer;
+    infer.apply( nn, timestamps );
+    auto predicted_before_update = infer.output();
+    trainer.train(
+      nn, timestamps, [&expected]( const auto& prediction ) { return prediction - expected; }, learning_rate );
+    infer.apply( nn, timestamps );
+    auto predicted_after_update = infer.output();
+
+    cout << "ground truth tempo = " << tempo << "\n";
+    cout << "predicted tempo (before update) = " << predicted_before_update( 0, 0 ) << "\n";
+    float percent_diff_before = ( predicted_before_update( 0, 0 ) - tempo ) / tempo;
+    cout << "percent diff (before update) = " << percent_diff_before * 100 << "%\n";
+    cout << "predicted tempo (after update) = " << predicted_after_update( 0, 0 ) << "\n";
+    float percent_diff_after = ( predicted_after_update( 0, 0 ) - tempo ) / tempo;
+    cout << "percent diff (after update) = " << percent_diff_after * 100 << "%\n";
+    cout << endl;
+  }
+
+  string serialized_nn;
+  {
+    serialized_nn.resize( 497552 );
+    Serializer serializer( string_span::from_view( serialized_nn ) );
+    serialize( nn, serializer );
+    serialized_nn.resize( serializer.bytes_written() );
+    cout << "Output is " << serializer.bytes_written() << " bytes." << endl;
+  }
+  output << serialized_nn;
+}
+
+int main( int argc, char* argv[] )
+{
+  if ( argc < 0 ) {
+    abort();
+  }
+
+  if ( argc < 1 || argc > 2 ) {
+    cerr << "Usage: " << argv[0] << " [filename]\n";
+    return EXIT_FAILURE;
+  }
+
+  string filename;
+  if ( argc == 1 ) {
+    filename = "/dev/null";
+  } else if ( argc == 2 ) {
+    filename = argv[1];
+  }
+
+  ofstream output;
+  output.open( filename );
+
+  if ( !output.is_open() ) {
+    cerr << "Unable to open file '" << filename << "' for writing." << endl;
+    return EXIT_FAILURE;
+  }
+
+  try {
+    program_body( output );
+  } catch ( const exception& e ) {
+    cerr << e.what() << "\n";
+    return EXIT_FAILURE;
+  }
+
+  return EXIT_SUCCESS;
+}
