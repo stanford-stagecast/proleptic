@@ -62,3 +62,17 @@ target_link_libraries ("curis-demo" ${DBus_LDFLAGS})
 target_link_libraries ("curis-demo" ${DBus_LDFLAGS_OTHER})
 target_link_libraries ("curis-demo" ${Sndfile_LDFLAGS})
 target_link_libraries ("curis-demo" ${Sndfile_LDFLAGS_OTHER})
+
+add_executable ("split-ear-demo" "split-ear-demo.cc")
+target_link_libraries ("split-ear-demo" dbus)
+target_link_libraries ("split-ear-demo" stats)
+target_link_libraries ("split-ear-demo" audio)
+target_link_libraries ("split-ear-demo" util)
+
+target_link_libraries ("split-ear-demo" ${ALSA_LDFLAGS})
+target_link_libraries ("split-ear-demo" ${ALSA_LDFLAGS_OTHER})
+
+target_link_libraries ("split-ear-demo" ${DBus_LDFLAGS})
+target_link_libraries ("split-ear-demo" ${DBus_LDFLAGS_OTHER})
+target_link_libraries ("split-ear-demo" ${Sndfile_LDFLAGS})
+target_link_libraries ("split-ear-demo" ${Sndfile_LDFLAGS_OTHER})
