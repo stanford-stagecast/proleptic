@@ -1,0 +1,3 @@
+[submodule "src/simplenn"]
+	path = src/simplenn
+	url = https://github.com/stanford-stagecast/simplenn.git
