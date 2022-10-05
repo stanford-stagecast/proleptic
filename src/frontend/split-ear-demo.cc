@@ -59,9 +59,7 @@ void program_body( const string_view audio_device, const string& midi_device )
   event_loop->add_rule(
     "calculate sine wave",
     [&] {
-      auto duration = std::chrono::duration<float>(0.2);
-      auto anotherTime = steady_clock::now() - duration;
-      if ( new_pred && anotherTime >= next_note_pred ) {
+      if ( new_pred && steady_clock::now() >= next_note_pred ) {
         new_pred = false;
         amp_right = max_amplitude;
       }
