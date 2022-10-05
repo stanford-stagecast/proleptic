@@ -13,6 +13,7 @@ pkg_check_modules ( Eigen REQUIRED eigen3 )
 include_directories ( SYSTEM ${Eigen_INCLUDE_DIRS} )
 add_compile_options ( ${Eigen_CFLAGS} )
 
+include_directories ("${PROJECT_SOURCE_DIR}/inc")
 include_directories ("${PROJECT_SOURCE_DIR}/src/nn")
 include_directories ("${PROJECT_SOURCE_DIR}/src/graph")
 include_directories ("${PROJECT_SOURCE_DIR}/src/util")
