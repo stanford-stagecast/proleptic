@@ -106,7 +106,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 
       uint16_t iterations = 0;
       while ( this_rule.interest() ) {
-        if ( iterations++ > 32768 ) {
+        if ( ++iterations >= 32768 ) {
           throw runtime_error( "EventLoop: busy wait detected: rule \""
                                + _rule_categories.at( this_rule.category_id ).name + "\" is still interested after "
                                + to_string( iterations ) + " iterations" );
@@ -147,13 +147,13 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
       // no more reading on this rule, it's reached eof
       this_rule.cancel();
       it = _fd_rules.erase( it );
-      continue;
+      return Result::Success;
     }
 
     if ( this_rule.fd.closed() ) {
       this_rule.cancel();
       it = _fd_rules.erase( it );
-      continue;
+      return Result::Success;
     }
 
     if ( this_rule.interest() ) {
@@ -211,7 +211,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 
       this_rule.cancel();
       it = _fd_rules.erase( it );
-      continue;
+      return Result::Success;
     }
 
     const auto poll_ready = static_cast<bool>( this_pollfd.revents & this_pollfd.events );
@@ -222,7 +222,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
       //   - if it was POLLOUT, it will not be writable again
       this_rule.cancel();
       it = _fd_rules.erase( it );
-      continue;
+      return Result::Success;
     }
 
     if ( poll_ready ) {

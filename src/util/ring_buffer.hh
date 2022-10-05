@@ -54,4 +54,7 @@ public:
   size_t bytes_pushed() const { return bytes_pushed_; }
   size_t bytes_popped() const { return bytes_popped_; }
   size_t bytes_stored() const { return bytes_pushed_ - bytes_popped_; }
+
+  bool can_write() const { return not writable_region().empty(); }
+  bool can_read() const { return not readable_region().empty(); }
 };
