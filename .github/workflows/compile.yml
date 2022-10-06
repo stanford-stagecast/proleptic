@@ -7,7 +7,9 @@ jobs:
       runs-on: ubuntu-latest
       steps:
       - uses: actions/checkout@v1
+        with:
+          submodules: 'recursive'
       - name: configure
-        run:  sudo apt install libasound2-dev libsndfile1-dev libdbus-1-dev libsamplerate0-dev && mkdir build && cd build && cmake ..
+        run:  sudo apt install libasound2-dev libsndfile1-dev libdbus-1-dev libsamplerate0-dev libeigen3-dev && mkdir build && cd build && cmake ..
       - name: build
         run: cd build && make -j2 && make check
