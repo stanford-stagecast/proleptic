@@ -4,8 +4,10 @@ project ( forgrad )
 
 include ( etc/build_type.cmake )
 include ( etc/cflags.cmake )
-include ( etc/clang_format.cmake )
-include ( etc/tests.cmake )
+if (PROJECT_IS_TOP_LEVEL)
+  include ( etc/clang_format.cmake )
+  include ( etc/tests.cmake )
+endif ()
 
 find_package ( PkgConfig REQUIRED )
 
