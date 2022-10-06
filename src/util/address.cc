@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <sys/un.h>
 #include <system_error>
+#include <array>
 
 using namespace std;
 
