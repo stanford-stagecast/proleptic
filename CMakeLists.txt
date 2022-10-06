@@ -36,3 +36,5 @@ add_subdirectory ("${PROJECT_SOURCE_DIR}/src/stats")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/dbus")
 
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/frontend")
+
+add_subdirectory ("${PROJECT_SOURCE_DIR}/src/simplenn" EXCLUDE_FROM_ALL)
