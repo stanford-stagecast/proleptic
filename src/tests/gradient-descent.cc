@@ -289,6 +289,7 @@ void program_body()
   ios::sync_with_stdio( false );
 
   RandomState rng;
+  rng.prng.seed( 20221007 );
 
   one_layer_network_test( rng );
   multi_layer_network_test( rng );
