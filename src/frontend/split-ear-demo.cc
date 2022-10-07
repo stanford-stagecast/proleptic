@@ -7,6 +7,7 @@
 #include "eventloop.hh"
 #include "midi_processor.hh"
 #include "stats_printer.hh"
+#include "simplenn.hh"
 
 using namespace std;
 using namespace chrono;

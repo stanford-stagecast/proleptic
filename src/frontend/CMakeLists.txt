@@ -67,6 +67,8 @@ add_executable ("split-ear-demo" "split-ear-demo.cc")
 target_link_libraries ("split-ear-demo" dbus)
 target_link_libraries ("split-ear-demo" stats)
 target_link_libraries ("split-ear-demo" audio)
+target_link_libraries ("split-ear-demo" simplenn)
+target_link_libraries ("split-ear-demo" graph)
 target_link_libraries ("split-ear-demo" util)
 
 target_link_libraries ("split-ear-demo" ${ALSA_LDFLAGS})
