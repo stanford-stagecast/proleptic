@@ -23,8 +23,7 @@ class training_failed : public runtime_error
 public:
   training_failed( string test_name )
     : runtime_error( ( "Test '" + test_name + "' failed: training did not improve accuracy." ).c_str() )
-  {
-  }
+  {}
 };
 
 class inference_failed : public runtime_error
@@ -32,8 +31,7 @@ class inference_failed : public runtime_error
 public:
   inference_failed( string test_name )
     : runtime_error( ( "Test '" + test_name + "' failed: inference did not produce the expected result." ).c_str() )
-  {
-  }
+  {}
 };
 
 struct RandomState

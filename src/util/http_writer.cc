@@ -14,8 +14,7 @@ public:
     : buffer_( buffer )
     , bytes_written_( bytes_written )
     , remaining_offset_( bytes_written )
-  {
-  }
+  {}
 
   void write( std::string_view str )
   {
@@ -62,8 +61,7 @@ public:
 template<class MessageType>
 HTTPWriter<MessageType>::HTTPWriter( MessageType&& message )
   : message_( move( message ) )
-{
-}
+{}
 
 void maybe_print( const string_view name, const string_view value, WriteAttempt& attempt )
 {

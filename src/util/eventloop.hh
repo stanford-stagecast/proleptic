@@ -87,8 +87,7 @@ public:
     template<class RuleType>
     RuleHandle( const std::shared_ptr<RuleType> x )
       : rule_weak_ptr_( x )
-    {
-    }
+    {}
 
     void cancel();
   };

@@ -74,8 +74,7 @@ int main()
     [&] { server_buffer.pop_to_fd( connection ); },
     [&] { return not server_buffer.readable_region().empty(); } );
 
-  while ( events.wait_next_event( -1 ) != EventLoop::Result::Exit ) {
-  }
+  while ( events.wait_next_event( -1 ) != EventLoop::Result::Exit ) {}
 
   cerr << "Exiting...\n";
 

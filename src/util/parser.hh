@@ -21,8 +21,7 @@ class Parser
 public:
   Parser( const std::string_view input )
     : input_( input )
-  {
-  }
+  {}
 
   std::string_view input() const { return input_; }
 
@@ -78,8 +77,7 @@ public:
   Serializer( string_span output )
     : output_( output )
     , original_size_( output.size() )
-  {
-  }
+  {}
 
   size_t bytes_written() const { return original_size_ - output_.size(); }
 

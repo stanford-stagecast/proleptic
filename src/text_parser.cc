@@ -31,8 +31,7 @@ int program_body( const string& filename )
       continue;
     // layer num -> get input size and output size
     else if ( isNumber( line ) ) {
-      if ( curr_layer != -1 ) {
-      }
+      if ( curr_layer != -1 ) {}
       curr_layer = stoi( line );
     }
     // contains "weights" -> next line(s) will be param for weight

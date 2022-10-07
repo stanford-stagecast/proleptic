@@ -11,8 +11,7 @@ using namespace std;
 AutoCDF::AutoCDF( const string_view title, const string_view xlabel )
   : title_( title )
   , xlabel_( xlabel )
-{
-}
+{}
 
 std::string AutoCDF::graph( const unsigned int width, const unsigned int height, vector<float>& values )
 {
@@ -151,9 +150,12 @@ string NetworkGraph<Network>::io_graph( const vector<pair<float, float>>& target
   io_xrange_ = { min( io_xrange_.first, xmin->first ), max( io_xrange_.second, xmax->first ) };
   io_yrange_ = { min( io_yrange_.first, ymin->second ), max( io_yrange_.second, ymax->second ) };
 
-  Graph graph {
-    { 1280, 720 }, io_xrange_, io_yrange_, title, string( quantity ) + " (true)", string( quantity ) + " (inferred)"
-  };
+  Graph graph { { 1280, 720 },
+                io_xrange_,
+                io_yrange_,
+                title,
+                string( quantity ) + " (true)",
+                string( quantity ) + " (inferred)" };
 
   graph.draw_identity_function( "black", 3 );
   graph.draw_points( target_vs_actual );

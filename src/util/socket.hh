@@ -62,15 +62,13 @@ protected:
   //! \param[in] fd is the FileDescriptor from which to construct
   explicit UDPSocket( FileDescriptor&& fd )
     : Socket( std::move( fd ), AF_INET, SOCK_DGRAM )
-  {
-  }
+  {}
 
 public:
   //! Default: construct an unbound, unconnected UDP socket
   UDPSocket()
     : Socket( AF_INET, SOCK_DGRAM )
-  {
-  }
+  {}
 
   //! Receive a datagram and the Address of its sender (caller can allocate storage)
   size_t recv( Address& source_address, string_span payload );
@@ -87,8 +85,7 @@ class UnixDatagramSocket : public Socket
 public:
   UnixDatagramSocket()
     : Socket( AF_UNIX, SOCK_DGRAM )
-  {
-  }
+  {}
 
   void sendto_ignore_errors( const Address& destination, const std::string_view payload );
   size_t recv( string_span payload );
@@ -102,15 +99,13 @@ private:
   //! \param[in] fd is the FileDescriptor from which to construct
   explicit TCPSocket( FileDescriptor&& fd )
     : Socket( std::move( fd ), AF_INET, SOCK_STREAM )
-  {
-  }
+  {}
 
 public:
   //! Default: construct an unbound, unconnected TCP socket
   TCPSocket()
     : Socket( AF_INET, SOCK_STREAM )
-  {
-  }
+  {}
 
   //! Mark a socket as listening for incoming connections
   void listen( const int backlog = 16 );

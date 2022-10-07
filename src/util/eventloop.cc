@@ -38,8 +38,7 @@ EventLoop::BasicRule::BasicRule( const size_t s_category_id,
   , interest( s_interest )
   , callback( s_callback )
   , cancel_requested( false )
-{
-}
+{}
 
 EventLoop::FDRule::FDRule( BasicRule&& base,
                            FileDescriptor&& s_fd,
@@ -51,8 +50,7 @@ EventLoop::FDRule::FDRule( BasicRule&& base,
   , direction( s_direction )
   , cancel( s_cancel )
   , recover( s_recover )
-{
-}
+{}
 
 EventLoop::RuleHandle EventLoop::add_rule( const size_t category_id,
                                            const FileDescriptor& fd,
@@ -116,8 +114,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 
         rule_fired = true;
         RecordScopeTimer<Timer::Category::Nonblock> record_timer {
-          _rule_categories.at( this_rule.category_id ).timer
-        };
+          _rule_categories.at( this_rule.category_id ).timer };
         this_rule.callback();
       }
 
@@ -230,8 +227,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 
     if ( poll_ready ) {
       RecordScopeTimer<Timer::Category::Nonblock> record_timer {
-        _rule_categories.at( this_rule.category_id ).timer
-      };
+        _rule_categories.at( this_rule.category_id ).timer };
       // we only want to call callback if revents includes the event we asked for
       const auto count_before = this_rule.service_count();
       this_rule.callback();
