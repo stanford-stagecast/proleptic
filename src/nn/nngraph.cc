@@ -164,3 +164,7 @@ string NetworkGraph<Network>::io_graph( const vector<pair<float, float>>& target
 
 template class NetworkGraph<DNN>;
 template void NetworkGraph<DNN>::add_activations<BATCH_SIZE>( const NetworkInference<DNN, BATCH_SIZE>& inference );
+
+template class NetworkGraph<DNN_timestamp>;
+template void NetworkGraph<DNN_timestamp>::add_activations<BATCH_SIZE>(
+  const NetworkInference<DNN_timestamp, BATCH_SIZE>& inference );

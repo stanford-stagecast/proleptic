@@ -213,3 +213,6 @@ void parse( Network& network, Parser& in )
 
 template void NetworkSerDes::serialize<DNN>( const DNN&, Serializer& );
 template void NetworkSerDes::parse<DNN>( DNN&, Parser& );
+
+template void NetworkSerDes::serialize<DNN_timestamp>( const DNN_timestamp&, Serializer& );
+template void NetworkSerDes::parse<DNN_timestamp>( DNN_timestamp&, Parser& );
