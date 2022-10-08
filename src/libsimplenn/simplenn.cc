@@ -10,13 +10,13 @@ using namespace std;
 // since the actual type of "DNN" might change).
 struct NetworkData
 {
-  DNN network {};
+  DNN_timestamp network {};
 };
 
 SimpleNN::SimpleNN( const string& filename )
 {
   data_ = make_unique<NetworkData>();
-  DNN& nn = data_->network;
+  DNN_timestamp& nn = data_->network;
 
   {
     ReadOnlyFile dnn_on_disk { filename };
@@ -27,11 +27,11 @@ SimpleNN::SimpleNN( const string& filename )
 
 float SimpleNN::predict_next_timestamp( const std::array<float, 16>& past_timestamps )
 {
-  using Infer = NetworkInference<DNN, 1>;
+  using Infer = NetworkInference<DNN_timestamp, 1>;
   using Input = typename Infer::Input;
   Input input( past_timestamps.data() );
   Infer infer;
   infer.apply( data_->network, input );
-  float tempo = infer.output()( 0 );
-  return past_timestamps[0] - ( 60.0 / tempo );
+  float timestamp = infer.output()( 1 );
+  return timestamp;
 }
