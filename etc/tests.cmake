@@ -4,3 +4,4 @@ add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --tim
 
 add_test(NAME t_serdes_roundtrip COMMAND serdes-roundtrip)
 add_test(NAME t_gradient_descent COMMAND gradient-descent)
+add_test(NAME t_backprop COMMAND backprop)
