@@ -85,6 +85,7 @@ void program_body( ostream& output )
   // initialize the training struct
   NetworkTraining<DNN, batch_size> trainer;
 
+  cout << "Training starts." << endl;
   for ( int iter_index = 0; iter_index < number_of_iterations; ++iter_index ) {
     cout << "iteration " << iter_index << "\n";
     const float tempo = tempo_distribution( prng );
