@@ -95,8 +95,6 @@ void program_body( const string_view audio_device, const string& midi_device )
         if (next_note_pred >= curr_time) {
           time_since_pred_note = config.sample_rate/1000 * duration_cast<milliseconds>(curr_time - next_note_pred).count();
           amp_right = pow(note_decay_rate, time_since_pred_note);
-        } else {
-          amp_right = 0;
         }
         next_sample_to_calculate++;
       }
