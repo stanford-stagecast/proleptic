@@ -1,6 +1,7 @@
 #include <alsa/asoundlib.h>
 #include <iostream>
 #include <chrono>
+#include <deque>
 
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
@@ -15,6 +16,23 @@ using namespace chrono;
 static constexpr unsigned int audio_horizon = 16; /* samples */
 static constexpr float max_amplitude = 0.9;
 static constexpr float note_decay_rate = 0.9998;
+
+static string nn_file = "/usr/local/share/predict-timestamps.dnn";
+
+array<float, 16> calculate_input( deque<float> times, int num_notes, steady_clock::time_point base_time )
+{
+  float curr_time_secs = duration_cast<milliseconds>( steady_clock::now() - base_time ).count()/1000.0;
+
+  array<float, 16> ret_mat;
+  for ( auto i = 0; i < 16; i++ ) {
+    if ( i >= num_notes ) {
+      ret_mat[i] = 0;
+    } else {
+      ret_mat[i] = curr_time_secs - times[i];
+    }
+  }
+  return ret_mat;
+}
 
 void program_body( const string_view audio_device, const string& midi_device )
 {
@@ -44,6 +62,8 @@ void program_body( const string_view audio_device, const string& midi_device )
   /* open the MIDI device */
   FileDescriptor piano { CheckSystemCall( midi_device, open( midi_device.c_str(), O_RDONLY ) ) };
   MidiProcessor midi;
+  deque<float> press_queue {};
+  size_t num_notes = 0;
 
   /* get ready to play an audio signal */
   ChannelPair audio_signal { 16384 };  // the output signal
@@ -53,17 +73,16 @@ void program_body( const string_view audio_device, const string& midi_device )
   float amp_left = 0, amp_right = 0;
 
   steady_clock::time_point next_note_pred { steady_clock::now() };
-  bool new_pred = false;
-
+  steady_clock::time_point last_pred_time { steady_clock::now() };
+  steady_clock::time_point curr_time { steady_clock::now() };
+  SimpleNN nn { nn_file };
+  float time_since_pred_note = 0;
+  array<float, 16> past_timestamps {};
 
   /* rule #1: write a continuous sine wave (but no more than 1.3 ms into the future) */
   event_loop->add_rule(
     "calculate sine wave",
     [&] {
-      if ( new_pred && steady_clock::now() >= next_note_pred ) {
-        new_pred = false;
-        amp_right = max_amplitude;
-      }
       while ( next_sample_to_calculate <= playback_interface->cursor() + audio_horizon ) {
         const double time = next_sample_to_calculate / double( config.sample_rate );
         /* compute the sine wave amplitude (middle A, 440 Hz) */
@@ -71,7 +90,14 @@ void program_body( const string_view audio_device, const string& midi_device )
           next_sample_to_calculate,
           { amp_left * sin( 2 * M_PI * 440 * time ), amp_right * sin( 2 * M_PI * 440 * time ) } );
         amp_left *= note_decay_rate;
-        amp_right *= note_decay_rate;
+        // amp_right = some equation based on note_decay_rate and next_note_pred
+        curr_time = steady_clock::now();
+        if (next_note_pred >= curr_time) {
+          time_since_pred_note = config.sample_rate/1000 * duration_cast<milliseconds>(curr_time - next_note_pred).count();
+          amp_right = pow(note_decay_rate, time_since_pred_note);
+        } else {
+          amp_right = 0;
+        }
         next_sample_to_calculate++;
       }
     },
@@ -111,15 +137,33 @@ void program_body( const string_view audio_device, const string& midi_device )
     "process MIDI event",
     [&] {
       while ( midi.has_event() ) {
+        float time_val = midi.pop_event() / 1.0;
         if ( midi.get_event_type() == 144 ) { /* key down */
           amp_left = max_amplitude;
-          next_note_pred = steady_clock::now();
-          new_pred = true;
+          if ( num_notes < 16 ) {
+            press_queue.push_back( time_val );
+            cout << std::fixed << "time val: " << time_val << "\n";
+            num_notes++;
+          } else {
+            press_queue.push_back( time_val );
+            press_queue.pop_front();
+          }
         }
         midi.pop_event();
       }
     },
     [&] { return midi.has_event(); } );
+
+  /* rule #5: get DNN prediction */
+  event_loop->add_rule(
+    "get DNN prediction",
+    [&] {
+      last_pred_time = steady_clock::now();
+      past_timestamps = calculate_input( press_queue, num_notes, last_pred_time );
+      float time_to_next = nn.predict_next_timestamp( past_timestamps );
+      next_note_pred = last_pred_time + round<milliseconds>(duration<float>{time_to_next});
+    },
+    [&] { return duration_cast<milliseconds>(steady_clock::now() - last_pred_time).count() >= 50; } );
 
   /* add a task that prints statistics occasionally */
   StatsPrinterTask stats_printer { event_loop };
