@@ -15,6 +15,7 @@ public:
   //! \note  The network in the file has to match the network structure currently expected by libsimplenn, which
   //! might change over time.
   SimpleNN( const std::string& filename );
+  ~SimpleNN();
 
   //! Make a single prediction about the next note timestamp.
   //!

@@ -35,3 +35,5 @@ float SimpleNN::predict_next_timestamp( const std::array<float, 16>& past_timest
   float timestamp = infer.output()( 1 );
   return timestamp;
 }
+
+SimpleNN::~SimpleNN() = default;
