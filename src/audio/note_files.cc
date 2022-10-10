@@ -16,8 +16,7 @@ NoteFiles::NoteFiles( const string& sample_directory,
   , fast( sample_directory + note + suff_fast )
   , rel( sample_directory + "rel" + to_string( key_num ) + ".wav" )
   , has_damper_( has_damper )
-{
-}
+{}
 
 void NoteFiles::bend_pitch( const double pitch_bend_ratio )
 {

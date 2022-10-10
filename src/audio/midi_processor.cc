@@ -22,7 +22,8 @@ float MidiProcessor::pop_event()
   }
   return std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::steady_clock::now()
                                                                 - last_event_time_ )
-    .count()/1000.0;
+           .count()
+         / 1000.0;
 }
 
 void MidiProcessor::pop_active_sense_bytes()

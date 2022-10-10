@@ -1,14 +1,14 @@
 #include <alsa/asoundlib.h>
-#include <iostream>
 #include <chrono>
 #include <deque>
+#include <iostream>
 
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
 #include "eventloop.hh"
 #include "midi_processor.hh"
-#include "stats_printer.hh"
 #include "simplenn.hh"
+#include "stats_printer.hh"
 
 using namespace std;
 using namespace chrono;
@@ -21,7 +21,7 @@ static string nn_file = "/usr/local/share/predict-timestamps.dnn";
 
 array<float, 16> calculate_input( deque<float> times, int num_notes, steady_clock::time_point base_time )
 {
-  float curr_time_secs = duration_cast<milliseconds>( steady_clock::now() - base_time ).count()/1000.0;
+  float curr_time_secs = duration_cast<milliseconds>( steady_clock::now() - base_time ).count() / 1000.0;
 
   array<float, 16> ret_mat;
   for ( auto i = 0; i < 16; i++ ) {
@@ -92,9 +92,10 @@ void program_body( const string_view audio_device, const string& midi_device )
         amp_left *= note_decay_rate;
         // amp_right = some equation based on note_decay_rate and next_note_pred
         curr_time = steady_clock::now();
-        if (next_note_pred >= curr_time) {
-          time_since_pred_note = config.sample_rate/1000 * duration_cast<milliseconds>(curr_time - next_note_pred).count();
-          amp_right = pow(note_decay_rate, time_since_pred_note);
+        if ( next_note_pred >= curr_time ) {
+          time_since_pred_note
+            = config.sample_rate / 1000 * duration_cast<milliseconds>( curr_time - next_note_pred ).count();
+          amp_right = pow( note_decay_rate, time_since_pred_note );
         }
         next_sample_to_calculate++;
       }
@@ -159,9 +160,9 @@ void program_body( const string_view audio_device, const string& midi_device )
       last_pred_time = steady_clock::now();
       past_timestamps = calculate_input( press_queue, num_notes, last_pred_time );
       float time_to_next = nn.predict_next_timestamp( past_timestamps );
-      next_note_pred = last_pred_time + round<milliseconds>(duration<float>{time_to_next});
+      next_note_pred = last_pred_time + round<milliseconds>( duration<float> { time_to_next } );
     },
-    [&] { return duration_cast<milliseconds>(steady_clock::now() - last_pred_time).count() >= 50; } );
+    [&] { return duration_cast<milliseconds>( steady_clock::now() - last_pred_time ).count() >= 50; } );
 
   /* add a task that prints statistics occasionally */
   StatsPrinterTask stats_printer { event_loop };
@@ -169,8 +170,7 @@ void program_body( const string_view audio_device, const string& midi_device )
   stats_printer.add( playback_interface );
 
   /* run the event loop forever */
-  while ( event_loop->wait_next_event( stats_printer.wait_time_ms() ) != EventLoop::Result::Exit ) {
-  }
+  while ( event_loop->wait_next_event( stats_printer.wait_time_ms() ) != EventLoop::Result::Exit ) {}
 }
 
 void usage_message( const string_view argv0 )

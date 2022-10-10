@@ -113,8 +113,7 @@ void program_body( const string_view audio_device, const string& midi_device )
   stats_printer.add( playback_interface );
 
   /* run the event loop forever */
-  while ( event_loop->wait_next_event( stats_printer.wait_time_ms() ) != EventLoop::Result::Exit ) {
-  }
+  while ( event_loop->wait_next_event( stats_printer.wait_time_ms() ) != EventLoop::Result::Exit ) {}
 }
 
 void usage_message( const string_view argv0 )
