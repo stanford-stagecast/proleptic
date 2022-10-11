@@ -1,10 +1,14 @@
 # Overview
 * `src/`: standalone binaries and demos
-* `src/graph/`: svg generation for the web demos
+* `src/graph/`: svg generation for the web interface
 * `src/libsimplenn/`: the public interface of simplenn
 * `src/nn/`: the core neural network code, including inference and training
 * `src/tests/`: unit tests
 * `src/util/`: helpful classes/structures used elsewhere
+* `src/audio/`: classes used for audio synthesis and talking to ALSA devices
+* `src/dbus/`: code to claim exclusive use of an audio device
+* `src/stats/`: a task that periodically prints runtime info and timing
+* `src/frontend/`: user-invoked programs (originally part of the synthesizer)
 
 # Setup
 1. Clone the repo and enter it: `git clone
@@ -39,3 +43,11 @@ Current checks:
 * tests pass in `DebugASan` and `Release` modes
 * code is correctly formatted, according to `clang-format`
 * only branches with all checks passing can be merged into main
+
+# Running the audio synthesizer
+
+Run `./build/src/frontend/synthesizer-test [device_prefix] [midi_device] [sample_directory]`
+    If you're working on the snr-piano machine:
+    - device_prefix: Scarlett
+    - midi_device: /dev/snd/midi*
+    - sample_directory: /usr/local/share/slender/samples/
