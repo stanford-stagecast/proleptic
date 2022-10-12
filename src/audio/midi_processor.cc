@@ -12,6 +12,7 @@ void MidiProcessor::read_from_fd( FileDescriptor& fd )
   unprocessed_midi_bytes_.push_from_fd( fd );
 
   pop_active_sense_bytes();
+  last_event_time_ = steady_clock::now();
 }
 
 float MidiProcessor::pop_event()

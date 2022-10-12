@@ -98,6 +98,7 @@ void program_body( const string_view audio_device, const string& midi_device )
   event_loop->add_rule(
     "process MIDI event",
     [&] {
+      cout << "hi\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
       while ( midi.has_event() ) {
         if ( midi.get_event_type() == 144 ) { /* key down */
           amp_left = max_amplitude;
