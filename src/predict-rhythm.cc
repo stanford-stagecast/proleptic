@@ -36,12 +36,12 @@ using namespace std;
 
 // Input generation parameters
 static auto prng = get_random_engine();
-static auto pattern_length_distribution = uniform_int_distribution<unsigned>( 2, 8 );
+static auto pattern_length_distribution = uniform_int_distribution<unsigned>( 1, 16 );
 static auto reverse_distribution = binomial_distribution<bool>( 1, 0.5 );
 
 // Training parameters
-static constexpr int number_of_iterations = 100000;
-static constexpr float learning_rate = 0.1;
+static constexpr int number_of_iterations = 20000;
+static constexpr float learning_rate = 0.01;
 
 // Types
 using MyDNN = DNN_piano_roll_prediction;

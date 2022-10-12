@@ -13,5 +13,6 @@ add_exec(predict-tempo)
 add_exec(predict-timestamp)
 add_exec(predict-accel-decel)
 add_exec(predict-rhythm)
+add_exec(hot-cross-buns-rhythm)
 
 add_subdirectory(libsimplenn)
