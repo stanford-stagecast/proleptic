@@ -23,7 +23,7 @@ array<float, 16> calculate_input( deque<float> times, int num_notes, steady_cloc
 {
   float curr_time_secs = duration_cast<milliseconds>( steady_clock::now() - base_time ).count() / 1000.0;
 
-  array<float, 16> ret_mat;
+  array<float, 16> ret_mat{};
   for ( auto i = 0; i < 16; i++ ) {
     if ( i >= num_notes ) {
       ret_mat[i] = 0;
@@ -137,11 +137,11 @@ void program_body( const string_view audio_device, const string& midi_device )
     [&] {
       while ( midi.has_event() ) {
         float time_val = midi.pop_event() / 1.0;
+        cout << "time_val: " << time_val << '\n';
         if ( midi.get_event_type() == 144 ) { /* key down */
           amp_left = max_amplitude;
           if ( num_notes < 16 ) {
             press_queue.push_back( time_val );
-            cout << std::fixed << "time val: " << time_val << "\n";
             num_notes++;
           } else {
             press_queue.push_back( time_val );

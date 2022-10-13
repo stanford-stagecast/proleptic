@@ -16,6 +16,7 @@ class MidiProcessor
   const static size_t input_size = 16;
 
   std::chrono::steady_clock::time_point last_event_time_ { std::chrono::steady_clock::now() };
+  std::chrono::steady_clock::time_point original_time_ { std::chrono::steady_clock::now() };
 
 public:
   std::queue<float> nn_midi_input( const std::string& midi_filename );
@@ -36,8 +37,8 @@ public:
 
   // unsigned int pop_event();
 
-  void reset_time() { last_event_time_ = std::chrono::steady_clock::now(); };
-  std::chrono::steady_clock::time_point get_original_time() { return last_event_time_; };
+  void reset_time() { original_time_ = std::chrono::steady_clock::now(); };
+  std::chrono::steady_clock::time_point get_original_time() { return original_time_; };
 
   /* no event or active sense in more than 1 s */
   bool data_timeout() const;
