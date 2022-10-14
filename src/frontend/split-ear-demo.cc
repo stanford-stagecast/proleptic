@@ -136,7 +136,7 @@ void program_body( const string_view audio_device, const string& midi_device )
     "process MIDI event",
     [&] {
       while ( midi.has_event() ) {
-        float time_val = midi.pop_event() / 1.0;
+        float time_val = midi.get_event_time() / 1.0;
         cout << "time_val: " << time_val << '\n';
         if ( midi.get_event_type() == 144 ) { /* key down */
           amp_left = max_amplitude;

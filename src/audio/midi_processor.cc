@@ -15,16 +15,19 @@ void MidiProcessor::read_from_fd( FileDescriptor& fd )
   last_event_time_ = steady_clock::now();
 }
 
-float MidiProcessor::pop_event()
+void MidiProcessor::pop_event()
 {
   while ( unprocessed_midi_bytes_.readable_region().size() >= 3 ) {
     unprocessed_midi_bytes_.pop( 3 );
     pop_active_sense_bytes();
   }
+}
+
+float MidiProcessor::get_event_time()
+{
   return std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::steady_clock::now()
                                                                 - original_time_ )
-           .count()
-         / 1000.0;
+    .count()/1000.0;
 }
 
 void MidiProcessor::pop_active_sense_bytes()
@@ -54,7 +57,8 @@ std::queue<float> MidiProcessor::nn_midi_input( const string& midi_filename )
     [&] {
       while ( has_event() ) {
         uint8_t event_type = get_event_type();
-        float time_val = pop_event() / 1000.0;
+        float time_val = get_event_time() / 1000.0;
+        pop_event();
         if ( event_type == 144 ) {
           ret_queue.push( time_val );
           cout << "time val: " << time_val << "\n";

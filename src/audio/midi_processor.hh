@@ -23,7 +23,7 @@ public:
 
   void read_from_fd( FileDescriptor& fd );
 
-  float pop_event();
+  void pop_event();
 
   void pop_active_sense_bytes();
 
@@ -34,6 +34,7 @@ public:
   uint8_t get_event_type() const { return unprocessed_midi_bytes_.readable_region().at( 0 ); }
   uint8_t get_event_note() const { return unprocessed_midi_bytes_.readable_region().at( 1 ); }
   uint8_t get_event_velocity() const { return unprocessed_midi_bytes_.readable_region().at( 2 ); }
+  float get_event_time();
 
   // unsigned int pop_event();
 
