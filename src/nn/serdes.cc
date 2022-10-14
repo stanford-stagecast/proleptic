@@ -217,5 +217,8 @@ template void NetworkSerDes::parse<DNN>( DNN&, Parser& );
 template void NetworkSerDes::serialize<DNN_timestamp>( const DNN_timestamp&, Serializer& );
 template void NetworkSerDes::parse<DNN_timestamp>( DNN_timestamp&, Parser& );
 
+template void NetworkSerDes::serialize<DNN_tempo>( const DNN_tempo&, Serializer& );
+template void NetworkSerDes::parse<DNN_tempo>( DNN_tempo&, Parser& );
+
 template void NetworkSerDes::serialize<DNN_piano_roll_prediction>( const DNN_piano_roll_prediction&, Serializer& );
 template void NetworkSerDes::parse<DNN_piano_roll_prediction>( DNN_piano_roll_prediction&, Parser& );
