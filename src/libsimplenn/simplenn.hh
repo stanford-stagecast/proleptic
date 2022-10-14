@@ -50,3 +50,45 @@ public:
 private:
   std::unique_ptr<PianoRollPredictorData> data_ {};
 };
+
+struct OctavePredictorData;
+
+class OctavePredictor
+{
+public:
+  using Key = uint8_t;
+  using Time = std::chrono::steady_clock::time_point;
+  using Duration = std::chrono::steady_clock::duration;
+  struct KeyPress
+  {
+    Key key;
+    Time time;
+
+    KeyPress( Key k, Time t )
+      : key( k )
+      , time( t )
+    {}
+  };
+  struct Timeslot
+  {
+    Time start;
+    Duration length;
+
+    Timeslot( Time s, Duration l )
+      : start( s )
+      , length( l )
+    {}
+  };
+  using NoteValuesInTimeslot = std::array<bool, 12>;
+
+  OctavePredictor( const std::string& filename );
+  ~OctavePredictor();
+
+  Timeslot predict_next_timeslot( const std::vector<KeyPress>& timestamps );
+
+  NoteValuesInTimeslot predict_next_note_values( const std::vector<NoteValuesInTimeslot>& notes );
+  void train_next_note_values( const std::vector<NoteValuesInTimeslot>& notes, const NoteValuesInTimeslot& next );
+
+private:
+  std::unique_ptr<OctavePredictorData> data_ {};
+};

@@ -1,20 +1,3 @@
-/**
- * This predictor takes a different approach than the others:
- * - assume we can extract tempo and offset from a series of input notes
- * - using the tempo and offset, we can convert input notes into a "piano roll" (for now, a sequence of booleans
- * representing beats)
- * - we can treat predicition as a classification problem; is the next timeslot on the roll going to be on or off?
- * - since this is a classification problem, our network is much more stable, so we can train much faster (several
- * orders of magnitude faster)
- * - we can predict multiple future notes in parallel, which may give backprop more to work off of during live
- * training
- *
- * This approach seems to provide much higher accuracy than the previous one of training directly on timestamps; we
- * get to 100% accuracy within 20,000 iterations of training.  However accuracy starts to drop if the pattern length
- * exceeds half our input length; i.e., if the network can't see at least two full repetitions of the pattern.  When
- * we have patterns of length 16 (exactly the same as our input size), the accuracy drops to around 75% after
- * 100,000 iterations.
- */
 #include "backprop.hh"
 #include "cdf.hh"
 #include "dnn_types.hh"
@@ -38,17 +21,20 @@ using namespace std;
 static auto prng = get_random_engine();
 static auto pattern_length_distribution = uniform_int_distribution<unsigned>( 1, 16 );
 static auto reverse_distribution = binomial_distribution<bool>( 1, 0.5 );
+static auto note_distribution = uniform_int_distribution<unsigned>( 0, PIANO_ROLL_NUMBER_OF_NOTES - 1 );
 
 // Training parameters
-static constexpr int number_of_iterations = 20000;
-static constexpr float learning_rate = 0.01;
+static constexpr int number_of_iterations = 50000;
+static constexpr float learning_rate = 0.03;
 
 // Types
-using MyDNN = DNN_piano_roll_rhythm_prediction;
+using MyDNN = DNN_piano_roll_octave_prediction;
 using Infer = NetworkInference<MyDNN, 1>;
 using Training = NetworkTraining<MyDNN, 1>;
 using Output = typename Infer::Output;
 using Input = typename Infer::Input;
+using InputMatrix = Eigen::Matrix<MyDNN::type, PIANO_ROLL_NUMBER_OF_NOTES, PIANO_ROLL_HISTORY_WINDOW_LENGTH>;
+using OutputMatrix = Eigen::Matrix<MyDNN::type, PIANO_ROLL_NUMBER_OF_NOTES, 1>;
 
 struct RandomState
 {
@@ -80,7 +66,7 @@ void randomize_network( Network& network, RandomState& rng )
   }
 }
 
-vector<int> generate_pattern( void )
+vector<pair<int, int>> generate_pattern( void )
 {
   // Using [Euclidean Rhythms](https://en.wikipedia.org/wiki/Euclidean_rhythm),
   // based on http://cgm.cs.mcgill.ca/~godfried/publications/banff.pdf.  This
@@ -98,7 +84,8 @@ vector<int> generate_pattern( void )
   const unsigned pattern_length = pattern_length_distribution( prng );
   auto pattern_pulse_count_distribution = uniform_int_distribution<unsigned>( 1, pattern_length );
   const unsigned pattern_pulse_count = pattern_pulse_count_distribution( prng );
-  cout << "Generating E(" << pattern_pulse_count << ", " << pattern_length << ")" << endl;
+  cout << "Generating E(" << pattern_pulse_count << ", " << pattern_length << ")"
+       << "\n";
   ;
 
   auto line_function = [&]( float x, float y ) {
@@ -127,43 +114,88 @@ vector<int> generate_pattern( void )
   if ( reverse_distribution( prng ) ) {
     reverse( spacing.begin(), spacing.end() );
   }
-  return spacing;
+
+  vector<pair<int, int>> data;
+  for ( const auto& space : spacing ) {
+    data.push_back( make_pair( space, note_distribution( prng ) ) );
+  }
+  return data;
+}
+
+template<class OutT, class InT>
+OutT reshape( const InT& input )
+{
+  OutT output;
+  assert( input.rows() * input.cols() == output.rows() * output.cols() );
+
+  ssize_t inr = 0;
+  ssize_t inc = 0;
+  ssize_t outr = 0;
+  ssize_t outc = 0;
+
+  while ( inr < input.rows() and inc < input.cols() ) {
+    output( outr, outc ) = input( inr, inc );
+    inc++;
+    if ( inc >= input.cols() ) {
+      inc = 0;
+      inr++;
+    }
+    outc++;
+    if ( outc >= output.cols() ) {
+      outc = 0;
+      outr++;
+    }
+  }
+
+  return output;
 }
 
 Input generate_input_notes( Output& true_output )
 {
-  Input input_notes;
+  InputMatrix input_notes;
+  OutputMatrix output_notes;
   auto spacing = generate_pattern();
 
   auto rotation_distribution = uniform_int_distribution<int>( 0, spacing.size() - 1 );
   const int rotation = rotation_distribution( prng );
+  auto begin_offset_distribution = uniform_int_distribution<int>( -input_notes.cols() / 2, input_notes.cols() / 2 );
+  const unsigned begin_offset = max<int>( 0, begin_offset_distribution( prng ) );
 
-  array<int, 64> timeslots {};
-  int index = 0;
-  int j = rotation;
+  array<pair<int, int>, PIANO_ROLL_HISTORY_WINDOW_LENGTH> timeslots {};
+  int timeslot_index = 0;
+  int spacing_index = rotation;
 
-  int n = input_notes.cols() + true_output.cols();
+  int n = input_notes.cols() + output_notes.cols();
 
-  while ( index < n ) {
-    int beats = spacing[j];
+  while ( timeslot_index < n ) {
+    int beats = spacing[spacing_index].first;
     for ( int i = 0; i < beats; i++ ) {
-      timeslots[index++] = 0;
-      if ( index > n )
+      timeslots[timeslot_index++] = make_pair( 0, 0 );
+      if ( timeslot_index > n )
         break;
     }
-    timeslots[index++] = 1;
-    j = ( j + 1 ) % spacing.size();
+    timeslots[timeslot_index++] = make_pair( 1, spacing[spacing_index].second );
+    spacing_index = ( spacing_index + 1 ) % spacing.size();
   }
 
-  for ( int i = 0; i < input_notes.cols(); i++ ) {
-    input_notes( i ) = timeslots[i];
+  for ( ssize_t i = 0; i < input_notes.cols(); i++ ) {
+    for ( ssize_t j = 0; j < input_notes.rows(); j++ ) {
+      input_notes( j, i ) = i < begin_offset ? 0.5 : 0;
+    }
+    if ( i >= begin_offset ) {
+      input_notes( timeslots[i].second, i ) = timeslots[i].first;
+    }
   }
 
-  for ( int i = 0; i < true_output.cols(); i++ ) {
-    true_output( i ) = timeslots[i + input_notes.cols()];
+  for ( ssize_t i = 0; i < output_notes.cols(); i++ ) {
+    for ( ssize_t j = 0; j < output_notes.rows(); j++ ) {
+      output_notes( j, i ) = 0;
+    }
+    output_notes( timeslots[i].second, i ) = timeslots[i].first;
   }
 
-  return input_notes;
+  true_output = reshape<Output, OutputMatrix>( output_notes );
+  return reshape<Input, InputMatrix>( input_notes );
 }
 
 void program_body( ostream& outstream )
@@ -198,10 +230,10 @@ void program_body( ostream& outstream )
     {
       Output prediction = predicted_after_update.unaryExpr( []( auto x ) { return x < 0.5 ? 0.f : 1.f; } );
       cout << "iteration " << iter_index << "\n";
-      cout << "timestamps = (" << timestamps << " )"
+      cout << "timestamps = (" << reshape<InputMatrix, Input>( timestamps ) << " )"
            << "\n";
       cout << "ground truth output = \t\t\t" << expected << "\n";
-      cout << "prediction =  \t\t\t\t" << prediction << endl;
+      cout << "prediction =  \t\t\t\t" << prediction << "\n";
       cout << "predicted output (before update) = \t" << predicted_before_update << "\n";
       cout << "predicted output (after update) = \t" << predicted_after_update << "\n";
 
@@ -217,9 +249,12 @@ void program_body( ostream& outstream )
 
       count_tested++;
       cout << "Current accuracy (since iteration " << iter_index - count_tested
-           << "): " << (float)count_correct / (float)count_tested * 100.f << "%" << endl;
-      cout << endl;
+           << "): " << (float)count_correct / (float)count_tested * 100.f << "%"
+           << "\n";
+      cout << "\n";
     }
+
+    cout << endl;
 
     if ( iter_index % 1000 == 0 ) {
       count_correct = 0;
@@ -233,7 +268,8 @@ void program_body( ostream& outstream )
     Serializer serializer( string_span::from_view( serialized_nn ) );
     serialize( nn, serializer );
     serialized_nn.resize( serializer.bytes_written() );
-    cout << "Output is " << serializer.bytes_written() << " bytes." << endl;
+    cout << "Output is " << serializer.bytes_written() << " bytes."
+         << "\n";
   }
   outstream << serialized_nn;
 }
@@ -260,7 +296,8 @@ int main( int argc, char* argv[] )
   output.open( filename );
 
   if ( !output.is_open() ) {
-    cerr << "Unable to open file '" << filename << "' for writing." << endl;
+    cerr << "Unable to open file '" << filename << "' for writing."
+         << "\n";
     return EXIT_FAILURE;
   }
 

@@ -15,5 +15,7 @@ add_exec(predict-timestamp)
 add_exec(predict-accel-decel)
 add_exec(predict-rhythm)
 add_exec(rhythm-demo)
+add_exec(predict-notes)
+add_exec(notes-demo)
 
 add_subdirectory(libsimplenn)

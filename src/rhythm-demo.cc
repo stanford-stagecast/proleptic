@@ -18,7 +18,7 @@
 
 using namespace std;
 
-using MyDNN = DNN_piano_roll_prediction;
+using MyDNN = DNN_piano_roll_rhythm_prediction;
 using Infer = NetworkInference<MyDNN, 1>;
 using Input = typename Infer::Input;
 using Output = typename Infer::Output;
@@ -96,10 +96,10 @@ void program_body( const string& filename )
 
   vector<int> notes;
   for ( unsigned i = 0; i < REPETITIONS / NUM_SONGS; i++ ) {
-    notes.insert( notes.end(), TWINKLE_TWINKLE_LITTLE_STAR.begin(), TWINKLE_TWINKLE_LITTLE_STAR.end() );
+    notes.insert( notes.end(), HOT_CROSS_BUNS.begin(), HOT_CROSS_BUNS.end() );
   }
   for ( unsigned i = 0; i < REPETITIONS / NUM_SONGS; i++ ) {
-    notes.insert( notes.end(), HOT_CROSS_BUNS.begin(), HOT_CROSS_BUNS.end() );
+    notes.insert( notes.end(), TWINKLE_TWINKLE_LITTLE_STAR.begin(), TWINKLE_TWINKLE_LITTLE_STAR.end() );
   }
   vector<int> piano_roll;
 
