@@ -19,7 +19,6 @@ class MidiProcessor
   std::chrono::steady_clock::time_point original_time_ { std::chrono::steady_clock::now() };
 
 public:
-  std::queue<float> nn_midi_input( const std::string& midi_filename );
 
   void read_from_fd( FileDescriptor& fd );
 
@@ -34,7 +33,7 @@ public:
   uint8_t get_event_type() const { return unprocessed_midi_bytes_.readable_region().at( 0 ); }
   uint8_t get_event_note() const { return unprocessed_midi_bytes_.readable_region().at( 1 ); }
   uint8_t get_event_velocity() const { return unprocessed_midi_bytes_.readable_region().at( 2 ); }
-  float get_event_time();
+  std::chrono::steady_clock::time_point get_event_time();
 
   // unsigned int pop_event();
 

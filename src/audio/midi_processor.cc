@@ -23,11 +23,9 @@ void MidiProcessor::pop_event()
   }
 }
 
-float MidiProcessor::get_event_time()
+std::chrono::steady_clock::time_point MidiProcessor::get_event_time()
 {
-  return std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::steady_clock::now()
-                                                                - original_time_ )
-    .count()/1000.0;
+  return std::chrono::steady_clock::now();
 }
 
 void MidiProcessor::pop_active_sense_bytes()
@@ -38,44 +36,6 @@ void MidiProcessor::pop_active_sense_bytes()
   }
 }
 
-/* create input vector from midi data */
-std::queue<float> MidiProcessor::nn_midi_input( const string& midi_filename )
-{
-  FileDescriptor piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDONLY ) ) };
-  reset_time();
-  auto event_loop = make_shared<EventLoop>();
-  size_t num_notes = 0;
-
-  queue<float> ret_queue;
-
-  /* rule #1: read events from MIDI piano */
-  event_loop->add_rule( "read MIDI data", piano, Direction::In, [&] { read_from_fd( piano ); } );
-
-  /* rule #2: add MIDI data to matrix */
-  event_loop->add_rule(
-    "synthesizer processes data",
-    [&] {
-      while ( has_event() ) {
-        uint8_t event_type = get_event_type();
-        float time_val = get_event_time() / 1000.0;
-        pop_event();
-        if ( event_type == 144 ) {
-          ret_queue.push( time_val );
-          cout << "time val: " << time_val << "\n";
-          num_notes++;
-        }
-      }
-    },
-    /* when should this rule run? */
-    [&] { return has_event(); } );
-
-  while ( event_loop->wait_next_event( 5 ) != EventLoop::Result::Exit ) {
-    if ( num_notes >= 16 )
-      break;
-  }
-
-  return ret_queue;
-}
 
 bool MidiProcessor::data_timeout() const
 {
