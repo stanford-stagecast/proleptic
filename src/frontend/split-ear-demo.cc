@@ -97,7 +97,7 @@ void program_body( const string_view audio_device, const string& midi_device )
         // amp_right = some equation based on note_decay_rate and next_note_pred
         if ( next_note_pred <= curr_time ) {
           time_since_pred_note
-            = config.sample_rate / 1000 * duration_cast<milliseconds>( curr_time - next_note_pred ).count();
+            = (config.sample_rate * duration_cast<microseconds>( curr_time - next_note_pred ).count()) / 1000000;
           amp_right = max_amplitude * pow( note_decay_rate, time_since_pred_note );
         }
         next_sample_to_calculate++;
