@@ -92,13 +92,15 @@ void program_body( const string_view audio_device, const string& midi_device )
         /* compute the sine wave amplitude (middle A, 440 Hz) */
         audio_signal.safe_set(
           next_sample_to_calculate,
-          { amp_left * sin( 2 * M_PI * 440 * time ), amp_right * sin( 2 * M_PI * 440 * time ) } );
+          { amp_left * sin( 2 * M_PI * 440 * time ), amp_right * sin( 2 * M_PI * 440 * 1.5 * time ) } );
         amp_left *= note_decay_rate;
         // amp_right = some equation based on note_decay_rate and next_note_pred
         if ( next_note_pred <= curr_time ) {
           time_since_pred_note
             = (config.sample_rate * duration_cast<microseconds>( curr_time - next_note_pred ).count()) / 1000000;
           amp_right = max_amplitude * pow( note_decay_rate, time_since_pred_note );
+        } else {
+          amp_right *= note_decay_rate;
         }
         next_sample_to_calculate++;
         curr_time += microseconds( microseconds_per_samp );
