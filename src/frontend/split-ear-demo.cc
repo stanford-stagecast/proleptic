@@ -57,6 +57,7 @@ void program_body( const string_view audio_device, const string& midi_device )
   config.buffer_size = 48;              /* maximum samples of queued audio = 1 millisecond */
   config.period_size = 16;              /* chunk size for kernel's management of audio buffer */
   config.avail_minimum = audio_horizon; /* device is writeable when full horizon can be written */
+  long microseconds_per_samp = static_cast<long>(1000000 / double(config.sample_rate) + 0.5);
   playback_interface->set_config( config );
   playback_interface->initialize();
 
@@ -85,6 +86,7 @@ void program_body( const string_view audio_device, const string& midi_device )
   event_loop->add_rule(
     "calculate sine wave",
     [&] {
+      curr_time = steady_clock::now();
       while ( next_sample_to_calculate <= playback_interface->cursor() + audio_horizon ) {
         const double time = next_sample_to_calculate / double( config.sample_rate );
         /* compute the sine wave amplitude (middle A, 440 Hz) */
@@ -93,13 +95,13 @@ void program_body( const string_view audio_device, const string& midi_device )
           { amp_left * sin( 2 * M_PI * 440 * time ), amp_right * sin( 2 * M_PI * 440 * time ) } );
         amp_left *= note_decay_rate;
         // amp_right = some equation based on note_decay_rate and next_note_pred
-        curr_time = steady_clock::now();
         if ( next_note_pred <= curr_time ) {
           time_since_pred_note
             = config.sample_rate / 1000 * duration_cast<milliseconds>( curr_time - next_note_pred ).count();
           amp_right = max_amplitude * pow( note_decay_rate, time_since_pred_note );
         }
         next_sample_to_calculate++;
+        curr_time += microseconds( microseconds_per_samp );
       }
     },
     /* when should this rule run? commit to an output signal until some horizon in the future */
