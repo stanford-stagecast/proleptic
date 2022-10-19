@@ -16,22 +16,31 @@ using namespace chrono;
 static constexpr unsigned int audio_horizon = 16; /* samples */
 static constexpr float max_amplitude = 0.9;
 static constexpr float note_decay_rate = 0.9998;
+static constexpr auto simulated_latency = milliseconds(100);
 
 static string nn_file = "/usr/local/share/predict-timestamps.dnn";
 
-array<float, 16> calculate_input( deque<steady_clock::time_point> times, int num_notes )
+array<float, 16> calculate_input( deque<steady_clock::time_point> times )
 {
   array<float, 16> ret_mat{};
+  deque<float> timestamps;
   steady_clock::time_point current_time = steady_clock::now();
-  for ( auto i = 0; i < 16; i++ ) {
-    if ( i >= num_notes ) {
+  for (const auto& time : times) {
+    if ((current_time - time) < simulated_latency) {
+      continue;
+    }
+    timestamps.push_back(duration_cast<milliseconds>(current_time - time - simulated_latency).count() / 1000.f);
+  }
+  reverse(begin(timestamps), end(timestamps));
+
+  for (size_t i = 0; i < 16; i++) {
+    if (i >= timestamps.size()) {
       ret_mat[i] = 0;
     } else {
-      ret_mat[i] = duration_cast<std::chrono::milliseconds>( current_time - times[i] )
-                    .count()/1000.0;
+      ret_mat[i] = timestamps[i];
     }
   }
-  reverse(begin(ret_mat), end(ret_mat));
+
   return ret_mat;
 }
 
@@ -95,7 +104,7 @@ void program_body( const string_view audio_device, const string& midi_device )
           { amp_left * sin( 2 * M_PI * 440 * time ), amp_right * sin( 2 * M_PI * 440 * 1.5 * time ) } );
         amp_left *= note_decay_rate;
         // amp_right = some equation based on note_decay_rate and next_note_pred
-        if ( next_note_pred <= curr_time ) {
+        if ( next_note_pred <= curr_time && (curr_time - next_note_pred) < simulated_latency) {
           time_since_pred_note
             = (config.sample_rate * duration_cast<microseconds>( curr_time - next_note_pred ).count()) / 1000000;
           amp_right = max_amplitude * pow( note_decay_rate, time_since_pred_note );
@@ -145,7 +154,8 @@ void program_body( const string_view audio_device, const string& midi_device )
         steady_clock::time_point time_val = midi.get_event_time();
         if ( midi.get_event_type() == 144 ) { /* key down */
           amp_left = max_amplitude;
-          if ( num_notes < 16 ) {
+          // keep a few extra in case some of the new presses are discarded to simulate latency
+          if ( num_notes < 16 + 4 ) {
             press_queue.push_back( time_val );
             num_notes++;
           } else {
@@ -163,9 +173,11 @@ void program_body( const string_view audio_device, const string& midi_device )
     "get DNN prediction",
     [&] {
       last_pred_time = steady_clock::now();
-      past_timestamps = calculate_input( press_queue, num_notes );
+      past_timestamps = calculate_input( press_queue );
       
       float time_to_next = nn.predict_next_timestamp( past_timestamps );
+      // the "future" is actually based on a moment `simulated_latency` in the past
+      time_to_next += (duration_cast<milliseconds>(simulated_latency)).count() / 1000.f;
       if ( counter % 20 == 0 ) {
         for (int i = 0; i < 16; i++) {
           cerr << past_timestamps[i] << " ";
