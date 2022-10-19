@@ -36,7 +36,6 @@ void MidiProcessor::pop_active_sense_bytes()
   }
 }
 
-
 bool MidiProcessor::data_timeout() const
 {
   const auto now = steady_clock::now();

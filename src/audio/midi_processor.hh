@@ -19,7 +19,6 @@ class MidiProcessor
   std::chrono::steady_clock::time_point original_time_ { std::chrono::steady_clock::now() };
 
 public:
-
   void read_from_fd( FileDescriptor& fd );
 
   void pop_event();

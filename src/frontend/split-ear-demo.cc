@@ -16,25 +16,25 @@ using namespace chrono;
 static constexpr unsigned int audio_horizon = 16; /* samples */
 static constexpr float max_amplitude = 0.9;
 static constexpr float note_decay_rate = 0.9998;
-static constexpr auto simulated_latency = milliseconds(100);
+static constexpr auto simulated_latency = milliseconds( 100 );
 
 static string nn_file = "/usr/local/share/predict-timestamps.dnn";
 
 array<float, 16> calculate_input( deque<steady_clock::time_point> times )
 {
-  array<float, 16> ret_mat{};
+  array<float, 16> ret_mat {};
   deque<float> timestamps;
   steady_clock::time_point current_time = steady_clock::now();
-  for (const auto& time : times) {
-    if ((current_time - time) < simulated_latency) {
+  for ( const auto& time : times ) {
+    if ( ( current_time - time ) < simulated_latency ) {
       continue;
     }
-    timestamps.push_back(duration_cast<milliseconds>(current_time - time - simulated_latency).count() / 1000.f);
+    timestamps.push_back( duration_cast<milliseconds>( current_time - time - simulated_latency ).count() / 1000.f );
   }
-  reverse(begin(timestamps), end(timestamps));
+  reverse( begin( timestamps ), end( timestamps ) );
 
-  for (size_t i = 0; i < 16; i++) {
-    if (i >= timestamps.size()) {
+  for ( size_t i = 0; i < 16; i++ ) {
+    if ( i >= timestamps.size() ) {
       ret_mat[i] = 0;
     } else {
       ret_mat[i] = timestamps[i];
@@ -66,7 +66,7 @@ void program_body( const string_view audio_device, const string& midi_device )
   config.buffer_size = 48;              /* maximum samples of queued audio = 1 millisecond */
   config.period_size = 16;              /* chunk size for kernel's management of audio buffer */
   config.avail_minimum = audio_horizon; /* device is writeable when full horizon can be written */
-  long microseconds_per_samp = static_cast<long>(1000000 / double(config.sample_rate) + 0.5);
+  long microseconds_per_samp = static_cast<long>( 1000000 / double( config.sample_rate ) + 0.5 );
   playback_interface->set_config( config );
   playback_interface->initialize();
 
@@ -104,9 +104,9 @@ void program_body( const string_view audio_device, const string& midi_device )
           { amp_left * sin( 2 * M_PI * 440 * time ), amp_right * sin( 2 * M_PI * 440 * 1.5 * time ) } );
         amp_left *= note_decay_rate;
         // amp_right = some equation based on note_decay_rate and next_note_pred
-        if ( next_note_pred <= curr_time && (curr_time - next_note_pred) < simulated_latency) {
+        if ( next_note_pred <= curr_time && ( curr_time - next_note_pred ) < simulated_latency ) {
           time_since_pred_note
-            = (config.sample_rate * duration_cast<microseconds>( curr_time - next_note_pred ).count()) / 1000000;
+            = ( config.sample_rate * duration_cast<microseconds>( curr_time - next_note_pred ).count() ) / 1000000;
           amp_right = max_amplitude * pow( note_decay_rate, time_since_pred_note );
         } else {
           amp_right *= note_decay_rate;
@@ -174,12 +174,12 @@ void program_body( const string_view audio_device, const string& midi_device )
     [&] {
       last_pred_time = steady_clock::now();
       past_timestamps = calculate_input( press_queue );
-      
+
       float time_to_next = nn.predict_next_timestamp( past_timestamps );
       // the "future" is actually based on a moment `simulated_latency` in the past
-      time_to_next += (duration_cast<milliseconds>(simulated_latency)).count() / 1000.f;
+      time_to_next += ( duration_cast<milliseconds>( simulated_latency ) ).count() / 1000.f;
       if ( counter % 20 == 0 ) {
-        for (int i = 0; i < 16; i++) {
+        for ( int i = 0; i < 16; i++ ) {
           cerr << past_timestamps[i] << " ";
         }
         cerr << '\n';
