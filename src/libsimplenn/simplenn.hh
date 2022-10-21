@@ -1,7 +1,9 @@
 #pragma once
 #include <array>
+#include <chrono>
 #include <memory>
 #include <string_view>
+#include <vector>
 
 struct NetworkData;
 
@@ -29,4 +31,22 @@ public:
 
 private:
   std::unique_ptr<NetworkData> data_ {};
+};
+
+struct PianoRollPredictorData;
+
+class PianoRollPredictor
+{
+public:
+  PianoRollPredictor( const std::string& filename );
+  ~PianoRollPredictor();
+
+  std::pair<std::chrono::steady_clock::time_point, std::chrono::steady_clock::duration> predict_next_note_time(
+    const std::vector<std::chrono::steady_clock::time_point>& timestamps );
+
+  bool predict_next_note_value( const std::vector<bool>& notes );
+  void train_next_note_value( const std::vector<bool>& notes, bool next );
+
+private:
+  std::unique_ptr<PianoRollPredictorData> data_ {};
 };
