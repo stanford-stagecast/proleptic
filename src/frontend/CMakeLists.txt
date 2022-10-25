@@ -21,6 +21,8 @@ macro (add_exec_with_simplenn exec_name)
   add_exec("${exec_name}")
 
   target_link_libraries ("${exec_name}" simplenn)
+  target_link_libraries ("${exec_name}" ${Samplerate_LDFLAGS})
+  target_link_libraries ("${exec_name}" ${Samplerate_LDFLAGS_OTHER})
 endmacro (add_exec)
 
 add_executable ("example1" "example1.cc")

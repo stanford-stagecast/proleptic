@@ -8,6 +8,7 @@
 #include "audio_device_claim.hh"
 #include "eventloop.hh"
 #include "midi_processor.hh"
+#include "synthesizer.hh"
 #include "simplenn.hh"
 #include "stats_printer.hh"
 
@@ -21,7 +22,7 @@ static constexpr auto simulated_latency = milliseconds( 100 );
 
 static string nn_file = "/usr/local/share/piano-roll-octave.dnn";
 
-void program_body( const string_view audio_device, const string& midi_device )
+void program_body( const string_view audio_device, const string& midi_device, const string& sample_directory )
 {
   /* speed up C++ I/O by decoupling from C standard I/O */
   ios::sync_with_stdio( false );
@@ -44,11 +45,13 @@ void program_body( const string_view audio_device, const string& midi_device )
   config.period_size = 16;              /* chunk size for kernel's management of audio buffer */
   config.avail_minimum = audio_horizon; /* device is writeable when full horizon can be written */
   long microseconds_per_samp = static_cast<long>( 1000000 / double( config.sample_rate ) + 0.5 );
+  uint8_t default_vel = 60;
   playback_interface->set_config( config );
   playback_interface->initialize();
 
   /* open the MIDI device */
   FileDescriptor piano { CheckSystemCall( midi_device, open( midi_device.c_str(), O_RDONLY ) ) };
+  Synthesizer synth_left { sample_directory };
   MidiProcessor midi;
   deque<pair<steady_clock::time_point, int>> press_queue {};
   deque<array<bool, 12>> piano_roll {};
@@ -59,7 +62,8 @@ void program_body( const string_view audio_device, const string& midi_device )
   size_t next_sample_to_calculate = 0; // what's the next sample # to be written to the output signal?
 
   /* current amplitude of the sine waves */
-  array<float, 12> amp_left = {}, amp_right = {};
+  //array<float, 12> amp_left = {}, amp_right = {};
+  array<float, 12> amp_right = {};
 
   steady_clock::time_point last_note_pred { steady_clock::now() };
   steady_clock::time_point next_note_pred { steady_clock::now() };
@@ -80,16 +84,18 @@ void program_body( const string_view audio_device, const string& midi_device )
         const double time = next_sample_to_calculate / double( config.sample_rate );
         /* compute the sine wave amplitude (middle A, 440 Hz) */
         const float middle_c = 261.63;
-        float total_amp_left = 0, total_amp_right = 0;
+        //float total_amp_left = 0, total_amp_right = 0;
+        float total_amp_right = 0;
         for ( size_t i = 0; i < 12; i++ ) {
           const float frequency = middle_c * pow( 2, i / 12.f );
-          total_amp_left += amp_left[i] * sin( 2 * M_PI * frequency * time );
+          //total_amp_left += amp_left[i] * sin( 2 * M_PI * frequency * time );
           total_amp_right += amp_right[i] * sin( 2 * M_PI * ( 2 * frequency ) * time );
         }
-        audio_signal.safe_set( next_sample_to_calculate, { total_amp_left, total_amp_right } );
-        for ( size_t i = 0; i < 12; i++ ) {
-          amp_left[i] *= note_decay_rate;
-        }
+        float samp = synth_left.calculate_curr_sample().first;
+        audio_signal.safe_set( next_sample_to_calculate, { samp, total_amp_right } );
+        // for ( size_t i = 0; i < 12; i++ ) {
+          //amp_left[i] *= note_decay_rate;
+        // }
         // amp_right = some equation based on note_decay_rate and next_note_pred
         for ( size_t i = 0; i < 12; i++ ) {
           if ( should_play_next_pred[i] && next_note_pred <= curr_time
@@ -147,7 +153,9 @@ void program_body( const string_view audio_device, const string& midi_device )
         if ( midi.get_event_type() == 144 ) { /* key down */
           ssize_t note_index = ( note_val - 60 );
           if ( note_index >= 0 and note_index < 12 ) {
-            amp_left[note_index] = max_amplitude;
+            //amp_left[note_index] = max_amplitude;
+            synth_left.process_new_data(
+              midi.get_event_type(), midi.get_event_note(), default_vel );
             press_queue.push_back( make_pair( time_val, note_index ) );
             if ( num_notes < 128 ) {
               num_notes++;
@@ -263,12 +271,12 @@ int main( int argc, char* argv[] )
       abort();
     }
 
-    if ( argc != 3 ) {
+    if ( argc != 4 ) {
       usage_message( argv[0] );
       return EXIT_FAILURE;
     }
 
-    program_body( argv[1], argv[2] );
+    program_body( argv[1], argv[2], argv[3] );
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
     return EXIT_FAILURE;

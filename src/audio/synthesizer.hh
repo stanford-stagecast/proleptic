@@ -29,7 +29,9 @@ class Synthesizer
 public:
   Synthesizer( const std::string& sample_directory );
 
-  void process_new_data( uint8_t event_type, uint8_t event_note, uint8_t event_velocity );
+  void process_new_data( uint8_t event_type, uint8_t event_note, uint8_t event_velocity, unsigned long sample_offset = 0 );
+
+  void stop_press( uint8_t event_note );
 
   wav_frame_t calculate_curr_sample() const;
 
