@@ -35,11 +35,12 @@ static auto reverse_distribution = binomial_distribution<bool>( 1, 0.5 );
 static constexpr int input_size = 64;
 
 static auto tmp_distribution = uniform_real_distribution<float>( 1, 10 );
-static auto piece_distribution = uniform_int_distribution<unsigned>( 0, 39 );
+static auto train_piece_distribution = uniform_int_distribution<unsigned>( 0, 39 );
+static auto val_piece_distribution = uniform_int_distribution<unsigned>( 0, 4 );
 
 // Training parameters
-static constexpr int number_of_iterations = 5000000;
-static constexpr float learning_rate = 0.001;
+static constexpr int number_of_iterations = 2000000;
+static constexpr float learning_rate = 0.01;
 static constexpr int batch_size = 1;
 
 struct RandomState
@@ -94,7 +95,7 @@ Eigen::Matrix<float, 1, input_size> pick_timestamp_segment( vector<float> midi_t
   float exit_flag = false;
 
   float noise = noise_distribution( prng );
-  ;
+
   while ( exit_flag == false ) {
     vector<float> timestamps;
     // choose a random time-point as the current time
@@ -161,7 +162,21 @@ float vector_min( vector<float> vec )
   return min;
 }
 
-void program_body( ostream& output, const string& midi_database_path )
+float compute_error_rate( float gt, float my )
+{
+  float error_rate1 = abs( my - gt );
+  float error_rate2 = abs( my - 2 * gt );
+  float error_rate3 = abs( my - 0.5 * gt );
+  float error_rate4 = abs( my - 0.25 * gt );
+  vector<float> errors;
+  errors.push_back( error_rate1 );
+  errors.push_back( error_rate2 );
+  errors.push_back( error_rate3 );
+  errors.push_back( error_rate4 );
+  return vector_min( errors );
+}
+
+void program_body( ostream& output, const string& midi_train_database_path, const string& midi_val_database_path )
 {
   ios::sync_with_stdio( false );
 
@@ -173,24 +188,53 @@ void program_body( ostream& output, const string& midi_database_path )
   // initialize the training struct
   NetworkTraining<DNN_period, batch_size> trainer;
 
-  // read all songs from the database folder
-  auto all_songs_database = load_all_songs( midi_database_path );
+  // read all songs from the training database folder
+  auto train_songs_database = load_all_songs( midi_train_database_path );
+
+  // variables needed for reading timestamps and tempos
   vector<float> midi_timestamps;
   int piece_index;
   float tempo;
 
-  // record current time for profiling purpose
-  time_t current_time = time( NULL );
+  // read all songs from the validation database folder
+  auto val_songs_database = load_all_songs( midi_val_database_path );
 
-  for ( int iter_index = 0; iter_index < number_of_iterations; ++iter_index ) {
-    // choose one of the pieces from the midi database for training
+  // form a simple, fixed validation set for early stopping
+  const int num_val_timestamps = 100;
+  vector<tuple<Eigen::Matrix<float, 1, input_size>, float>> val_timestamps;
+  for ( int k = 0; k < num_val_timestamps; ++k ) {
     while ( 1 ) {
-      piece_index = piece_distribution( prng );
-      midi_timestamps = get<0>( all_songs_database[piece_index] );
+      piece_index = val_piece_distribution( prng );
+      midi_timestamps = get<0>( val_songs_database[piece_index] );
       if ( midi_timestamps.size() > input_size )
         break;
     }
-    tempo = get<1>( all_songs_database[piece_index] );
+    tempo = get<1>( val_songs_database[piece_index] );
+    auto timestamps = pick_timestamp_segment( midi_timestamps );
+    val_timestamps.push_back( make_tuple( timestamps, tempo ) );
+  }
+
+  // record current time for profiling purpose
+  time_t current_time = time( NULL );
+
+  // validation error of last 5000 iterations
+  // float last_val_error = 10000.0;
+
+  Eigen::Matrix<float, 1, input_size> val_current_timestamps;
+  float val_tempo;
+  float val_period;
+  float training_error = 0.0;
+
+  for ( int iter_index = 0; iter_index < number_of_iterations; ++iter_index ) {
+
+    // choose one of the pieces from the midi database for training
+    while ( 1 ) {
+      piece_index = train_piece_distribution( prng );
+      midi_timestamps = get<0>( train_songs_database[piece_index] );
+      if ( midi_timestamps.size() > input_size )
+        break;
+    }
+    tempo = get<1>( train_songs_database[piece_index] );
 
     // obtain timestamps, period, and phase
     auto period = 60.0 / tempo;
@@ -205,6 +249,9 @@ void program_body( ostream& output, const string& midi_database_path )
     NetworkInference<DNN_period, batch_size> infer;
     infer.apply( nn, timestamps );
     auto predicted_before_update = infer.output();
+
+    // compute training error
+    training_error = compute_error_rate( period, predicted_before_update( 0, 0 ) );
 
     trainer.train(
       nn,
@@ -227,14 +274,14 @@ void program_body( ostream& output, const string& midi_database_path )
         // ugly hard-coded, fix later!
         if ( vector_min( all_diffs ) == abs( diff1 ) ) {
           if ( abs( diff2 ) / abs( diff1 ) < 3.0 || abs( diff3 ) / abs( diff1 ) < 3.0 )
-            pd( 0, 0 ) = 5 * diff1;
+            pd( 0, 0 ) = 2 * diff1;
           else
             pd( 0, 0 ) = diff1;
         } else if ( vector_min( all_diffs ) == abs( diff2 ) ) {
           pd( 0, 0 ) = diff2;
         } else if ( vector_min( all_diffs ) == abs( diff3 ) ) {
           if ( abs( diff1 ) / abs( diff3 ) < 3.0 || abs( diff4 ) / abs( diff3 ) < 3.0 )
-            pd( 0, 0 ) = 5 * diff3;
+            pd( 0, 0 ) = 2 * diff3;
           else
             pd( 0, 0 ) = diff3;
         } else {
@@ -252,6 +299,22 @@ void program_body( ostream& output, const string& midi_database_path )
     auto predicted_after_update = infer.output();
 
     if ( iter_index % 5000 == 0 ) {
+
+      // do validation and early stopping (if necessary)
+      float val_error = 0.0;
+      for ( auto val_element : val_timestamps ) {
+        val_current_timestamps = get<0>( val_element );
+        val_tempo = get<1>( val_element );
+        val_period = 60.0 / val_tempo;
+        // get prediction
+        infer.apply( nn, val_current_timestamps );
+        auto predicted_val = infer.output()( 0, 0 );
+        float error = compute_error_rate( val_period, predicted_val );
+        val_error += error;
+      }
+      val_error /= val_timestamps.size();
+
+      // print useful info
       cout << "iteration " << iter_index << "\n";
       cout << "timestamps = (" << timestamps << ")"
            << "\n";
@@ -259,9 +322,33 @@ void program_body( ostream& output, const string& midi_database_path )
            << expected( 0, 0 ) << " or " << expected( 0, 0 ) * 2 << "\n";
       cout << "predicted period (before update) = " << predicted_before_update( 0, 0 ) << "\n";
       cout << "predicted period (after update) = " << predicted_after_update( 0, 0 ) << "\n";
+      cout << "training error = " << training_error << "\n";
+      cout << "validation error = " << val_error << "\n";
       // cout << "ground truth phase = " << expected( 0, 1 ) / M_PI << " pi\n";
       // cout << "predicted phase (before update) = " << predicted_before_update( 0, 1 ) / M_PI << " pi\n";
       // cout << "predicted phase (after update) = " << predicted_after_update( 0, 1 ) / M_PI << " pi\n";
+
+      // check how val error goes before saving the model
+      // if (iter_index > 20000 && val_error > last_val_error) {
+      //   // if val error has decreased, stop now
+      //   cout << "val error is increasing... early stopping...";
+      //   break;
+      // }
+      // else {
+      //   // otherwise, update last_val_error
+      //   last_val_error = val_error;
+      //   // save the model
+      //   string serialized_nn;
+      //   {
+      //     serialized_nn.resize( 4000000 );
+      //     Serializer serializer( string_span::from_view( serialized_nn ) );
+      //     serialize( nn, serializer );
+      //     serialized_nn.resize( serializer.bytes_written() );
+      //     cout << "Output is " << serializer.bytes_written() << " bytes." << endl;
+      //   }
+      //   output << serialized_nn;
+      // }
+
       cout << "\n";
     }
   }
@@ -270,7 +357,7 @@ void program_body( ostream& output, const string& midi_database_path )
 
   string serialized_nn;
   {
-    serialized_nn.resize( 2000000 );
+    serialized_nn.resize( 4000000 );
     Serializer serializer( string_span::from_view( serialized_nn ) );
     serialize( nn, serializer );
     serialized_nn.resize( serializer.bytes_written() );
@@ -285,16 +372,16 @@ int main( int argc, char* argv[] )
     abort();
   }
 
-  if ( argc < 1 || argc > 3 ) {
-    cerr << "Usage: " << argv[0] << " [midi_database] [dnn_filename]\n";
+  if ( argc < 1 || argc > 4 ) {
+    cerr << "Usage: " << argv[0] << " [midi_train_database] [midi_val_database] [dnn_filename]\n";
     return EXIT_FAILURE;
   }
 
   string filename;
-  if ( argc == 2 ) {
+  if ( argc == 3 ) {
     filename = "/dev/null";
-  } else if ( argc == 3 ) {
-    filename = argv[2];
+  } else if ( argc == 4 ) {
+    filename = argv[3];
   }
 
   ofstream output;
@@ -306,7 +393,7 @@ int main( int argc, char* argv[] )
   }
 
   try {
-    program_body( output, argv[1] );
+    program_body( output, argv[1], argv[2] );
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
     return EXIT_FAILURE;
