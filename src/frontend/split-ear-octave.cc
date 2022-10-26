@@ -50,9 +50,20 @@ void program_body( const string_view audio_device, const string& midi_device )
   /* open the MIDI device */
   FileDescriptor piano { CheckSystemCall( midi_device, open( midi_device.c_str(), O_RDONLY ) ) };
   MidiProcessor midi;
-  deque<pair<steady_clock::time_point, int>> press_queue {};
+  struct Press
+  {
+    steady_clock::time_point time;
+    int key;
+    int velocity;
+    Press( steady_clock::time_point t, int k, int v )
+      : time( t )
+      , key( k )
+      , velocity( v )
+    {}
+  };
+  deque<Press> pending_queue {};
+  deque<Press> history_queue {};
   deque<array<bool, 12>> piano_roll {};
-  size_t num_notes = 0;
 
   /* get ready to play an audio signal */
   ChannelPair audio_signal { 16384 };  // the output signal
@@ -86,6 +97,8 @@ void program_body( const string_view audio_device, const string& midi_device )
           total_amp_left += amp_left[i] * sin( 2 * M_PI * frequency * time );
           total_amp_right += amp_right[i] * sin( 2 * M_PI * ( 2 * frequency ) * time );
         }
+        total_amp_left *= 0.2;
+        total_amp_right *= 0.2;
         audio_signal.safe_set( next_sample_to_calculate, { total_amp_left, total_amp_right } );
         for ( size_t i = 0; i < 12; i++ ) {
           amp_left[i] *= note_decay_rate;
@@ -143,25 +156,34 @@ void program_body( const string_view audio_device, const string& midi_device )
     [&] {
       while ( midi.has_event() ) {
         steady_clock::time_point time_val = midi.get_event_time();
-        uint8_t note_val = midi.get_event_note();
         if ( midi.get_event_type() == 144 ) { /* key down */
-          ssize_t note_index = ( note_val - 60 );
-          if ( note_index >= 0 and note_index < 12 ) {
+          uint8_t note_val = midi.get_event_note();
+          uint8_t velocity_val = midi.get_event_velocity();
+          if ( note_val >= 60 and note_val < 72 ) {
+            ssize_t note_index = ( note_val - 60 );
             amp_left[note_index] = max_amplitude;
-            press_queue.push_back( make_pair( time_val, note_index ) );
-            if ( num_notes < 128 ) {
-              num_notes++;
-            } else {
-              press_queue.pop_front();
-            }
-          } else {
-            cerr << "Warning: note too " << ( note_index < 0 ? "low" : "high" ) << "!\n";
           }
+          pending_queue.push_back( Press( time_val, note_val, velocity_val ) );
         }
         midi.pop_event();
       }
     },
     [&] { return midi.has_event(); } );
+
+  /* rule #4.5: add latency to MIDI events */
+  event_loop->add_rule(
+    "simulate latency on MIDI events",
+    [&] {
+      history_queue.push_back( pending_queue.front() );
+      pending_queue.pop_front();
+      if ( history_queue.size() > 65 ) {
+        history_queue.pop_front();
+      }
+    },
+    [&] {
+      const auto now = steady_clock::now();
+      return !pending_queue.empty() and pending_queue.front().time < now - simulated_latency;
+    } );
 
   /* rule #5: get DNN prediction */
   event_loop->add_rule(
@@ -171,11 +193,10 @@ void program_body( const string_view audio_device, const string& midi_device )
       const auto adjusted_now = now - simulated_latency;
       std::vector<OctavePredictor::KeyPress> past_timestamps;
 
-      for ( const auto& press : press_queue ) {
-        if ( press.first > adjusted_now ) {
-          continue;
+      for ( const auto& press : history_queue ) {
+        if ( press.key >= 60 && press.key < 72 ) {
+          past_timestamps.push_back( OctavePredictor::KeyPress( press.key - 60, press.time ) );
         }
-        past_timestamps.push_back( OctavePredictor::KeyPress( press.second, press.first ) );
       }
 
       if ( next_note_pred < adjusted_now ) {
@@ -211,7 +232,6 @@ void program_body( const string_view audio_device, const string& midi_device )
       vector<array<bool, 12>> notes( piano_roll.begin() + 1, piano_roll.end() );
       should_play_next_pred = nn.predict_next_note_values( notes );
 
-      /*
       for ( int key = 0; key < 12; key++ ) {
         for ( const auto& note : piano_roll ) {
           cerr << note[key];
@@ -221,7 +241,6 @@ void program_body( const string_view audio_device, const string& midi_device )
         cerr << "\n";
       }
       cerr << endl;
-      */
 
       last_pred_time = now;
     },

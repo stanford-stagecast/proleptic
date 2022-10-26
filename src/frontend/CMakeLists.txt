@@ -15,13 +15,13 @@ macro (add_exec_with_samplerate exec_name)
 
   target_link_libraries ("${exec_name}" ${Samplerate_LDFLAGS})
   target_link_libraries ("${exec_name}" ${Samplerate_LDFLAGS_OTHER})
-endmacro (add_exec)
+endmacro (add_exec_with_samplerate)
 
 macro (add_exec_with_simplenn exec_name)
   add_exec("${exec_name}")
 
   target_link_libraries ("${exec_name}" simplenn)
-endmacro (add_exec)
+endmacro (add_exec_with_simplenn)
 
 add_executable ("example1" "example1.cc")
 add_executable ("example2" "example2.cc")
