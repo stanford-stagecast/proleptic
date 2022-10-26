@@ -39,7 +39,7 @@ static auto train_piece_distribution = uniform_int_distribution<unsigned>( 0, 39
 static auto val_piece_distribution = uniform_int_distribution<unsigned>( 0, 4 );
 
 // Training parameters
-static constexpr int number_of_iterations = 1000000;
+static constexpr int number_of_iterations = 2000000;
 static constexpr float learning_rate = 0.01;
 static constexpr int batch_size = 1;
 
@@ -188,13 +188,21 @@ tuple<float, float> compute_error( float gt_period, float my_period, float gt_ph
   errors.push_back( error_rate4 );
 
   if ( vector_min( errors ) == error_rate1 ) {
-    return make_tuple( error_rate1, abs( cap_range( my_phase ) - cap_range( gt_phase ) ) );
+    return make_tuple( error_rate1,
+                       min( cap_range( abs( my_phase - gt_phase ) ),
+                            (float)( 2 * M_PI ) - cap_range( abs( my_phase - gt_phase ) ) ) );
   } else if ( vector_min( errors ) == error_rate2 ) {
-    return make_tuple( error_rate2, abs( cap_range( my_phase ) - cap_range( 0.5 * gt_phase ) ) );
+    return make_tuple( error_rate2,
+                       min( cap_range( abs( my_phase - 0.5 * gt_phase ) ),
+                            (float)( 2 * M_PI ) - cap_range( abs( my_phase - 0.5 * gt_phase ) ) ) );
   } else if ( vector_min( errors ) == error_rate3 ) {
-    return make_tuple( error_rate3, abs( cap_range( my_phase ) - cap_range( 2 * gt_phase ) ) );
+    return make_tuple( error_rate3,
+                       min( cap_range( abs( my_phase - 2 * gt_phase ) ),
+                            (float)( 2 * M_PI ) - cap_range( abs( my_phase - 2 * gt_phase ) ) ) );
   } else {
-    return make_tuple( error_rate4, abs( cap_range( my_phase ) - cap_range( 4 * gt_phase ) ) );
+    return make_tuple( error_rate4,
+                       min( cap_range( abs( my_phase - 4 * gt_phase ) ),
+                            (float)( 2 * M_PI ) - cap_range( abs( my_phase - 4 * gt_phase ) ) ) );
   }
 }
 
@@ -366,12 +374,10 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
            << expected( 0, 0 ) << " or " << expected( 0, 0 ) * 2 << "\n";
       cout << "predicted period (before update) = " << predicted_before_update( 0, 0 ) << "\n";
       cout << "predicted period (after update) = " << predicted_after_update( 0, 0 ) << "\n";
-      cout << "ground truth phase = " << cap_range( expected( 0, 1 ) * 4 ) / M_PI << " pi or "
-           << cap_range( expected( 0, 1 ) * 2 ) / M_PI << " pi or " << cap_range( expected( 0, 1 ) ) / M_PI
-           << " pi or " << cap_range( expected( 0, 1 ) * 0.5 ) / M_PI << " pi\n";
-      cout << "predicted phase (before update) = " << cap_range( predicted_before_update( 0, 1 ) ) / M_PI
-           << " pi\n";
-      cout << "predicted phase (after update) = " << cap_range( predicted_after_update( 0, 1 ) ) / M_PI << " pi\n";
+      cout << "ground truth phase = " << expected( 0, 1 ) * 4 / M_PI << " pi or " << expected( 0, 1 ) * 2 / M_PI
+           << " pi or " << expected( 0, 1 ) / M_PI << " pi or " << expected( 0, 1 ) * 0.5 / M_PI << " pi\n";
+      cout << "predicted phase (before update) = " << predicted_before_update( 0, 1 ) / M_PI << " pi\n";
+      cout << "predicted phase (after update) = " << predicted_after_update( 0, 1 ) / M_PI << " pi\n";
       cout << "training_period_error error = " << training_period_error << "\n";
       cout << "training_phase_error error = " << training_phase_error / M_PI << " pi\n";
       cout << "val_period_error error = " << val_period_error << "\n";
