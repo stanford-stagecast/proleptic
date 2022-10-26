@@ -39,7 +39,7 @@ static auto train_piece_distribution = uniform_int_distribution<unsigned>( 0, 39
 static auto val_piece_distribution = uniform_int_distribution<unsigned>( 0, 4 );
 
 // Training parameters
-static constexpr int number_of_iterations = 2000000;
+static constexpr int number_of_iterations = 1000000;
 static constexpr float learning_rate = 0.01;
 static constexpr int batch_size = 1;
 
@@ -162,18 +162,40 @@ float vector_min( vector<float> vec )
   return min;
 }
 
-float compute_error_rate( float gt, float my )
+float cap_range( float phase )
 {
-  float error_rate1 = abs( my - gt );
-  float error_rate2 = abs( my - 2 * gt );
-  float error_rate3 = abs( my - 0.5 * gt );
-  float error_rate4 = abs( my - 0.25 * gt );
+  float capped_phase = phase;
+  while ( capped_phase < 0 || capped_phase > 2 * M_PI ) {
+    if ( capped_phase < 0 ) {
+      capped_phase += 2 * M_PI;
+    } else {
+      capped_phase -= 2 * M_PI;
+    }
+  }
+  return capped_phase;
+}
+
+tuple<float, float> compute_error( float gt_period, float my_period, float gt_phase, float my_phase )
+{
+  float error_rate1 = abs( my_period - gt_period );
+  float error_rate2 = abs( my_period - 2 * gt_period );
+  float error_rate3 = abs( my_period - 0.5 * gt_period );
+  float error_rate4 = abs( my_period - 0.25 * gt_period );
   vector<float> errors;
   errors.push_back( error_rate1 );
   errors.push_back( error_rate2 );
   errors.push_back( error_rate3 );
   errors.push_back( error_rate4 );
-  return vector_min( errors );
+
+  if ( vector_min( errors ) == error_rate1 ) {
+    return make_tuple( error_rate1, abs( cap_range( my_phase ) - cap_range( gt_phase ) ) );
+  } else if ( vector_min( errors ) == error_rate2 ) {
+    return make_tuple( error_rate2, abs( cap_range( my_phase ) - cap_range( 0.5 * gt_phase ) ) );
+  } else if ( vector_min( errors ) == error_rate3 ) {
+    return make_tuple( error_rate3, abs( cap_range( my_phase ) - cap_range( 2 * gt_phase ) ) );
+  } else {
+    return make_tuple( error_rate4, abs( cap_range( my_phase ) - cap_range( 4 * gt_phase ) ) );
+  }
 }
 
 void program_body( ostream& output, const string& midi_train_database_path, const string& midi_val_database_path )
@@ -181,12 +203,12 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
   ios::sync_with_stdio( false );
 
   // initialize a randomized network
-  DNN_period nn;
+  DNN_period_phase nn;
   RandomState rng;
   randomize_network( nn, rng );
 
   // initialize the training struct
-  NetworkTraining<DNN_period, batch_size> trainer;
+  NetworkTraining<DNN_period_phase, batch_size> trainer;
 
   // read all songs from the training database folder
   auto train_songs_database = load_all_songs( midi_train_database_path );
@@ -223,7 +245,9 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
   Eigen::Matrix<float, 1, input_size> val_current_timestamps;
   float val_tempo;
   float val_period;
-  float training_error = 0.0;
+  float val_phase;
+  float training_period_error = 0.0;
+  float training_phase_error = 0.0;
 
   for ( int iter_index = 0; iter_index < number_of_iterations; ++iter_index ) {
 
@@ -238,28 +262,33 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
 
     // obtain timestamps, period, and phase
     auto period = 60.0 / tempo;
+    // auto period = tempo;
     auto timestamps = pick_timestamp_segment( midi_timestamps );
-    // auto phase = (timestamps(0,0) / period) * 2 * M_PI;
+    auto phase = ( timestamps( 0, 0 ) / period ) * 2 * M_PI;
 
     Eigen::Matrix<float, batch_size, 2> expected;
     expected( 0, 0 ) = period;
-    // expected( 0, 1 ) = phase;
+    expected( 0, 1 ) = phase;
 
     // train the network using gradient descent
-    NetworkInference<DNN_period, batch_size> infer;
+    NetworkInference<DNN_period_phase, batch_size> infer;
     infer.apply( nn, timestamps );
     auto predicted_before_update = infer.output();
 
     // compute training error
-    training_error = compute_error_rate( period, predicted_before_update( 0, 0 ) );
+    tuple<float, float> training_error
+      = compute_error( period, predicted_before_update( 0, 0 ), phase, predicted_before_update( 0, 1 ) );
+    training_period_error = get<0>( training_error );
+    training_phase_error = get<1>( training_error );
 
     trainer.train(
       nn,
       timestamps,
       [&expected]( const auto& prediction ) {
-        Eigen::Matrix<float, 1, 1> pd;
-        // loss function for period
-        float period_loss_param = 5.0;
+        Eigen::Matrix<float, 1, 2> pd;
+        // need loss function for period and phase
+        float period_loss_param = 1.0;
+        float phase_loss_param = 0.1;
 
         float diff1 = period_loss_param * ( prediction( 0, 0 ) - expected( 0, 0 ) );
         float diff2 = period_loss_param * ( prediction( 0, 0 ) - 2 * expected( 0, 0 ) );
@@ -277,21 +306,29 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
             pd( 0, 0 ) = 2 * diff1;
           else
             pd( 0, 0 ) = diff1;
+          pd( 0, 1 ) = phase_loss_param * 2
+                       * ( cos( expected( 0, 1 ) ) * sin( prediction( 0, 1 ) )
+                           - sin( expected( 0, 1 ) ) * cos( prediction( 0, 1 ) ) );
         } else if ( vector_min( all_diffs ) == abs( diff2 ) ) {
           pd( 0, 0 ) = diff2;
+          pd( 0, 1 ) = phase_loss_param * 2
+                       * ( cos( 0.5 * expected( 0, 1 ) ) * sin( prediction( 0, 1 ) )
+                           - sin( 0.5 * expected( 0, 1 ) ) * cos( prediction( 0, 1 ) ) );
         } else if ( vector_min( all_diffs ) == abs( diff3 ) ) {
           if ( abs( diff1 ) / abs( diff3 ) < 3.0 || abs( diff4 ) / abs( diff3 ) < 3.0 )
             pd( 0, 0 ) = 2 * diff3;
           else
             pd( 0, 0 ) = diff3;
+          pd( 0, 1 ) = phase_loss_param * 2
+                       * ( cos( 2 * expected( 0, 1 ) ) * sin( prediction( 0, 1 ) )
+                           - sin( 2 * expected( 0, 1 ) ) * cos( prediction( 0, 1 ) ) );
         } else {
           pd( 0, 0 ) = diff4;
+          pd( 0, 1 ) = phase_loss_param * 2
+                       * ( cos( 4 * expected( 0, 1 ) ) * sin( prediction( 0, 1 ) )
+                           - sin( 4 * expected( 0, 1 ) ) * cos( prediction( 0, 1 ) ) );
         }
 
-        // loss function for phase
-        // float phase_loss_param = 0.5;
-        // pd( 0, 1 ) = phase_loss_param * 2 * (cos(expected( 0, 1 )) * sin(prediction( 0, 1 )) - sin(expected( 0, 1
-        // )) * cos(prediction( 0, 1 )));
         return pd;
       },
       learning_rate );
@@ -301,18 +338,25 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
     if ( iter_index % 5000 == 0 ) {
 
       // do validation and early stopping (if necessary)
-      float val_error = 0.0;
+      float val_period_error = 0.0;
+      float val_phase_error = 0.0;
       for ( auto val_element : val_timestamps ) {
         val_current_timestamps = get<0>( val_element );
         val_tempo = get<1>( val_element );
         val_period = 60.0 / val_tempo;
+        val_phase = ( val_current_timestamps( 0, 0 ) / val_period ) * 2 * M_PI;
         // get prediction
         infer.apply( nn, val_current_timestamps );
-        auto predicted_val = infer.output()( 0, 0 );
-        float error = compute_error_rate( val_period, predicted_val );
-        val_error += error;
+        auto predicted_val = infer.output();
+        tuple<float, float> validation_error
+          = compute_error( val_period, predicted_val( 0, 0 ), val_phase, predicted_val( 0, 1 ) );
+        float period_error = get<0>( validation_error );
+        float phase_error = get<1>( validation_error );
+        val_period_error += period_error;
+        val_phase_error += phase_error;
       }
-      val_error /= val_timestamps.size();
+      val_period_error /= val_timestamps.size();
+      val_phase_error /= val_timestamps.size();
 
       // print useful info
       cout << "iteration " << iter_index << "\n";
@@ -322,11 +366,16 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
            << expected( 0, 0 ) << " or " << expected( 0, 0 ) * 2 << "\n";
       cout << "predicted period (before update) = " << predicted_before_update( 0, 0 ) << "\n";
       cout << "predicted period (after update) = " << predicted_after_update( 0, 0 ) << "\n";
-      cout << "training error = " << training_error << "\n";
-      cout << "validation error = " << val_error << "\n";
-      // cout << "ground truth phase = " << expected( 0, 1 ) / M_PI << " pi\n";
-      // cout << "predicted phase (before update) = " << predicted_before_update( 0, 1 ) / M_PI << " pi\n";
-      // cout << "predicted phase (after update) = " << predicted_after_update( 0, 1 ) / M_PI << " pi\n";
+      cout << "ground truth phase = " << cap_range( expected( 0, 1 ) * 4 ) / M_PI << " pi or "
+           << cap_range( expected( 0, 1 ) * 2 ) / M_PI << " pi or " << cap_range( expected( 0, 1 ) ) / M_PI
+           << " pi or " << cap_range( expected( 0, 1 ) * 0.5 ) / M_PI << " pi\n";
+      cout << "predicted phase (before update) = " << cap_range( predicted_before_update( 0, 1 ) ) / M_PI
+           << " pi\n";
+      cout << "predicted phase (after update) = " << cap_range( predicted_after_update( 0, 1 ) ) / M_PI << " pi\n";
+      cout << "training_period_error error = " << training_period_error << "\n";
+      cout << "training_phase_error error = " << training_phase_error / M_PI << " pi\n";
+      cout << "val_period_error error = " << val_period_error << "\n";
+      cout << "val_phase_error error = " << val_phase_error / M_PI << " pi\n";
 
       // check how val error goes before saving the model
       // if (iter_index > 20000 && val_error > last_val_error) {
