@@ -8,9 +8,9 @@
 #include "audio_device_claim.hh"
 #include "eventloop.hh"
 #include "midi_processor.hh"
-#include "synthesizer.hh"
 #include "simplenn.hh"
 #include "stats_printer.hh"
+#include "synthesizer.hh"
 
 using namespace std;
 using namespace chrono;
@@ -62,7 +62,7 @@ void program_body( const string_view audio_device, const string& midi_device, co
   size_t next_sample_to_calculate = 0; // what's the next sample # to be written to the output signal?
 
   /* current amplitude of the sine waves */
-  //array<float, 12> amp_left = {}, amp_right = {};
+  // array<float, 12> amp_left = {}, amp_right = {};
   array<float, 12> amp_right = {};
 
   steady_clock::time_point last_note_pred { steady_clock::now() };
@@ -84,17 +84,17 @@ void program_body( const string_view audio_device, const string& midi_device, co
         const double time = next_sample_to_calculate / double( config.sample_rate );
         /* compute the sine wave amplitude (middle A, 440 Hz) */
         const float middle_c = 261.63;
-        //float total_amp_left = 0, total_amp_right = 0;
+        // float total_amp_left = 0, total_amp_right = 0;
         float total_amp_right = 0;
         for ( size_t i = 0; i < 12; i++ ) {
           const float frequency = middle_c * pow( 2, i / 12.f );
-          //total_amp_left += amp_left[i] * sin( 2 * M_PI * frequency * time );
+          // total_amp_left += amp_left[i] * sin( 2 * M_PI * frequency * time );
           total_amp_right += amp_right[i] * sin( 2 * M_PI * ( 2 * frequency ) * time );
         }
         float samp = synth_left.calculate_curr_sample().first;
         audio_signal.safe_set( next_sample_to_calculate, { samp, total_amp_right } );
         // for ( size_t i = 0; i < 12; i++ ) {
-          //amp_left[i] *= note_decay_rate;
+        // amp_left[i] *= note_decay_rate;
         // }
         // amp_right = some equation based on note_decay_rate and next_note_pred
         for ( size_t i = 0; i < 12; i++ ) {
@@ -154,9 +154,8 @@ void program_body( const string_view audio_device, const string& midi_device, co
         if ( midi.get_event_type() == 144 ) { /* key down */
           ssize_t note_index = ( note_val - 60 );
           if ( note_index >= 0 and note_index < 12 ) {
-            //amp_left[note_index] = max_amplitude;
-            synth_left.process_new_data(
-              midi.get_event_type(), midi.get_event_note(), default_vel );
+            // amp_left[note_index] = max_amplitude;
+            synth_left.process_new_data( midi.get_event_type(), midi.get_event_note(), default_vel );
             press_queue.push_back( make_pair( time_val, note_index ) );
             if ( num_notes < 128 ) {
               num_notes++;

@@ -19,7 +19,10 @@ Synthesizer::Synthesizer( const string& sample_directory )
   }
 }
 
-void Synthesizer::process_new_data( uint8_t event_type, uint8_t event_note, uint8_t event_velocity, unsigned long sample_offset  )
+void Synthesizer::process_new_data( uint8_t event_type,
+                                    uint8_t event_note,
+                                    uint8_t event_velocity,
+                                    unsigned long sample_offset )
 {
   if ( event_type == SUSTAIN ) {
     // std::cerr << (size_t) midi_processor.get_event_type() << " " << (size_t) event_note << " " <<
