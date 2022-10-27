@@ -46,3 +46,4 @@ add_subdirectory ("${PROJECT_SOURCE_DIR}/src/dbus")
 
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/tests")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/frontend")
+add_subdirectory ("${PROJECT_SOURCE_DIR}/src/oscillator")
