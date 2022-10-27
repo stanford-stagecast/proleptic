@@ -109,6 +109,7 @@ void program_body( const string_view audio_device, const string& midi_device, co
           }
         }
         next_sample_to_calculate++;
+        synth_left.advance_sample();
         curr_time += microseconds( microseconds_per_samp );
       }
     },
