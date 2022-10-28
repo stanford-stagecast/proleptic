@@ -96,6 +96,10 @@ Eigen::Matrix<float, 1, input_size> pick_timestamp_segment( vector<float> midi_t
 
   float noise = noise_distribution( prng );
 
+  // first timestamp without applying noise
+  // this is used to compute the ground truth for phase
+  // float first_ts;
+
   while ( exit_flag == false ) {
     vector<float> timestamps;
     // choose a random time-point as the current time
@@ -106,13 +110,13 @@ Eigen::Matrix<float, 1, input_size> pick_timestamp_segment( vector<float> midi_t
         timestamps.push_back( current_time - midi_timestamps[k] );
       }
       // use deltas instead of raw timestamps as input
-      if ( timestamps.size() == input_size ) {
+      if ( timestamps.size() == input_size + 1 ) {
         exit_flag = true;
-        my_timestamps( 0, 0 ) = timestamps[0];
-        for ( int i = 1; i < input_size; ++i ) {
-          // noise = noise_distribution( prng );
-          noise = 0;
-          my_timestamps( 0, i ) = timestamps[i] - timestamps[i - 1] + noise;
+        // my_timestamps( 0, 0 ) = timestamps[0];
+        for ( int i = 0; i < input_size; ++i ) {
+          noise = noise_distribution( prng );
+          // noise = 0;
+          my_timestamps( 0, i ) = timestamps[i + 1] - timestamps[i] + noise;
         }
         break;
       }
@@ -162,7 +166,7 @@ float vector_min( vector<float> vec )
   return min;
 }
 
-float compute_error_rate( float gt, float my )
+float compute_period_error( float gt, float my )
 {
   float error_rate1 = abs( my - gt );
   float error_rate2 = abs( my - 2 * gt );
@@ -174,6 +178,56 @@ float compute_error_rate( float gt, float my )
   errors.push_back( error_rate3 );
   errors.push_back( error_rate4 );
   return vector_min( errors );
+}
+
+float compute_phase_error( float gt, float my )
+{
+  // float error_rate1 = abs( my - gt );
+  // float error_rate2 = abs( my - 2 * gt );
+  // float error_rate3 = abs( my - 0.5 * gt );
+  // float error_rate4 = abs( my - 0.25 * gt );
+  // vector<float> errors;
+  // errors.push_back( error_rate1 );
+  // errors.push_back( error_rate2 );
+  // errors.push_back( error_rate3 );
+  // errors.push_back( error_rate4 );
+  // return vector_min( errors );
+  return abs( gt - my );
+}
+
+float compute_period_rule_based( Eigen::Matrix<float, 1, input_size> timestamps )
+{
+
+  float smallest_interval = 100.0;
+  for ( size_t i = 1; i < input_size; i++ ) {
+    if ( timestamps( 0, i ) < smallest_interval ) {
+      smallest_interval = timestamps( 0, i );
+    }
+  }
+
+  float average_interval = 0.0;
+  size_t count = 0;
+
+  for ( size_t i = 1; i < input_size; i++ ) {
+    for ( int x = 1; x < 6; x++ ) {
+      if ( abs( timestamps( 0, i ) / (float)x - smallest_interval ) / smallest_interval < 0.1 ) {
+        average_interval += timestamps( 0, i ) / x;
+        count++;
+      }
+    }
+  }
+  average_interval /= count;
+
+  return average_interval;
+}
+
+float compute_phase( float first_timestamp, float period )
+{
+  float sixteenth_note_interval = period / 4;
+  while ( first_timestamp > sixteenth_note_interval ) {
+    first_timestamp -= sixteenth_note_interval;
+  }
+  return ( first_timestamp / sixteenth_note_interval ) * 2 * M_PI;
 }
 
 void program_body( ostream& output, const string& midi_train_database_path, const string& midi_val_database_path )
@@ -223,9 +277,13 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
   Eigen::Matrix<float, 1, input_size> val_current_timestamps;
   float val_tempo;
   float val_period;
+  // float val_phase;
   float training_error = 0.0;
 
   for ( int iter_index = 0; iter_index < number_of_iterations; ++iter_index ) {
+
+    // if (number_of_iterations == 1000000)
+    //   learning_rate *= 0.5;
 
     // choose one of the pieces from the midi database for training
     while ( 1 ) {
@@ -240,9 +298,11 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
     auto period = 60.0 / tempo;
     auto timestamps = pick_timestamp_segment( midi_timestamps );
     // auto phase = (timestamps(0,0) / period) * 2 * M_PI;
+    // auto phase = compute_phase(timestamps(0,0), period);
 
     Eigen::Matrix<float, batch_size, 2> expected;
     expected( 0, 0 ) = period;
+    // expected( 0, 0 ) = phase;
     // expected( 0, 1 ) = phase;
 
     // train the network using gradient descent
@@ -251,7 +311,8 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
     auto predicted_before_update = infer.output();
 
     // compute training error
-    training_error = compute_error_rate( period, predicted_before_update( 0, 0 ) );
+    training_error = compute_period_error( period, predicted_before_update( 0, 0 ) );
+    // training_error = compute_phase_error( phase, predicted_before_update( 0, 0 ) );
 
     trainer.train(
       nn,
@@ -290,8 +351,11 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
 
         // loss function for phase
         // float phase_loss_param = 0.5;
-        // pd( 0, 1 ) = phase_loss_param * 2 * (cos(expected( 0, 1 )) * sin(prediction( 0, 1 )) - sin(expected( 0, 1
-        // )) * cos(prediction( 0, 1 )));
+        // // pd( 0, 1 ) = phase_loss_param * 2 * (cos(expected( 0, 1 )) * sin(prediction( 0, 1 )) - sin(expected(
+        // 0, 1
+        // // )) * cos(prediction( 0, 1 )));
+        // pd( 0, 0 ) = phase_loss_param * 2 * (cos(expected( 0, 0 )) * sin(prediction( 0, 0 )) - sin(expected( 0, 0
+        // )) * cos(prediction( 0, 0 )));
         return pd;
       },
       learning_rate );
@@ -302,17 +366,29 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
 
       // do validation and early stopping (if necessary)
       float val_error = 0.0;
+      float val_rule_based_error = 0.0;
       for ( auto val_element : val_timestamps ) {
         val_current_timestamps = get<0>( val_element );
         val_tempo = get<1>( val_element );
         val_period = 60.0 / val_tempo;
+        // val_phase = compute_phase(val_current_timestamps(0,0), val_period);
+
         // get prediction
+        // infer.apply( nn, val_current_timestamps );
         infer.apply( nn, val_current_timestamps );
+
         auto predicted_val = infer.output()( 0, 0 );
-        float error = compute_error_rate( val_period, predicted_val );
+        auto period_rule_based = compute_period_rule_based( val_current_timestamps );
+        // auto phase_rule_based = compute_phase(val_current_timestamps(0,0), period_rule_based);
+        float error = compute_period_error( val_period, predicted_val );
+        float rule_based_error = compute_period_error( val_period, period_rule_based );
+        // float error = compute_phase_error( val_phase, predicted_val );
+        // float rule_based_error = compute_phase_error( val_phase, phase_rule_based );
         val_error += error;
+        val_rule_based_error += rule_based_error;
       }
       val_error /= val_timestamps.size();
+      val_rule_based_error /= val_timestamps.size();
 
       // print useful info
       cout << "iteration " << iter_index << "\n";
@@ -324,9 +400,13 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
       cout << "predicted period (after update) = " << predicted_after_update( 0, 0 ) << "\n";
       cout << "training error = " << training_error << "\n";
       cout << "validation error = " << val_error << "\n";
-      // cout << "ground truth phase = " << expected( 0, 1 ) / M_PI << " pi\n";
-      // cout << "predicted phase (before update) = " << predicted_before_update( 0, 1 ) / M_PI << " pi\n";
-      // cout << "predicted phase (after update) = " << predicted_after_update( 0, 1 ) / M_PI << " pi\n";
+      cout << "validation error (rule-based) = " << val_rule_based_error << "\n";
+      // cout << "ground truth phase = " << expected( 0, 0 ) / M_PI << " pi\n";
+      // cout << "predicted phase (before update) = " << predicted_before_update( 0, 0 ) / M_PI << " pi\n";
+      // cout << "predicted phase (after update) = " << predicted_after_update( 0, 0 ) / M_PI << " pi\n";
+      // cout << "training error = " << training_error / M_PI << " pi\n";
+      // cout << "validation error = " << val_error / M_PI << " pi\n";
+      // cout << "validation error (rule-based) = " << val_rule_based_error / M_PI << " pi\n";
 
       // check how val error goes before saving the model
       // if (iter_index > 20000 && val_error > last_val_error) {
