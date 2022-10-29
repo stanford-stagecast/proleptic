@@ -223,6 +223,9 @@ template void NetworkSerDes::parse<DNN_tempo>( DNN_tempo&, Parser& );
 template void NetworkSerDes::serialize<DNN_period>( const DNN_period&, Serializer& );
 template void NetworkSerDes::parse<DNN_period>( DNN_period&, Parser& );
 
+template void NetworkSerDes::serialize<DNN_period_16>( const DNN_period_16&, Serializer& );
+template void NetworkSerDes::parse<DNN_period_16>( DNN_period_16&, Parser& );
+
 template void NetworkSerDes::serialize<DNN_period_phase>( const DNN_period_phase&, Serializer& );
 template void NetworkSerDes::parse<DNN_period_phase>( DNN_period_phase&, Parser& );
 

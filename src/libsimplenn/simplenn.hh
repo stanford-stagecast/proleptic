@@ -33,6 +33,23 @@ private:
   std::unique_ptr<NetworkData> data_ {};
 };
 
+struct PeriodPredictorData;
+
+class PeriodPredictor
+{
+public:
+  PeriodPredictor( const std::string& filename );
+  ~PeriodPredictor();
+
+  std::pair<std::chrono::steady_clock::time_point, std::chrono::steady_clock::duration> predict_next_note_time(
+    const std::vector<std::chrono::steady_clock::time_point>& timestamps );
+
+  float predict_period( const std::array<float, 16>& past_timestamps );
+
+private:
+  std::unique_ptr<PeriodPredictorData> data_ {};
+};
+
 struct PianoRollPredictorData;
 
 class PianoRollPredictor

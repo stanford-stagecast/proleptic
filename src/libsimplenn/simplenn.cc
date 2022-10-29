@@ -42,6 +42,36 @@ float SimpleNN::predict_next_timestamp( const std::array<float, 16>& past_timest
 
 SimpleNN::~SimpleNN() = default;
 
+struct PeriodPredictorData
+{
+  DNN_period_16 network {};
+};
+
+PeriodPredictor::PeriodPredictor( const string& filename )
+{
+  data_ = make_unique<PeriodPredictorData>();
+  DNN_period_16& nn = data_->network;
+
+  {
+    ReadOnlyFile dnn_on_disk { filename };
+    Parser parser { dnn_on_disk };
+    parser.object( nn );
+  }
+}
+
+float PeriodPredictor::predict_period( const std::array<float, 16>& past_timestamps )
+{
+  using Infer = NetworkInference<DNN_period_16, 1>;
+  using Input = typename Infer::Input;
+  Input input( past_timestamps.data() );
+  Infer infer;
+  infer.apply( data_->network, input );
+  float period = infer.output()( 1 );
+  return period;
+}
+
+PeriodPredictor::~PeriodPredictor() = default;
+
 struct PianoRollPredictorData
 {
   DNN_piano_roll_rhythm_prediction network {};

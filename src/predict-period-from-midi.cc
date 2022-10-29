@@ -32,7 +32,7 @@ static auto tempo_distribution = uniform_real_distribution<float>( 30, 240 );
 static auto noise_distribution = normal_distribution<float>( 0, note_timing_variation );
 static auto pattern_length_distribution = uniform_int_distribution<unsigned>( 2, 8 );
 static auto reverse_distribution = binomial_distribution<bool>( 1, 0.5 );
-static constexpr int input_size = 64;
+static constexpr int input_size = 16; // 64;
 
 static auto tmp_distribution = uniform_real_distribution<float>( 1, 10 );
 static auto train_piece_distribution = uniform_int_distribution<unsigned>( 0, 39 );
@@ -235,12 +235,12 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
   ios::sync_with_stdio( false );
 
   // initialize a randomized network
-  DNN_period nn;
+  DNN_period_16 nn;
   RandomState rng;
   randomize_network( nn, rng );
 
   // initialize the training struct
-  NetworkTraining<DNN_period, batch_size> trainer;
+  NetworkTraining<DNN_period_16, batch_size> trainer;
 
   // read all songs from the training database folder
   auto train_songs_database = load_all_songs( midi_train_database_path );
@@ -306,7 +306,7 @@ void program_body( ostream& output, const string& midi_train_database_path, cons
     // expected( 0, 1 ) = phase;
 
     // train the network using gradient descent
-    NetworkInference<DNN_period, batch_size> infer;
+    NetworkInference<DNN_period_16, batch_size> infer;
     infer.apply( nn, timestamps );
     auto predicted_before_update = infer.output();
 

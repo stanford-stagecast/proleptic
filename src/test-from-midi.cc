@@ -26,7 +26,7 @@
 using namespace std;
 
 // Input generation parameters
-static constexpr float note_timing_variation = 0.05;
+static constexpr float note_timing_variation = 0.01; // 0.05;
 static auto prng = get_random_engine();
 static auto tempo_distribution = uniform_real_distribution<float>( 30, 240 );
 static auto noise_distribution = normal_distribution<float>( 0, note_timing_variation );
@@ -270,7 +270,7 @@ void program_body( const string& filename, const string& midi_test_database_path
         // for (int i = 1; i < 16; ++i) {
         for ( int i = 0; i < input_size; ++i ) {
           float noise = noise_distribution( prng );
-          // noise = 0;
+          // float noise = 0.0;
           timestamps( 0, i ) = timestamps_raw[i + 1] - timestamps_raw[i] + noise;
           // my_timestamps(0,i) = timestamps[i+1] - timestamps[i] + noise;
         }
