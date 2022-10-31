@@ -66,7 +66,7 @@ float PeriodPredictor::predict_period( const std::array<float, 16>& past_timesta
   Input input( past_timestamps.data() );
   Infer infer;
   infer.apply( data_->network, input );
-  float period = infer.output()( 1 );
+  float period = infer.output()( 0 );
   return period;
 }
 

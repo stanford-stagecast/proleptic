@@ -13,7 +13,7 @@
 using namespace std;
 using namespace chrono;
 
-static constexpr unsigned int audio_horizon = 16; /* samples */
+static constexpr unsigned int audio_horizon = 17; /* samples */
 static constexpr float max_amplitude = 0.9;
 static constexpr float note_decay_rate = 0.9998;
 static constexpr auto simulated_latency = milliseconds( 100 );
@@ -29,9 +29,9 @@ float compute_phase( float first_timestamp, float period )
   return ( first_timestamp / sixteenth_note_interval ) * 2 * M_PI;
 }
 
-array<float, 16> calculate_input( deque<steady_clock::time_point> times )
+array<float, 17> calculate_input( deque<steady_clock::time_point> times )
 {
-  array<float, 16> ret_mat {};
+  array<float, 17> ret_mat {};
   deque<float> timestamps;
   steady_clock::time_point current_time = steady_clock::now();
   for ( const auto& time : times ) {
@@ -42,7 +42,7 @@ array<float, 16> calculate_input( deque<steady_clock::time_point> times )
   }
   reverse( begin( timestamps ), end( timestamps ) );
 
-  for ( size_t i = 0; i < 16; i++ ) {
+  for ( size_t i = 0; i < 17; i++ ) {
     if ( i >= timestamps.size() ) {
       ret_mat[i] = 0;
     } else {
@@ -68,12 +68,12 @@ void program_body( const string_view audio_device, const string& midi_device )
   const auto device_claim = AudioDeviceClaim::try_claim( name );
 
   /* use ALSA to initialize and configure audio device */
-  const auto short_name = audio_device.substr( 0, 16 );
+  const auto short_name = audio_device.substr( 0, 17 );
   auto playback_interface = make_shared<AudioInterface>( interface_name, short_name, SND_PCM_STREAM_PLAYBACK );
   AudioInterface::Configuration config;
   config.sample_rate = 48000;           /* samples per second */
   config.buffer_size = 48;              /* maximum samples of queued audio = 1 millisecond */
-  config.period_size = 16;              /* chunk size for kernel's management of audio buffer */
+  config.period_size = 17;              /* chunk size for kernel's management of audio buffer */
   config.avail_minimum = audio_horizon; /* device is writeable when full horizon can be written */
   long microseconds_per_samp = static_cast<long>( 1000000 / double( config.sample_rate ) + 0.5 );
   playback_interface->set_config( config );
@@ -98,7 +98,8 @@ void program_body( const string_view audio_device, const string& midi_device )
   // SimpleNN nn { nn_file };
   PeriodPredictor nn { nn_file };
   float time_since_pred_note = 0;
-  array<float, 16> past_timestamps {};
+  array<float, 17> past_timestamps {};
+  array<float, 16> timestamp_deltas {};
   size_t counter = 0;
 
   /* rule #1: write a continuous sine wave (but no more than 1.3 ms into the future) */
@@ -165,7 +166,7 @@ void program_body( const string_view audio_device, const string& midi_device )
         if ( midi.get_event_type() == 144 ) { /* key down */
           amp_left = max_amplitude;
           // keep a few extra in case some of the new presses are discarded to simulate latency
-          if ( num_notes < 16 + 4 ) {
+          if ( num_notes < 17 + 4 ) {
             press_queue.push_back( time_val );
             num_notes++;
           } else {
@@ -184,13 +185,29 @@ void program_body( const string_view audio_device, const string& midi_device )
     [&] {
       last_pred_time = steady_clock::now();
       past_timestamps = calculate_input( press_queue );
+      for ( int k = 0; k < 16; ++k ) {
+        if ( past_timestamps[k] == 0 || past_timestamps[k + 1] == 0 )
+          timestamp_deltas[k] = 0;
+        else
+          timestamp_deltas[k] = past_timestamps[k + 1] - past_timestamps[k];
+      }
 
       // float time_to_next = nn.predict_next_timestamp( past_timestamps );
-      float period = nn.predict_period( past_timestamps );
+      float period = nn.predict_period( timestamp_deltas );
+      cerr << "timestamp_deltas = ";
+      for ( int i = 0; i < 16; i++ ) {
+        cerr << timestamp_deltas[i] << " ";
+        if ( timestamp_deltas[i] == 0 ) {
+          period = 0.1;
+        }
+      }
+      cerr << "\n";
+      cerr << "predicted period = " << period << "\n";
       float phase = compute_phase( past_timestamps[0], period );
-      float time_to_next = ( 2 * M_PI - phase ) * period;
+      float time_to_next = ( 2 * M_PI - phase ) / ( 2 * M_PI ) * period * ( -1 );
       // the "future" is actually based on a moment `simulated_latency` in the past
       time_to_next += ( duration_cast<milliseconds>( simulated_latency ) ).count() / 1000.f;
+      cerr << "time to next = " << time_to_next << "\n";
       // time_to_next += ;
       // if ( counter % 20 == 0 ) {
       //   for ( int i = 0; i < 16; i++ ) {
@@ -201,6 +218,7 @@ void program_body( const string_view audio_device, const string& midi_device )
       // }
       counter++;
       next_note_pred = last_pred_time - round<milliseconds>( duration<float> { time_to_next } );
+      // cerr << "next_note_pred = " << next_note_pred << "\n";
     },
     [&] { return duration_cast<milliseconds>( steady_clock::now() - last_pred_time ).count() >= 50; } );
 
