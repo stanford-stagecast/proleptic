@@ -29,12 +29,12 @@ static auto tempo_distribution = uniform_real_distribution<float>( 30, 240 );
 static auto noise_distribution = normal_distribution<float>( 0, note_timing_variation );
 static auto pattern_length_distribution = uniform_int_distribution<unsigned>( 2, 8 );
 static auto reverse_distribution = binomial_distribution<bool>( 1, 0.5 );
+static auto missing_note_distribution = uniform_int_distribution<unsigned>( 0, 12 );
+static auto missing_note_probability = uniform_real_distribution<float>( 0, 1 );
 static constexpr int input_size = 16;
 
-static auto tmp_distribution = uniform_real_distribution<float>( 1, 10 );
-
 // Training parameters
-static constexpr int number_of_iterations = 200000;
+static constexpr int number_of_iterations = 1000000;
 static constexpr float learning_rate = 0.01;
 static constexpr int batch_size = 1;
 
@@ -68,26 +68,15 @@ void randomize_network( Network& network, RandomState& rng )
   }
 }
 
-int gcd( int a, int b )
+float vector_min( vector<float> vec )
 {
-  if ( a == 0 )
-    return b;
-  return gcd( b % a, a );
-}
-
-int findGCD( vector<int> pattern )
-{
-  int result = pattern.at( 0 ) + 1;
-  for ( long unsigned int i = 1; i < pattern.size(); ++i ) {
-    int p = pattern.at( i ) + 1;
-
-    result = gcd( result, p );
-
-    if ( result == 1 ) {
-      return 1;
+  float min = vec[0];
+  for ( float k : vec ) {
+    if ( k < min ) {
+      min = k;
     }
   }
-  return result;
+  return min;
 }
 
 vector<int> generate_pattern( void )
@@ -144,50 +133,33 @@ auto generate_input_notes_from_pattern( vector<int> pattern, float tempo )
   Eigen::Matrix<float, 1, input_size> diff;
 
   // tempo
-  float seconds_per_beat = 60.0 / tempo;
-
-  // offset
-  auto offset_distribution = uniform_real_distribution<float>( 0, seconds_per_beat );
-  const float offset = offset_distribution( prng ) * seconds_per_beat;
+  float period = 60.0 / tempo;
+  float spacing = period;
 
   int num_notes_generated = 1;
   int current_pattern_index = 0;
   float noise = noise_distribution( prng );
-  input_notes( 0, 0 ) = offset;
+  input_notes( 0, 0 ) = 0.0;
   while ( num_notes_generated < 17 ) {
     int i = pattern[current_pattern_index] + 1;
     noise = noise_distribution( prng );
-    input_notes( 0, num_notes_generated )
-      = input_notes( 0, num_notes_generated - 1 ) + seconds_per_beat * i * ( 1 + noise );
+    input_notes( 0, num_notes_generated ) = input_notes( 0, num_notes_generated - 1 ) + spacing * i * ( 1 + noise );
     diff( 0, num_notes_generated - 1 )
       = input_notes( 0, num_notes_generated ) - input_notes( 0, num_notes_generated - 1 );
     num_notes_generated++;
     current_pattern_index = ( current_pattern_index + 1 ) % pattern.size();
   }
 
-  tuple<Eigen::Matrix<float, batch_size, input_size>, float> result;
-  result = make_tuple( diff, seconds_per_beat );
-  return result;
-}
-
-// Eigen::Matrix<float, batch_size, input_size> generate_input_notes( float tempo )
-auto generate_input_notes( float tempo )
-{
-  Eigen::Matrix<float, batch_size, input_size> input_notes;
-  const float seconds_per_beat = 60.0 / tempo;
-
-  auto offset_distribution = uniform_real_distribution<float>( 0, seconds_per_beat );
-
-  const float offset = offset_distribution( prng ) * seconds_per_beat;
-  for ( auto batch = 0; batch < batch_size; batch++ ) {
-    for ( auto i = 0; i < input_size; i++ ) {
-      const float noise = noise_distribution( prng );
-      input_notes( batch, i ) = seconds_per_beat * i * ( 1 + noise ) + offset;
+  // handle missing notes
+  if ( missing_note_probability( prng ) <= 0.5 ) {
+    int num_missing_notes = missing_note_distribution( prng );
+    for ( int k = 0; k < num_missing_notes; ++k ) {
+      diff( 0, input_size - 1 - k ) = 0.0;
     }
   }
 
   tuple<Eigen::Matrix<float, batch_size, input_size>, float> result;
-  result = make_tuple( input_notes, offset );
+  result = make_tuple( diff, period );
   return result;
 }
 
@@ -196,41 +168,29 @@ void program_body( ostream& output )
   ios::sync_with_stdio( false );
 
   // initialize a randomized network
-  DNN_tempo nn;
+  DNN_period_16 nn;
   RandomState rng;
   randomize_network( nn, rng );
 
   // initialize the training struct
-  NetworkTraining<DNN_tempo, batch_size> trainer;
+  NetworkTraining<DNN_period_16, batch_size> trainer;
 
   time_t current_time = time( NULL );
 
   for ( int iter_index = 0; iter_index < number_of_iterations; ++iter_index ) {
-    cout << "iteration " << iter_index << "\n";
     const float tempo = tempo_distribution( prng );
 
     vector<int> pattern = generate_pattern();
 
-    // QZ: we process the pattern first
-    int my_gcd = findGCD( pattern );
-    if ( my_gcd == 0 )
-      cerr << "error!" << endl;
-    for ( long unsigned int i = 0; i < pattern.size(); ++i ) {
-      pattern.at( i ) = pattern.at( i ) / my_gcd;
-    }
-
     auto generated_timestamps = generate_input_notes_from_pattern( pattern, tempo );
     auto timestamps = get<0>( generated_timestamps );
-    auto spacing = get<1>( generated_timestamps );
-
-    cout << "timestamps = (" << timestamps << ")"
-         << "\n";
+    auto period = get<1>( generated_timestamps );
 
     Eigen::Matrix<float, batch_size, 1> expected;
-    expected( 0, 0 ) = spacing;
+    expected( 0, 0 ) = period;
 
     // train the network using gradient descent
-    NetworkInference<DNN_tempo, batch_size> infer;
+    NetworkInference<DNN_period_16, batch_size> infer;
     infer.apply( nn, timestamps );
     auto predicted_before_update = infer.output();
     trainer.train(
@@ -238,25 +198,59 @@ void program_body( ostream& output )
       timestamps,
       [&expected]( const auto& prediction ) {
         Eigen::Matrix<float, 1, 1> pd;
-        pd( 0, 0 ) = 1.0 * ( prediction( 0, 0 ) - expected( 0, 0 ) );
+        // loss function for period
+        float period_loss_param = 1.0;
+
+        float diff1 = period_loss_param * ( prediction( 0, 0 ) - expected( 0, 0 ) );
+        float diff2 = period_loss_param * ( prediction( 0, 0 ) - 2 * expected( 0, 0 ) );
+        float diff3 = period_loss_param * ( prediction( 0, 0 ) - 0.5 * expected( 0, 0 ) );
+        float diff4 = period_loss_param * ( prediction( 0, 0 ) - 0.25 * expected( 0, 0 ) );
+        vector<float> all_diffs;
+        all_diffs.push_back( abs( diff1 ) );
+        all_diffs.push_back( abs( diff2 ) );
+        all_diffs.push_back( abs( diff3 ) );
+        all_diffs.push_back( abs( diff4 ) );
+
+        // ugly hard-coded, fix later!
+        if ( vector_min( all_diffs ) == abs( diff1 ) ) {
+          if ( abs( diff2 ) / abs( diff1 ) < 3.0 || abs( diff3 ) / abs( diff1 ) < 3.0 )
+            pd( 0, 0 ) = 2 * diff1;
+          else
+            pd( 0, 0 ) = diff1;
+        } else if ( vector_min( all_diffs ) == abs( diff2 ) ) {
+          pd( 0, 0 ) = diff2;
+        } else if ( vector_min( all_diffs ) == abs( diff3 ) ) {
+          if ( abs( diff1 ) / abs( diff3 ) < 3.0 || abs( diff4 ) / abs( diff3 ) < 3.0 )
+            pd( 0, 0 ) = 2 * diff3;
+          else
+            pd( 0, 0 ) = diff3;
+        } else {
+          pd( 0, 0 ) = diff4;
+        }
+
         return pd;
       },
       learning_rate );
     infer.apply( nn, timestamps );
     auto predicted_after_update = infer.output();
 
-    cout << "ground truth tempo = " << spacing << "\n";
-    cout << "predicted tempo (before update) = " << predicted_before_update( 0, 0 ) << "\n";
-    cout << "predicted tempo (after update) = " << predicted_after_update( 0, 0 ) << "\n";
-
-    cout << "\n";
+    if ( iter_index % 5000 == 0 ) {
+      cout << "iteration " << iter_index << "\n";
+      cout << "timestamps = (" << timestamps << ")"
+           << "\n";
+      cout << "ground truth period = " << expected( 0, 0 ) * 0.25 << " or " << expected( 0, 0 ) * 0.5 << " or "
+           << expected( 0, 0 ) << " or " << expected( 0, 0 ) * 2 << "\n";
+      cout << "predicted period (before update) = " << predicted_before_update( 0, 0 ) << "\n";
+      cout << "predicted period (after update) = " << predicted_after_update( 0, 0 ) << "\n";
+      cout << "\n";
+    }
   }
 
   cout << "Time taken: " << time( NULL ) - current_time << " (s)\n";
 
   string serialized_nn;
   {
-    serialized_nn.resize( 1000000 );
+    serialized_nn.resize( 2000000 );
     Serializer serializer( string_span::from_view( serialized_nn ) );
     serialize( nn, serializer );
     serialized_nn.resize( serializer.bytes_written() );
