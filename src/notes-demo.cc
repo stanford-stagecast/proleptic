@@ -23,8 +23,9 @@ using Infer = NetworkInference<MyDNN, 1>;
 using Input = typename Infer::Input;
 using Output = typename Infer::Output;
 using Training = NetworkTraining<MyDNN, 1>;
-using InputMatrix = Eigen::Matrix<MyDNN::type, PIANO_ROLL_NUMBER_OF_NOTES, PIANO_ROLL_HISTORY_WINDOW_LENGTH>;
-using OutputMatrix = Eigen::Matrix<MyDNN::type, PIANO_ROLL_NUMBER_OF_NOTES, 1>;
+using InputMatrix
+  = Eigen::Matrix<MyDNN::type, PIANO_ROLL_OCTAVE_NUMBER_OF_NOTES, PIANO_ROLL_OCTAVE_HISTORY_WINDOW_LENGTH>;
+using OutputMatrix = Eigen::Matrix<MyDNN::type, PIANO_ROLL_OCTAVE_NUMBER_OF_NOTES, 1>;
 
 const float LEARNING_RATE = 0.05;
 const int REPETITIONS = 5;
@@ -166,7 +167,7 @@ const vector<SongData> SONGS {
   make_pair( "Ode to Joy", ODE_TO_JOY ),
 };
 
-using Timeslot = array<bool, PIANO_ROLL_NUMBER_OF_NOTES>;
+using Timeslot = array<bool, PIANO_ROLL_OCTAVE_NUMBER_OF_NOTES>;
 
 template<class OutT, class InT>
 OutT reshape( const InT& input )
@@ -199,7 +200,7 @@ OutT reshape( const InT& input )
 int train_on_next_timeslot( MyDNN& network, const Timeslot& next )
 {
   static deque<Timeslot> timeslots;
-  while ( timeslots.size() < PIANO_ROLL_HISTORY_WINDOW_LENGTH ) {
+  while ( timeslots.size() < PIANO_ROLL_OCTAVE_HISTORY_WINDOW_LENGTH ) {
     Timeslot empty {};
     fill( empty.begin(), empty.end(), 0.5 );
     timeslots.push_front( empty );

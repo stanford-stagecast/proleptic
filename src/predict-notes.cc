@@ -21,7 +21,7 @@ using namespace std;
 static auto prng = get_random_engine();
 static auto pattern_length_distribution = uniform_int_distribution<unsigned>( 1, 16 );
 static auto reverse_distribution = binomial_distribution<bool>( 1, 0.5 );
-static auto note_distribution = uniform_int_distribution<unsigned>( 0, PIANO_ROLL_NUMBER_OF_NOTES - 1 );
+static auto note_distribution = uniform_int_distribution<unsigned>( 0, PIANO_ROLL_OCTAVE_NUMBER_OF_NOTES - 1 );
 
 // Training parameters
 static constexpr int number_of_iterations = 50000;
@@ -33,8 +33,9 @@ using Infer = NetworkInference<MyDNN, 1>;
 using Training = NetworkTraining<MyDNN, 1>;
 using Output = typename Infer::Output;
 using Input = typename Infer::Input;
-using InputMatrix = Eigen::Matrix<MyDNN::type, PIANO_ROLL_NUMBER_OF_NOTES, PIANO_ROLL_HISTORY_WINDOW_LENGTH>;
-using OutputMatrix = Eigen::Matrix<MyDNN::type, PIANO_ROLL_NUMBER_OF_NOTES, 1>;
+using InputMatrix
+  = Eigen::Matrix<MyDNN::type, PIANO_ROLL_OCTAVE_NUMBER_OF_NOTES, PIANO_ROLL_OCTAVE_HISTORY_WINDOW_LENGTH>;
+using OutputMatrix = Eigen::Matrix<MyDNN::type, PIANO_ROLL_OCTAVE_NUMBER_OF_NOTES, 1>;
 
 struct RandomState
 {
@@ -161,7 +162,7 @@ Input generate_input_notes( Output& true_output )
   auto begin_offset_distribution = uniform_int_distribution<int>( -input_notes.cols() / 2, input_notes.cols() / 2 );
   const unsigned begin_offset = max<int>( 0, begin_offset_distribution( prng ) );
 
-  array<pair<int, int>, PIANO_ROLL_HISTORY_WINDOW_LENGTH> timeslots {};
+  array<pair<int, int>, PIANO_ROLL_OCTAVE_HISTORY_WINDOW_LENGTH> timeslots {};
   int timeslot_index = 0;
   int spacing_index = rotation;
 

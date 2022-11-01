@@ -233,3 +233,11 @@ template void NetworkSerDes::parse<DNN_piano_roll_rhythm_prediction>( DNN_piano_
 template void NetworkSerDes::serialize<DNN_piano_roll_octave_prediction>( const DNN_piano_roll_octave_prediction&,
                                                                           Serializer& );
 template void NetworkSerDes::parse<DNN_piano_roll_octave_prediction>( DNN_piano_roll_octave_prediction&, Parser& );
+
+template void NetworkSerDes::serialize<DNN_piano_roll_compressor>( const DNN_piano_roll_compressor&, Serializer& );
+template void NetworkSerDes::parse<DNN_piano_roll_compressor>( DNN_piano_roll_compressor&, Parser& );
+template void NetworkSerDes::serialize<DNN_piano_roll_compressed_prediction>(
+  const DNN_piano_roll_compressed_prediction&,
+  Serializer& );
+template void NetworkSerDes::parse<DNN_piano_roll_compressed_prediction>( DNN_piano_roll_compressed_prediction&,
+                                                                          Parser& );

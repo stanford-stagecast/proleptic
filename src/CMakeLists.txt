@@ -19,5 +19,7 @@ add_exec(predict-rhythm)
 add_exec(rhythm-demo)
 add_exec(predict-notes)
 add_exec(notes-demo)
+add_exec(predict-midi)
+add_exec(midi-autoencoder)
 
 add_subdirectory(libsimplenn)

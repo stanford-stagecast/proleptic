@@ -9,6 +9,11 @@ include ( etc/tests.cmake )
 
 find_package ( PkgConfig REQUIRED )
 
+find_package ( OpenMP )
+if(OpenMP_CXX_FOUND)
+    link_libraries(OpenMP::OpenMP_CXX)
+endif()
+
 pkg_check_modules ( Eigen REQUIRED eigen3 )
 include_directories ( SYSTEM ${Eigen_INCLUDE_DIRS} )
 add_compile_options ( ${Eigen_CFLAGS} )

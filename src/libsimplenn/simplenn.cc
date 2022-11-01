@@ -217,17 +217,17 @@ OctavePredictor::NoteValuesInTimeslot OctavePredictor::predict_next_note_values(
   using Input = Infer::Input;
 
   Input input;
-  ssize_t offset = PIANO_ROLL_HISTORY_WINDOW_LENGTH - notes.size();
-  for ( size_t time = 0; time < PIANO_ROLL_HISTORY_WINDOW_LENGTH; time++ ) {
+  ssize_t offset = PIANO_ROLL_OCTAVE_HISTORY_WINDOW_LENGTH - notes.size();
+  for ( size_t time = 0; time < PIANO_ROLL_OCTAVE_HISTORY_WINDOW_LENGTH; time++ ) {
     optional<NoteValuesInTimeslot> values = nullopt;
     if ( (ssize_t)time > offset ) {
       values = notes[time - offset];
     }
-    for ( size_t key = 0; key < PIANO_ROLL_NUMBER_OF_NOTES; key++ ) {
+    for ( size_t key = 0; key < PIANO_ROLL_OCTAVE_NUMBER_OF_NOTES; key++ ) {
       if ( values.has_value() ) {
-        input( key * PIANO_ROLL_HISTORY_WINDOW_LENGTH + time ) = ( *values )[key];
+        input( key * PIANO_ROLL_OCTAVE_HISTORY_WINDOW_LENGTH + time ) = ( *values )[key];
       } else {
-        input( key * PIANO_ROLL_HISTORY_WINDOW_LENGTH + time ) = 0.5;
+        input( key * PIANO_ROLL_OCTAVE_HISTORY_WINDOW_LENGTH + time ) = 0.5;
       }
     }
   }
@@ -251,17 +251,17 @@ void OctavePredictor::train_next_note_values( const std::vector<NoteValuesInTime
   using Train = NetworkTraining<DNN_piano_roll_octave_prediction, 1>;
 
   Input input;
-  ssize_t offset = PIANO_ROLL_HISTORY_WINDOW_LENGTH - notes.size();
-  for ( size_t time = 0; time < PIANO_ROLL_HISTORY_WINDOW_LENGTH; time++ ) {
+  ssize_t offset = PIANO_ROLL_OCTAVE_HISTORY_WINDOW_LENGTH - notes.size();
+  for ( size_t time = 0; time < PIANO_ROLL_OCTAVE_HISTORY_WINDOW_LENGTH; time++ ) {
     optional<NoteValuesInTimeslot> values = nullopt;
     if ( (ssize_t)time > offset ) {
       values = notes[time - offset];
     }
-    for ( size_t key = 0; key < PIANO_ROLL_NUMBER_OF_NOTES; key++ ) {
+    for ( size_t key = 0; key < PIANO_ROLL_OCTAVE_NUMBER_OF_NOTES; key++ ) {
       if ( values.has_value() ) {
-        input( key * PIANO_ROLL_HISTORY_WINDOW_LENGTH + time ) = ( *values )[key];
+        input( key * PIANO_ROLL_OCTAVE_HISTORY_WINDOW_LENGTH + time ) = ( *values )[key];
       } else {
-        input( key * PIANO_ROLL_HISTORY_WINDOW_LENGTH + time ) = 0.5;
+        input( key * PIANO_ROLL_OCTAVE_HISTORY_WINDOW_LENGTH + time ) = 0.5;
       }
     }
   }
