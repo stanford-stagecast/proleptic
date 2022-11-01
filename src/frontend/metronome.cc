@@ -18,15 +18,26 @@ static constexpr float max_amplitude = 0.9;
 static constexpr float note_decay_rate = 0.9998;
 static constexpr auto simulated_latency = milliseconds( 100 );
 
-static string nn_file = "/usr/local/share/predict-period.dnn";
+// static string nn_file = "/usr/local/share/predict-period.dnn";
+static string nn_file
+  = "/home/qizhengz/stagecast/simplenn-1031/models/period-from-pattern-sixteenth-with-missing-no-dotted-eighth.dnn";
 
-float compute_phase( float first_timestamp, float period )
+float compute_phase_sixteenth( float first_timestamp, float period )
 {
   float sixteenth_note_interval = period / 4;
   while ( first_timestamp > sixteenth_note_interval ) {
     first_timestamp -= sixteenth_note_interval;
   }
   return ( first_timestamp / sixteenth_note_interval ) * 2 * M_PI;
+}
+
+float compute_phase_quarter( float first_timestamp, float period )
+{
+  float quarter_note_interval = period;
+  while ( first_timestamp > quarter_note_interval ) {
+    first_timestamp -= quarter_note_interval;
+  }
+  return ( first_timestamp / quarter_note_interval ) * 2 * M_PI;
 }
 
 array<float, 17> calculate_input( deque<steady_clock::time_point> times )
@@ -101,6 +112,7 @@ void program_body( const string_view audio_device, const string& midi_device )
   array<float, 17> past_timestamps {};
   array<float, 16> timestamp_deltas {};
   size_t counter = 0;
+  float last_period = 0.0;
 
   /* rule #1: write a continuous sine wave (but no more than 1.3 ms into the future) */
   event_loop->add_rule(
@@ -185,6 +197,8 @@ void program_body( const string_view audio_device, const string& midi_device )
     [&] {
       last_pred_time = steady_clock::now();
       past_timestamps = calculate_input( press_queue );
+
+      // process timestamps to get the deltas
       for ( int k = 0; k < 16; ++k ) {
         if ( past_timestamps[k] == 0 || past_timestamps[k + 1] == 0 )
           timestamp_deltas[k] = 0;
@@ -192,33 +206,36 @@ void program_body( const string_view audio_device, const string& midi_device )
           timestamp_deltas[k] = past_timestamps[k + 1] - past_timestamps[k];
       }
 
-      // float time_to_next = nn.predict_next_timestamp( past_timestamps );
+      // predict period
       float period = nn.predict_period( timestamp_deltas );
       cerr << "timestamp_deltas = ";
       for ( int i = 0; i < 16; i++ ) {
         cerr << timestamp_deltas[i] << " ";
-        if ( timestamp_deltas[i] == 0 ) {
-          period = 0.1;
-        }
       }
       cerr << "\n";
       cerr << "predicted period = " << period << "\n";
-      float phase = compute_phase( past_timestamps[0], period );
+
+      // a very simple oscillator
+      if ( last_period != 0.0 ) {
+        for ( int x = 2; x < 6; x++ ) {
+          if ( abs( period / x - last_period ) / last_period < 0.1 ) {
+            period = last_period;
+            break;
+          }
+        }
+      }
+      last_period = period;
+      cerr << "adjusted period = " << period << "\n";
+
+      // float phase = compute_phase_sixteenth( past_timestamps[0], period );
+      float phase = compute_phase_quarter( past_timestamps[0], period );
       float time_to_next = ( 2 * M_PI - phase ) / ( 2 * M_PI ) * period * ( -1 );
+
       // the "future" is actually based on a moment `simulated_latency` in the past
       time_to_next += ( duration_cast<milliseconds>( simulated_latency ) ).count() / 1000.f;
       cerr << "time to next = " << time_to_next << "\n";
-      // time_to_next += ;
-      // if ( counter % 20 == 0 ) {
-      //   for ( int i = 0; i < 16; i++ ) {
-      //     cerr << past_timestamps[i] << " ";
-      //   }
-      //   cerr << '\n';
-      //   cerr << "Prediction: " << time_to_next << '\n';
-      // }
       counter++;
       next_note_pred = last_pred_time - round<milliseconds>( duration<float> { time_to_next } );
-      // cerr << "next_note_pred = " << next_note_pred << "\n";
     },
     [&] { return duration_cast<milliseconds>( steady_clock::now() - last_pred_time ).count() >= 50; } );
 

@@ -128,13 +128,14 @@ vector<int> generate_pattern( void )
   return spacing;
 }
 
-bool pattern_check(vector<int> pattern) {
-  for (int p: pattern) {
-    if (p == 2 || p == 4)
+bool pattern_check( vector<int> pattern )
+{
+  for ( int p : pattern ) {
+    if ( p == 2 || p == 4 )
       return false;
   }
   return true;
-} 
+}
 
 auto generate_input_notes_from_pattern( vector<int> pattern, float tempo )
 {
@@ -172,9 +173,10 @@ auto generate_input_notes_from_pattern( vector<int> pattern, float tempo )
   return result;
 }
 
-float lr_exp_decay(float initial_lrate, float k, int iter_index) {
-   float lrate = initial_lrate * exp((-k) * iter_index);
-   return lrate;
+float lr_exp_decay( float initial_lrate, float k, int iter_index )
+{
+  float lrate = initial_lrate * exp( ( -k ) * iter_index );
+  return lrate;
 }
 
 void program_body( ostream& output )
@@ -197,9 +199,9 @@ void program_body( ostream& output )
     vector<int> pattern;
     bool pattern_usable = false;
     // here we disable dotted eighth notes
-    while (!pattern_usable) {
+    while ( !pattern_usable ) {
       pattern = generate_pattern();
-      pattern_usable = pattern_check(pattern);
+      pattern_usable = pattern_check( pattern );
     }
 
     auto generated_timestamps = generate_input_notes_from_pattern( pattern, tempo );
@@ -267,7 +269,7 @@ void program_body( ostream& output )
 
     // learning rate scheduling, exponential decay
     if ( iter_index % 10000 == 0 ) {
-      learning_rate = lr_exp_decay(0.01, 0.1, (int) (iter_index / 10000));
+      learning_rate = lr_exp_decay( 0.01, 0.1, (int)( iter_index / 10000 ) );
     }
   }
 
