@@ -34,8 +34,9 @@ static auto missing_note_probability = uniform_real_distribution<float>( 0, 1 );
 static constexpr int input_size = 16;
 
 // Training parameters
-static constexpr int number_of_iterations = 1000000;
-static constexpr float learning_rate = 0.01;
+static constexpr int number_of_iterations = 500000;
+// static constexpr float learning_rate = 0.01;
+float learning_rate = 0.01;
 static constexpr int batch_size = 1;
 
 struct RandomState
@@ -127,6 +128,14 @@ vector<int> generate_pattern( void )
   return spacing;
 }
 
+bool pattern_check(vector<int> pattern) {
+  for (int p: pattern) {
+    if (p == 2 || p == 4)
+      return false;
+  }
+  return true;
+} 
+
 auto generate_input_notes_from_pattern( vector<int> pattern, float tempo )
 {
   Eigen::Matrix<float, 1, input_size + 1> input_notes;
@@ -134,7 +143,7 @@ auto generate_input_notes_from_pattern( vector<int> pattern, float tempo )
 
   // tempo
   float period = 60.0 / tempo;
-  float spacing = period;
+  float spacing = period / 4;
 
   int num_notes_generated = 1;
   int current_pattern_index = 0;
@@ -151,16 +160,21 @@ auto generate_input_notes_from_pattern( vector<int> pattern, float tempo )
   }
 
   // handle missing notes
-  if ( missing_note_probability( prng ) <= 0.5 ) {
-    int num_missing_notes = missing_note_distribution( prng );
-    for ( int k = 0; k < num_missing_notes; ++k ) {
-      diff( 0, input_size - 1 - k ) = 0.0;
-    }
-  }
+  // if ( missing_note_probability( prng ) <= 0.5 ) {
+  //   int num_missing_notes = missing_note_distribution( prng );
+  //   for ( int k = 0; k < num_missing_notes; ++k ) {
+  //     diff( 0, input_size - 1 - k ) = 0.0;
+  //   }
+  // }
 
   tuple<Eigen::Matrix<float, batch_size, input_size>, float> result;
   result = make_tuple( diff, period );
   return result;
+}
+
+float lr_exp_decay(float initial_lrate, float k, int iter_index) {
+   float lrate = initial_lrate * exp((-k) * iter_index);
+   return lrate;
 }
 
 void program_body( ostream& output )
@@ -180,7 +194,13 @@ void program_body( ostream& output )
   for ( int iter_index = 0; iter_index < number_of_iterations; ++iter_index ) {
     const float tempo = tempo_distribution( prng );
 
-    vector<int> pattern = generate_pattern();
+    vector<int> pattern;
+    bool pattern_usable = false;
+    // here we disable dotted eighth notes
+    while (!pattern_usable) {
+      pattern = generate_pattern();
+      pattern_usable = pattern_check(pattern);
+    }
 
     auto generated_timestamps = generate_input_notes_from_pattern( pattern, tempo );
     auto timestamps = get<0>( generated_timestamps );
@@ -243,6 +263,11 @@ void program_body( ostream& output )
       cout << "predicted period (before update) = " << predicted_before_update( 0, 0 ) << "\n";
       cout << "predicted period (after update) = " << predicted_after_update( 0, 0 ) << "\n";
       cout << "\n";
+    }
+
+    // learning rate scheduling, exponential decay
+    if ( iter_index % 10000 == 0 ) {
+      learning_rate = lr_exp_decay(0.01, 0.1, (int) (iter_index / 10000));
     }
   }
 
