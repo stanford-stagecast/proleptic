@@ -22,8 +22,8 @@ static auto prng = get_random_engine();
 static vector<MidiFile> midi_files {};
 
 // Training parameters
-static constexpr float TARGET_ACCURACY = 0.85;
-static constexpr float LEARNING_RATE = 0.1;
+static constexpr float TARGET_ACCURACY = 0.80;
+static constexpr float LEARNING_RATE = 0.01;
 static constexpr size_t ACCURACY_MEASUREMENT_PERIOD = 1000;
 
 // Types
@@ -65,12 +65,33 @@ void generate_datum( array<Single, HISTORY>& input, Single& output, string& name
   }
 };
 
-float average( deque<float> input )
+template<size_t N>
+struct AccuracyMeasurement
 {
-  if ( input.size() == 0.0 )
-    return 0.0;
-  return accumulate( input.begin(), input.end(), 0.f ) / input.size();
-}
+  std::deque<float> accuracies {};
+
+  void push( float accuracy )
+  {
+    if ( accuracy > 1.0 or accuracy < 0.0 ) {
+      throw runtime_error( "invalid accuracy" );
+    }
+    accuracies.push_back( accuracy );
+    if ( accuracies.size() > N ) {
+      accuracies.pop_front();
+    }
+  }
+
+  float mean() const
+  {
+    if ( accuracies.size() == 0.0 )
+      return 0.0;
+    return accumulate( accuracies.begin(), accuracies.end(), 0.f ) / accuracies.size();
+  }
+
+  size_t count() const { return accuracies.size(); }
+
+  bool ready() const { return count() == N; }
+};
 
 void program_body( string infilename, ostream& outstream )
 {
@@ -99,16 +120,11 @@ void program_body( string infilename, ostream& outstream )
   RandomState rng;
   randomize_network( nn, rng );
 
-  deque<float> accuracies;
-  deque<float> accuracies_trivial;
-  deque<float> accuracies_nontrivial;
-  deque<float> accuracies_0;
-  deque<float> accuracies_1;
-  deque<float> accuracies_trivial_0;
-  deque<float> accuracies_nontrivial_0;
-  deque<float> accuracies_trivial_1;
-  deque<float> accuracies_nontrivial_1;
-  deque<float> f_scores;
+  AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> accuracies;
+  AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> compressed_accuracies;
+  AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> f_scores;
+  AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> precisions;
+  AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> recalls;
   auto input_ptr = make_unique<Input>();
   Input& input = *input_ptr;
   auto expected_ptr = make_unique<Output>();
@@ -184,80 +200,57 @@ void program_body( string infilename, ostream& outstream )
       num_tested++;
     }
     float f_score;
+    float precision;
+    float recall;
+    bool precision_valid = true;
+    bool recall_valid = true;
+    bool f_score_valid = true;
     {
       size_t true_positive = num_1_correct;
-      /* size_t true_negative = num_0_correct; */
       size_t false_positive = num_1_tested - num_1_correct;
       size_t false_negative = num_0_tested - num_0_correct;
-      float precision = true_positive / (float)( true_positive + false_positive );
-      if ( precision > 1.0 or precision < 0.0 )
-        precision = 1.0;
-      float recall = true_positive / (float)( true_positive + false_negative );
-      if ( recall > 1.0 or recall < 0.0 )
-        recall = 1.0;
+      if ( true_positive + false_positive == 0 ) {
+        precision = 1.0; // no irrelevant 1s
+        precision_valid = false;
+      } else {
+        precision = true_positive / (float)( true_positive + false_positive );
+      }
+      if ( true_positive + false_negative == 0 ) {
+        recall = 1.0; // no missing 1s
+        recall_valid = false;
+      } else {
+        recall = true_positive / (float)( true_positive + false_negative );
+      }
       /* constexpr float beta = 1; */
-      f_score = 2.f * ( precision * recall ) / ( precision + recall );
+      f_score_valid = precision_valid and recall_valid;
+      if ( precision + recall == 0.0 ) {
+        f_score = 0.f;
+        f_score_valid = false;
+      } else {
+        f_score = 2.f * ( precision * recall ) / ( precision + recall );
+      }
     }
-    auto compressed_accuracy = output.normalized().dot( expected.normalized() );
+    float compressed_accuracy = 1.f - acos( output.normalized().dot( expected.normalized() ) ) / ( (float)M_PI );
     float accuracy = num_correct / (float)num_tested;
-    float accuracy_0 = num_0_correct / (float)num_0_tested;
-    float accuracy_1 = num_1_correct / (float)num_1_tested;
-    accuracies.push_back( compressed_accuracy );
-    if ( f_score >= 0.0 and f_score <= 1.0 )
-      f_scores.push_back( f_score );
-    if ( trivial )
-      accuracies_trivial.push_back( compressed_accuracy );
-    else
-      accuracies_nontrivial.push_back( compressed_accuracy );
-    if ( num_0_tested > 0 ) {
-      accuracies_0.push_back( accuracy_0 );
-      if ( trivial )
-        accuracies_trivial_0.push_back( accuracy_0 );
-      else
-        accuracies_nontrivial_0.push_back( accuracy_0 );
+
+    if ( not trivial ) {
+      accuracies.push( accuracy );
+      if ( f_score_valid )
+        f_scores.push( f_score );
+      compressed_accuracies.push( compressed_accuracy );
+      if ( precision_valid )
+        precisions.push( precision );
+      if ( recall_valid )
+        recalls.push( recall );
     }
-    if ( num_1_tested > 0 ) {
-      accuracies_1.push_back( accuracy_1 );
-      if ( trivial )
-        accuracies_trivial_1.push_back( accuracy_1 );
-      else
-        accuracies_nontrivial_1.push_back( accuracy_1 );
-    }
-    if ( accuracies.size() > ACCURACY_MEASUREMENT_PERIOD ) {
-      accuracies.pop_front();
-    }
-    if ( f_scores.size() > ACCURACY_MEASUREMENT_PERIOD ) {
-      f_scores.pop_front();
-    }
-    if ( accuracies_trivial.size() > ACCURACY_MEASUREMENT_PERIOD ) {
-      accuracies_trivial.pop_front();
-    }
-    if ( accuracies_nontrivial.size() > ACCURACY_MEASUREMENT_PERIOD ) {
-      accuracies_nontrivial.pop_front();
-    }
-    if ( accuracies_trivial_0.size() > ACCURACY_MEASUREMENT_PERIOD ) {
-      accuracies_trivial_0.pop_front();
-    }
-    if ( accuracies_nontrivial_0.size() > ACCURACY_MEASUREMENT_PERIOD ) {
-      accuracies_nontrivial_0.pop_front();
-    }
-    if ( accuracies_trivial_1.size() > ACCURACY_MEASUREMENT_PERIOD ) {
-      accuracies_trivial_1.pop_front();
-    }
-    if ( accuracies_nontrivial_1.size() > ACCURACY_MEASUREMENT_PERIOD ) {
-      accuracies_nontrivial_1.pop_front();
-    }
-    if ( accuracies_0.size() > ACCURACY_MEASUREMENT_PERIOD )
-      accuracies_0.pop_front();
-    if ( accuracies_1.size() > ACCURACY_MEASUREMENT_PERIOD )
-      accuracies_1.pop_front();
 
     size_t iterations = train->train_with_backoff(
       nn, input, [&expected]( const auto& predicted ) { return predicted - expected; }, LEARNING_RATE );
 
     num_tested++;
 
-    static std::chrono::time_point last_update_time = std::chrono::steady_clock::now();
+    static std::chrono::time_point last_update_time
+      = std::chrono::steady_clock::now() - std::chrono::milliseconds( 100 );
     if ( std::chrono::steady_clock::now() - last_update_time > std::chrono::milliseconds( 10 ) ) {
       cout << "\033[2J\033[H";
       cout << "Iteration " << ( iteration + 1 ) << "\n";
@@ -266,22 +259,16 @@ void program_body( string infilename, ostream& outstream )
       cout << "Attempts: " << iterations << endl;
       cout << "Threads: " << Eigen::nbThreads() << endl;
       cout << "Current accuracy: " << accuracy << "\n";
-      cout << "Rolling accuracy: " << average( accuracies ) << "\n";
-      cout << "Trivial accuracy: " << average( accuracies_trivial ) << "\n";
-      cout << "Complex accuracy: " << average( accuracies_nontrivial ) << "\n";
-      cout << "0 Accuracy: " << average( accuracies_0 ) << "\n";
-      cout << "1 Accuracy: " << average( accuracies_1 ) << "\n";
-      cout << "Trivial 0: " << average( accuracies_trivial_0 ) << "\n";
-      cout << "Complex 0: " << average( accuracies_nontrivial_0 ) << "\n";
-      cout << "Trivial 1: " << average( accuracies_trivial_1 ) << "\n";
-      cout << "Complex 1: " << average( accuracies_nontrivial_1 ) << "\n";
-      cout << "Compressed: " << compressed_accuracy << "\n";
-      cout << "F Scores: " << average( f_scores ) << "\n";
+      cout << "Rolling accuracy: " << accuracies.mean() << "\n";
+      cout << "Compressed: " << compressed_accuracies.mean() << "\n";
+      cout << "F Scores: " << f_scores.mean() << "\n";
+      cout << "Precision: " << precisions.mean() << "\n";
+      cout << "Recall: " << recalls.mean() << "\n";
       cout << flush;
       last_update_time = std::chrono::steady_clock::now();
     }
     iteration++;
-  } while ( average( f_scores ) < TARGET_ACCURACY );
+  } while ( not f_scores.ready() or f_scores.mean() < TARGET_ACCURACY );
 
   string serialized_nn;
   {
