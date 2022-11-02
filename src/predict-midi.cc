@@ -22,7 +22,7 @@ static auto prng = get_random_engine();
 static vector<MidiFile> midi_files {};
 
 // Training parameters
-static constexpr float TARGET_ACCURACY = 0.8;
+static constexpr float TARGET_ACCURACY = 0.85;
 static constexpr float LEARNING_RATE = 0.1;
 static constexpr size_t ACCURACY_MEASUREMENT_PERIOD = 1000;
 
@@ -108,6 +108,7 @@ void program_body( string infilename, ostream& outstream )
   deque<float> accuracies_nontrivial_0;
   deque<float> accuracies_trivial_1;
   deque<float> accuracies_nontrivial_1;
+  deque<float> f_scores;
   auto input_ptr = make_unique<Input>();
   Input& input = *input_ptr;
   auto expected_ptr = make_unique<Output>();
@@ -182,11 +183,28 @@ void program_body( string infilename, ostream& outstream )
     for ( ssize_t i = 0; i < output.size(); i++ ) {
       num_tested++;
     }
+    float f_score;
+    {
+      size_t true_positive = num_1_correct;
+      /* size_t true_negative = num_0_correct; */
+      size_t false_positive = num_1_tested - num_1_correct;
+      size_t false_negative = num_0_tested - num_0_correct;
+      float precision = true_positive / (float)( true_positive + false_positive );
+      if ( precision > 1.0 or precision < 0.0 )
+        precision = 1.0;
+      float recall = true_positive / (float)( true_positive + false_negative );
+      if ( recall > 1.0 or recall < 0.0 )
+        recall = 1.0;
+      /* constexpr float beta = 1; */
+      f_score = 2.f * ( precision * recall ) / ( precision + recall );
+    }
     auto compressed_accuracy = output.normalized().dot( expected.normalized() );
     float accuracy = num_correct / (float)num_tested;
     float accuracy_0 = num_0_correct / (float)num_0_tested;
     float accuracy_1 = num_1_correct / (float)num_1_tested;
     accuracies.push_back( compressed_accuracy );
+    if ( f_score >= 0.0 and f_score <= 1.0 )
+      f_scores.push_back( f_score );
     if ( trivial )
       accuracies_trivial.push_back( compressed_accuracy );
     else
@@ -207,6 +225,9 @@ void program_body( string infilename, ostream& outstream )
     }
     if ( accuracies.size() > ACCURACY_MEASUREMENT_PERIOD ) {
       accuracies.pop_front();
+    }
+    if ( f_scores.size() > ACCURACY_MEASUREMENT_PERIOD ) {
+      f_scores.pop_front();
     }
     if ( accuracies_trivial.size() > ACCURACY_MEASUREMENT_PERIOD ) {
       accuracies_trivial.pop_front();
@@ -255,11 +276,12 @@ void program_body( string infilename, ostream& outstream )
       cout << "Trivial 1: " << average( accuracies_trivial_1 ) << "\n";
       cout << "Complex 1: " << average( accuracies_nontrivial_1 ) << "\n";
       cout << "Compressed: " << compressed_accuracy << "\n";
+      cout << "F Scores: " << average( f_scores ) << "\n";
       cout << flush;
       last_update_time = std::chrono::steady_clock::now();
     }
     iteration++;
-  } while ( average( accuracies_1 ) < TARGET_ACCURACY );
+  } while ( average( f_scores ) < TARGET_ACCURACY );
 
   string serialized_nn;
   {
