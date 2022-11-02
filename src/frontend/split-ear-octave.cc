@@ -52,6 +52,7 @@ void program_body( const string_view audio_device, const string& midi_device, co
   /* open the MIDI device */
   FileDescriptor piano { CheckSystemCall( midi_device, open( midi_device.c_str(), O_RDONLY ) ) };
   Synthesizer synth_left { sample_directory };
+  Synthesizer synth_right { sample_directory };
   MidiProcessor midi;
   deque<pair<steady_clock::time_point, int>> press_queue {};
   deque<array<bool, 12>> piano_roll {};
@@ -60,10 +61,6 @@ void program_body( const string_view audio_device, const string& midi_device, co
   /* get ready to play an audio signal */
   ChannelPair audio_signal { 16384 };  // the output signal
   size_t next_sample_to_calculate = 0; // what's the next sample # to be written to the output signal?
-
-  /* current amplitude of the sine waves */
-  // array<float, 12> amp_left = {}, amp_right = {};
-  array<float, 12> amp_right = {};
 
   steady_clock::time_point last_note_pred { steady_clock::now() };
   steady_clock::time_point next_note_pred { steady_clock::now() };
@@ -81,31 +78,18 @@ void program_body( const string_view audio_device, const string& midi_device, co
     [&] {
       curr_time = steady_clock::now();
       while ( next_sample_to_calculate <= playback_interface->cursor() + audio_horizon ) {
-        const double time = next_sample_to_calculate / double( config.sample_rate );
-        /* compute the sine wave amplitude (middle A, 440 Hz) */
-        const float middle_c = 261.63;
-        // float total_amp_left = 0, total_amp_right = 0;
-        float total_amp_right = 0;
-        for ( size_t i = 0; i < 12; i++ ) {
-          const float frequency = middle_c * pow( 2, i / 12.f );
-          // total_amp_left += amp_left[i] * sin( 2 * M_PI * frequency * time );
-          total_amp_right += amp_right[i] * sin( 2 * M_PI * ( 2 * frequency ) * time );
-        }
-        float samp = synth_left.calculate_curr_sample().first;
-        audio_signal.safe_set( next_sample_to_calculate, { samp, total_amp_right } );
-        // for ( size_t i = 0; i < 12; i++ ) {
-        // amp_left[i] *= note_decay_rate;
-        // }
-        // amp_right = some equation based on note_decay_rate and next_note_pred
+        float samp_left = synth_left.calculate_curr_sample().first;
+        float samp_right = synth_right.calculate_curr_sample().second;
+        audio_signal.safe_set( next_sample_to_calculate, { samp_left, samp_right } );
+
         for ( size_t i = 0; i < 12; i++ ) {
           if ( should_play_next_pred[i] && next_note_pred <= curr_time
                && ( curr_time - next_note_pred ) < simulated_latency ) {
             time_since_pred_note
               = ( config.sample_rate * duration_cast<microseconds>( curr_time - next_note_pred ).count() )
                 / 1000000.f;
-            amp_right[i] = max_amplitude * pow( note_decay_rate, time_since_pred_note );
-          } else {
-            amp_right[i] *= note_decay_rate;
+            synth_right.stop_press_early( i + 20 + 21 );
+            synth_right.process_new_data( 144, i + 20 + 21, default_vel, time_since_pred_note );
           }
         }
         next_sample_to_calculate++;

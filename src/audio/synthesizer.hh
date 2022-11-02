@@ -34,7 +34,7 @@ public:
                          uint8_t event_velocity,
                          unsigned long sample_offset = 0 );
 
-  void stop_press( uint8_t event_note );
+  void stop_press_early( uint8_t event_note );
 
   wav_frame_t calculate_curr_sample() const;
 

@@ -44,10 +44,11 @@ void Synthesizer::process_new_data( uint8_t event_type,
   }
 }
 
-void Synthesizer::stop_press( uint8_t event_note )
+void Synthesizer::stop_press_early( uint8_t event_note )
 {
   auto& k = keys.at( event_note - KEY_OFFSET );
-  k.presses.erase( k.presses.begin() );
+  if ( k.presses.size() > 0 )
+    k.presses.erase( k.presses.begin() );
 }
 
 wav_frame_t Synthesizer::calculate_curr_sample() const
