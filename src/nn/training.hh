@@ -40,10 +40,10 @@ struct NetworkTraining
     gradient_descent->update( nn, *backprop, learning_rate );
   }
 
-  size_t train_with_backoff( Network& nn,
-                             const Input& input,
-                             const std::function<PdLossWrtOutputs( const Output )>& pd_loss_wrt_outputs,
-                             float max_learning_rate )
+  float train_with_backoff( Network& nn,
+                            const Input& input,
+                            const std::function<PdLossWrtOutputs( const Output )>& pd_loss_wrt_outputs,
+                            float max_learning_rate )
   {
     std::unique_ptr<Network> nn_backup = make_unique<Network>( nn );
     float learning_rate = max_learning_rate;
@@ -54,13 +54,13 @@ struct NetworkTraining
     do {
       nn = *nn_backup;
       if ( i++ > 5 ) {
-        return i;
+        return 0.0;
       }
       train( nn, input, pd_loss_wrt_outputs, learning_rate );
       infer->apply( nn, input );
       learning_rate /= 10;
       gradient = pd_loss_wrt_outputs( infer->output() );
     } while ( initial_gradient.dot( gradient ) < 0 );
-    return i;
+    return learning_rate * 10;
   }
 };

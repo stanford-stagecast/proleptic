@@ -19,9 +19,9 @@ static auto prng = get_random_engine();
 static vector<MidiFile> midi_files {};
 
 // Training parameters
-static constexpr size_t NUM_ITERATIONS = 20000;
+static constexpr float TARGET_ACCURACY = 0.95;
 static constexpr float LEARNING_RATE = 0.1;
-static constexpr size_t AVERAGE_WINDOW = 10000;
+static constexpr size_t AVERAGE_WINDOW = 1000;
 
 // Types
 #define HISTORY 64
@@ -65,15 +65,14 @@ void program_body( ostream& outstream )
 
   deque<bool> successes;
   deque<bool> zeroes;
-  for ( size_t iteration = 0; iteration < NUM_ITERATIONS; iteration++ ) {
-
+  size_t iteration = 0;
+  do {
     auto infer = make_unique<Infer>();
     string name;
     generate_datum( input, expected, name );
     float baseline = 1 - ( expected.sum() / (float)expected.cols() );
 
     if ( baseline == 1.0 and ( rand() % 16 != 0 ) ) {
-      iteration--;
       continue;
     }
 
@@ -88,14 +87,14 @@ void program_body( ostream& outstream )
       zeroes.pop_front();
     }
 
-    size_t iterations = train->train_with_backoff(
+    float learning_rate = train->train_with_backoff(
       nn, input, [&expected]( const auto& predicted ) { return predicted - expected; }, LEARNING_RATE );
 
     if ( expected.sum() != 0 ) {
-      cout << "Iteration " << ( iteration + 1 ) << "/" << NUM_ITERATIONS << "\n";
+      cout << "Iteration " << iteration << "\n";
       cout << "File: " << name << "\n";
       cout << "Norm: " << output.norm() << "\n";
-      cout << "Attempts: " << iterations << "\n";
+      cout << "Learning Rate: " << learning_rate << "\n";
       cout << "Threads: " << Eigen::nbThreads() << "\n";
       cout << "Input: " << input.sum() << "\n";
       cout << "Output: " << output.unaryExpr( []( const auto x ) { return x >= 0.5; } ).sum() << "\n";
@@ -104,7 +103,9 @@ void program_body( ostream& outstream )
            << "\n";
       cout << endl;
     }
-  }
+    iteration++;
+  } while ( successes.size() < AVERAGE_WINDOW
+            or accumulate( successes.begin(), successes.end(), 0.f ) / (float)successes.size() < TARGET_ACCURACY );
 
   string serialized_nn;
   {

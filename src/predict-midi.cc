@@ -244,7 +244,7 @@ void program_body( string infilename, ostream& outstream )
         recalls.push( recall );
     }
 
-    size_t iterations = train->train_with_backoff(
+    float learning_rate = train->train_with_backoff(
       nn, input, [&expected]( const auto& predicted ) { return predicted - expected; }, LEARNING_RATE );
 
     num_tested++;
@@ -256,7 +256,7 @@ void program_body( string infilename, ostream& outstream )
       cout << "Iteration " << ( iteration + 1 ) << "\n";
       cout << "File: " << name << "\n";
       cout << "Norm: " << output.norm() << "\n";
-      cout << "Attempts: " << iterations << endl;
+      cout << "Learning Rate: " << learning_rate << endl;
       cout << "Threads: " << Eigen::nbThreads() << endl;
       cout << "Current accuracy: " << accuracy << "\n";
       cout << "Rolling accuracy: " << accuracies.mean() << "\n";
