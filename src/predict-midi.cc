@@ -22,27 +22,20 @@ static auto prng = get_random_engine();
 static vector<MidiFile> midi_files {};
 
 // Training parameters
-static constexpr float TARGET_ACCURACY = 0.80;
-static constexpr float LEARNING_RATE = 0.01;
+static constexpr float TARGET_ACCURACY = 0.75;
+static constexpr float LEARNING_RATE = 0.05;
 static constexpr size_t ACCURACY_MEASUREMENT_PERIOD = 1000;
 
 // Types
 #define HISTORY PIANO_ROLL_HISTORY
 #define BATCH 1
-using MyDNN = DNN_piano_roll_compressed_prediction;
+using MyDNN = DNN_piano_roll_prediction;
 using Infer = NetworkInference<MyDNN, BATCH>;
 using Training = NetworkTraining<MyDNN, BATCH>;
 using Output = typename Infer::Output;
 using Input = typename Infer::Input;
 
 using Single = Eigen::Matrix<double, 88, 1>;
-
-using Compressor = DNN_piano_roll_compressor;
-using Codec = Autoencoder<double, 88, PIANO_ROLL_COMPRESSED_SIZE>;
-using Encoder = typename Codec::Encoder;
-using Decoder = typename Codec::Decoder;
-using EncoderInfer = NetworkInference<Encoder, 1>;
-using DecoderInfer = NetworkInference<Decoder, BATCH>;
 
 void generate_datum( array<Single, HISTORY>& input, Single& output, string& name )
 {
@@ -72,9 +65,6 @@ struct AccuracyMeasurement
 
   void push( float accuracy )
   {
-    if ( accuracy > 1.0 or accuracy < 0.0 ) {
-      throw runtime_error( "invalid accuracy" );
-    }
     accuracies.push_back( accuracy );
     if ( accuracies.size() > N ) {
       accuracies.pop_front();
@@ -93,24 +83,9 @@ struct AccuracyMeasurement
   bool ready() const { return count() == N; }
 };
 
-void program_body( string infilename, ostream& outstream )
+void program_body( ostream& outstream )
 {
   (void)outstream;
-  auto compressor_ptr = make_unique<Compressor>();
-  Compressor& compressor = *compressor_ptr;
-
-  // parse DNN_timestamp from file
-  {
-    ReadOnlyFile dnn_on_disk { infilename };
-    Parser parser { dnn_on_disk };
-    parser.object( compressor );
-  }
-  const Codec codec( compressor );
-  const Encoder& enc = codec.encoder();
-  const Decoder& dec = codec.decoder();
-  (void)dec;
-  auto e_infer = make_unique<EncoderInfer>();
-  auto d_infer = make_unique<DecoderInfer>();
 
   ios::sync_with_stdio( false );
 
@@ -121,10 +96,15 @@ void program_body( string infilename, ostream& outstream )
   randomize_network( nn, rng );
 
   AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> accuracies;
-  AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> compressed_accuracies;
   AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> f_scores;
   AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> precisions;
   AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> recalls;
+  AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> selectivities;
+  AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> durations;
+  AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> ratio;
+  AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> expected_ratio;
+  AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> balanced;
+  AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> pds;
   auto input_ptr = make_unique<Input>();
   Input& input = *input_ptr;
   auto expected_ptr = make_unique<Output>();
@@ -137,117 +117,91 @@ void program_body( string infilename, ostream& outstream )
 
   auto train = make_unique<Training>();
   size_t iteration = 0;
+  using namespace chrono;
   do {
+    auto start = steady_clock::now();
     string name;
 
     bool trivial = true;
     for ( size_t batch = 0; batch < BATCH; batch++ ) {
       generate_datum( raw_input, raw_expected, name );
       for ( size_t i = 0; i < HISTORY; i++ ) {
-        EncoderInfer::Output compressed_single;
-        Single raw_single = raw_input[i];
-        e_infer->apply( enc, raw_single );
-        compressed_single = e_infer->output();
+        Single single = raw_input[HISTORY - i];
         size_t index = i;
-        for ( size_t j = 0; j < PIANO_ROLL_COMPRESSED_SIZE; j++ ) {
-          input( batch, index ) = compressed_single[j];
+        for ( size_t j = 0; j < 88; j++ ) {
+          input( batch, index ) = single[j];
           index += HISTORY;
         }
       }
       if ( raw_expected != raw_input.back() ) {
         trivial = false;
       }
-      EncoderInfer::Output compressed_single;
-      Single raw_single = raw_expected;
-      e_infer->apply( enc, raw_single );
-      compressed_single = e_infer->output();
-      expected.row( batch ) = compressed_single;
+      expected.row( batch ) = raw_expected;
     }
 
     auto infer = make_unique<Infer>();
     infer->apply( nn, input );
 
-    Output& output = infer->output();
+    Output output = infer->output();
 
-    DecoderInfer::Output raw_output;
-    d_infer->apply( dec, output );
-    raw_output = d_infer->output();
+    size_t true_positive = 0;
+    size_t false_positive = 0;
+    size_t true_negative = 0;
+    size_t false_negative = 0;
+    for ( size_t i = 0; i < 88; i++ ) {
+      true_positive += ( expected( i ) and ( output( i ) > 0.5 ) );
+      false_positive += ( not expected( i ) and ( output( i ) > 0.5 ) );
+      true_negative += ( not expected( i ) and not( output( i ) > 0.5 ) );
+      false_negative += ( expected( i ) and not( output( i ) > 0.5 ) );
+    }
+    bool precision_valid = ( true_positive + false_positive ) > 0;
+    float precision = true_positive / (float)( true_positive + false_positive );
+    bool recall_valid = ( true_positive + false_negative ) > 0;
+    float recall = true_positive / (float)( true_positive + false_negative );
+    bool f_score_valid = precision_valid and recall_valid and ( precision + recall ) > 0;
+    float f_score = 2.f * ( precision * recall ) / ( precision + recall );
 
-    size_t num_correct = 0;
-    size_t num_tested = 0;
-    size_t num_1_correct = 0;
-    size_t num_1_tested = 0;
-    size_t num_0_correct = 0;
-    size_t num_0_tested = 0;
-    for ( ssize_t i = 0; i < raw_output.size(); i++ ) {
-      if ( raw_expected( i ) < 0.5 ) {
-        if ( raw_output( i ) < 0.5 ) {
-          num_0_correct++;
-          num_correct++;
-        }
-        num_0_tested++;
-        num_tested++;
-      } else if ( raw_expected( i ) >= 0.5 ) {
-        if ( raw_output( i ) >= 0.5 ) {
-          num_1_correct++;
-          num_correct++;
-        }
-        num_1_tested++;
-        num_tested++;
-      }
-    }
-    for ( ssize_t i = 0; i < output.size(); i++ ) {
-      num_tested++;
-    }
-    float f_score;
-    float precision;
-    float recall;
-    bool precision_valid = true;
-    bool recall_valid = true;
-    bool f_score_valid = true;
-    {
-      size_t true_positive = num_1_correct;
-      size_t false_positive = num_1_tested - num_1_correct;
-      size_t false_negative = num_0_tested - num_0_correct;
-      if ( true_positive + false_positive == 0 ) {
-        precision = 1.0; // no irrelevant 1s
-        precision_valid = false;
-      } else {
-        precision = true_positive / (float)( true_positive + false_positive );
-      }
-      if ( true_positive + false_negative == 0 ) {
-        recall = 1.0; // no missing 1s
-        recall_valid = false;
-      } else {
-        recall = true_positive / (float)( true_positive + false_negative );
-      }
-      /* constexpr float beta = 1; */
-      f_score_valid = precision_valid and recall_valid;
-      if ( precision + recall == 0.0 ) {
-        f_score = 0.f;
-        f_score_valid = false;
-      } else {
-        f_score = 2.f * ( precision * recall ) / ( precision + recall );
-      }
-    }
-    float compressed_accuracy = 1.f - acos( output.normalized().dot( expected.normalized() ) ) / ( (float)M_PI );
-    float accuracy = num_correct / (float)num_tested;
+    bool selectivity_valid = ( true_negative + false_positive ) > 0;
+    float selectivity = true_negative / (float)( true_negative + false_positive );
+
+    float accuracy = ( true_positive + true_negative ) / 88.f;
 
     if ( not trivial ) {
       accuracies.push( accuracy );
-      if ( f_score_valid )
-        f_scores.push( f_score );
-      compressed_accuracies.push( compressed_accuracy );
+
       if ( precision_valid )
         precisions.push( precision );
+
       if ( recall_valid )
         recalls.push( recall );
+
+      if ( f_score_valid )
+        f_scores.push( f_score );
+
+      if ( selectivity_valid )
+        selectivities.push( selectivity );
+
+      if ( recall_valid and selectivity_valid )
+        balanced.push( .5f * ( recall + selectivity ) );
+
+      ratio.push( ( true_positive + false_positive ) / 88.f );
+      expected_ratio.push( ( true_positive + false_negative ) / 88.f );
     }
 
     float learning_rate = train->train_with_backoff(
-      nn, input, [&expected]( const auto& predicted ) { return predicted - expected; }, LEARNING_RATE );
+      nn,
+      input,
+      [&]( const auto& predicted ) {
+        Output pd = ( predicted - expected ).unaryExpr( []( auto x ) { return x < 0 ? x : x / 50.f; } );
+        pds.push( pd.norm() );
+        return pd;
+      },
+      accuracies.ready() ? LEARNING_RATE : LEARNING_RATE / 100.f );
 
-    num_tested++;
+    auto end = steady_clock::now();
+
+    auto duration = end - start;
+    durations.push( duration_cast<microseconds>( duration ).count() / 1000000.f );
 
     static std::chrono::time_point last_update_time
       = std::chrono::steady_clock::now() - std::chrono::milliseconds( 100 );
@@ -260,10 +214,17 @@ void program_body( string infilename, ostream& outstream )
       cout << "Threads: " << Eigen::nbThreads() << endl;
       cout << "Current accuracy: " << accuracy << "\n";
       cout << "Rolling accuracy: " << accuracies.mean() << "\n";
-      cout << "Compressed: " << compressed_accuracies.mean() << "\n";
+      cout << "\n";
       cout << "F Scores: " << f_scores.mean() << "\n";
       cout << "Precision: " << precisions.mean() << "\n";
       cout << "Recall: " << recalls.mean() << "\n";
+      cout << "Selectivity: " << selectivities.mean() << "\n";
+      cout << "\n";
+      cout << "Balanced: " << balanced.mean() << "\n";
+      cout << "Ratio: " << ratio.mean() << "\n";
+      cout << "Real Ratio: " << expected_ratio.mean() << "\n";
+      cout << "Time: " << durations.mean() * 1000 << " milliseconds\n";
+      cout << "PDs: " << pds.mean() << "\n";
       cout << flush;
       last_update_time = std::chrono::steady_clock::now();
     }
@@ -295,14 +256,12 @@ int main( int argc, char* argv[] )
     Eigen::setNbThreads( Eigen::nbThreads() / 2 );
   }
 
-  if ( argc != 4 ) {
-    cerr << "Usage: " << argv[0] << "[compressor dnn] [midi directory] [dnn filename]\n";
+  if ( argc != 3 ) {
+    cerr << "Usage: " << argv[0] << " [midi directory] [dnn filename]\n";
     return EXIT_FAILURE;
   }
 
-  string compressor = argv[1];
-
-  string midi_directory = argv[2];
+  string midi_directory = argv[1];
 
   try {
     for ( const auto& entry : filesystem::directory_iterator( midi_directory ) ) {
@@ -328,7 +287,7 @@ int main( int argc, char* argv[] )
   }
   cout << "Got " << midi_files.size() << " midi files.\n";
 
-  string filename = argv[3];
+  string filename = argv[2];
 
   ofstream output;
   output.open( filename );
@@ -340,7 +299,7 @@ int main( int argc, char* argv[] )
   }
 
   try {
-    program_body( compressor, output );
+    program_body( output );
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
     return EXIT_FAILURE;

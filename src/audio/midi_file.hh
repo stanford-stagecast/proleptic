@@ -16,8 +16,8 @@ struct MidiEvent
 {
   enum EventType
   {
-    NoteOn = 0x80,
-    NoteOff = 0x90,
+    NoteOff = 0x80,
+    NoteOn = 0x90,
     PolyphonicKeyPressure = 0xA0,
     ControlChange = 0xB0,
     ProgramChange = 0xC0,
@@ -317,6 +317,9 @@ public:
     }
 
     piano_roll_.push_back( {} );
+    for ( size_t i = 0; i < piano_roll_.back().size(); i++ ) {
+      piano_roll_.back()[i] = PianoRollEvent::Unknown;
+    }
     size_t ticks_per_piano_roll = header_.ticks_per_beat / 4;
     size_t ticks_in_current_timeslot = ticks_per_piano_roll / 2;
     bool have_any_notes = false;
@@ -339,20 +342,7 @@ public:
         size_t rolls = ticks_in_current_timeslot / ticks_per_piano_roll;
         ticks_in_current_timeslot %= ticks_per_piano_roll;
         for ( size_t i = 0; i < rolls; i++ ) {
-          /* piano_roll_.push_back( piano_roll_.back() ); */
-          piano_roll_.push_back( {} );
-          for ( size_t j = 0; j < piano_roll_.back().size(); j++ ) {
-            float next;
-            float previous = piano_roll_[piano_roll_.size() - 2][j];
-            if ( previous == PianoRollEvent::NoteDown ) {
-              next = PianoRollEvent::NoteHoldDown;
-            } else if ( previous == PianoRollEvent::NoteUp ) {
-              next = PianoRollEvent::NoteHoldUp;
-            } else {
-              next = previous;
-            }
-            piano_roll_.back()[j] = next;
-          }
+          piano_roll_.push_back( piano_roll_.back() );
         }
       }
       ++iter;

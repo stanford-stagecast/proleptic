@@ -20,8 +20,7 @@ using DNN_piano_roll_octave_prediction
 using DNN_piano_roll_compressor = Network<double, 88, 36, 88>;
 static constexpr size_t PIANO_ROLL_COMPRESSED_SIZE = DNN_piano_roll_compressor::Layer0::output_size;
 
-static constexpr size_t PIANO_ROLL_HISTORY = 64;
-using DNN_piano_roll_compressed_prediction
-  = Network<double, PIANO_ROLL_HISTORY * PIANO_ROLL_COMPRESSED_SIZE, 36, PIANO_ROLL_COMPRESSED_SIZE>;
+static constexpr size_t PIANO_ROLL_HISTORY = 4;
+using DNN_piano_roll_prediction = Network<double, PIANO_ROLL_HISTORY * 88, 36, 88>;
 
 static constexpr size_t BATCH_SIZE = 64;

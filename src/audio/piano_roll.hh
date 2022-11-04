@@ -6,8 +6,6 @@ struct PianoRollEvent
 {
   static constexpr float NoteDown = 1.0;
   static constexpr float NoteUp = 0.0;
-  static constexpr float NoteHoldDown = 1.0;
-  static constexpr float NoteHoldUp = 0.0;
   static constexpr float Unknown = 0.5;
 };
 
