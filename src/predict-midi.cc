@@ -9,6 +9,7 @@
 #include "serdes.hh"
 #include "training.hh"
 
+#include <algorithm>
 #include <deque>
 #include <filesystem>
 #include <fstream>
@@ -22,8 +23,8 @@ static auto prng = get_random_engine();
 static vector<MidiFile> midi_files {};
 
 // Training parameters
-static constexpr float TARGET_ACCURACY = 0.75;
-static constexpr float LEARNING_RATE = 0.05;
+static constexpr float TARGET_ACCURACY = 0.99;
+static constexpr float LEARNING_RATE = 0.01;
 static constexpr size_t ACCURACY_MEASUREMENT_PERIOD = 1000;
 
 // Types
@@ -105,6 +106,7 @@ void program_body( ostream& outstream )
   AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> expected_ratio;
   AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> balanced;
   AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> pds;
+  AccuracyMeasurement<ACCURACY_MEASUREMENT_PERIOD> complexity;
   auto input_ptr = make_unique<Input>();
   Input& input = *input_ptr;
   auto expected_ptr = make_unique<Output>();
@@ -117,6 +119,7 @@ void program_body( ostream& outstream )
 
   auto train = make_unique<Training>();
   size_t iteration = 0;
+
   using namespace chrono;
   do {
     auto start = steady_clock::now();
@@ -144,15 +147,19 @@ void program_body( ostream& outstream )
 
     Output output = infer->output();
 
+    if ( isnan( output.norm() ) ) {
+      throw runtime_error( "network exploded" );
+    }
+
     size_t true_positive = 0;
     size_t false_positive = 0;
     size_t true_negative = 0;
     size_t false_negative = 0;
     for ( size_t i = 0; i < 88; i++ ) {
-      true_positive += ( expected( i ) and ( output( i ) > 0.5 ) );
-      false_positive += ( not expected( i ) and ( output( i ) > 0.5 ) );
-      true_negative += ( not expected( i ) and not( output( i ) > 0.5 ) );
-      false_negative += ( expected( i ) and not( output( i ) > 0.5 ) );
+      true_positive += ( expected( i ) and ( output( i ) > 0 ) );
+      false_positive += ( not expected( i ) and ( output( i ) > 0 ) );
+      true_negative += ( not expected( i ) and not( output( i ) > 0 ) );
+      false_negative += ( expected( i ) and not( output( i ) > 0 ) );
     }
     bool precision_valid = ( true_positive + false_positive ) > 0;
     float precision = true_positive / (float)( true_positive + false_positive );
@@ -166,6 +173,7 @@ void program_body( ostream& outstream )
 
     float accuracy = ( true_positive + true_negative ) / 88.f;
 
+    complexity.push( not trivial );
     if ( not trivial ) {
       accuracies.push( accuracy );
 
@@ -192,11 +200,21 @@ void program_body( ostream& outstream )
       nn,
       input,
       [&]( const auto& predicted ) {
-        Output pd = ( predicted - expected ).unaryExpr( []( auto x ) { return x < 0 ? x : x / 50.f; } );
+        auto sigmoid = []( const auto x ) { return 1.0 / ( 1.0 + exp( -x ) ); };
+        auto one_minus_x = []( const auto x ) { return 1.0 - x; };
+        auto sigmoid_prime = [&]( const auto x ) { return sigmoid( x ) * ( 1.0 - sigmoid( x ) ); };
+
+        Output sigmoid_predicted = predicted.unaryExpr( sigmoid );
+
+        Output pd
+          = ( -expected.cwiseQuotient( sigmoid_predicted )
+              + expected.unaryExpr( one_minus_x ).cwiseQuotient( sigmoid_predicted.unaryExpr( one_minus_x ) ) )
+              .cwiseProduct( predicted.unaryExpr( sigmoid_prime ) );
+
         pds.push( pd.norm() );
         return pd;
       },
-      accuracies.ready() ? LEARNING_RATE : LEARNING_RATE / 100.f );
+      LEARNING_RATE );
 
     auto end = steady_clock::now();
 
@@ -212,8 +230,7 @@ void program_body( ostream& outstream )
       cout << "Norm: " << output.norm() << "\n";
       cout << "Learning Rate: " << learning_rate << endl;
       cout << "Threads: " << Eigen::nbThreads() << endl;
-      cout << "Current accuracy: " << accuracy << "\n";
-      cout << "Rolling accuracy: " << accuracies.mean() << "\n";
+      cout << "Current: " << output.norm() << endl;
       cout << "\n";
       cout << "F Scores: " << f_scores.mean() << "\n";
       cout << "Precision: " << precisions.mean() << "\n";
@@ -225,6 +242,7 @@ void program_body( ostream& outstream )
       cout << "Real Ratio: " << expected_ratio.mean() << "\n";
       cout << "Time: " << durations.mean() * 1000 << " milliseconds\n";
       cout << "PDs: " << pds.mean() << "\n";
+      cout << "Complex: " << complexity.mean() << "\n";
       cout << flush;
       last_update_time = std::chrono::steady_clock::now();
     }
@@ -298,11 +316,16 @@ int main( int argc, char* argv[] )
     return EXIT_FAILURE;
   }
 
-  try {
-    program_body( output );
-  } catch ( const exception& e ) {
-    cerr << e.what() << "\n";
-    return EXIT_FAILURE;
+  while ( true ) {
+    try {
+      program_body( output );
+      break;
+    } catch ( const runtime_error& e ) {
+      cerr << e.what() << "\n";
+    } catch ( const exception& e ) {
+      cerr << e.what() << "\n";
+      return EXIT_FAILURE;
+    }
   }
 
   return EXIT_SUCCESS;

@@ -5,7 +5,7 @@
 struct RandomState
 {
   std::default_random_engine prng { get_random_engine() };
-  std::normal_distribution<float> parameter_distribution { 0.0, 0.1 };
+  std::normal_distribution<float> parameter_distribution { 0.0, 0.01 };
 
   float sample() { return parameter_distribution( prng ); }
 };
