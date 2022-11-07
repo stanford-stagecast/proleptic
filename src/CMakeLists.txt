@@ -22,5 +22,6 @@ add_exec(predict-notes)
 add_exec(notes-demo)
 add_exec(predict-midi)
 add_exec(midi-autoencoder)
+add_exec(midi-demo)
 
 add_subdirectory(libsimplenn)
