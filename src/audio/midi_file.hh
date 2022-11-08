@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <assert.h>
+#include <deque>
 #include <fcntl.h>
 #include <iostream>
 #include <optional>
@@ -136,17 +137,27 @@ struct MidiEvent
         data.push_back( read_one<uint8_t>( filename, fd ) );
       }
       last_status = std::nullopt;
-    } else if ( event_type & 0x80 ) {
+    } else if ( event_type & 0x80 or last_status.has_value() ) {
       // MIDI
-      key = read_one<uint8_t>( filename, fd );
-      velocity = read_one<uint8_t>( filename, fd );
+      uint8_t arg0;
+      if ( event_type & 0x80 ) {
+        arg0 = read_one<uint8_t>( filename, fd );
+      } else {
+        arg0 = event_type;
+        event_type = *last_status;
+      }
+      uint8_t masked = event_type & 0xf0;
+      if ( masked == EventType::NoteOn or masked == EventType::NoteOff
+           or masked == EventType::PolyphonicKeyPressure ) {
+        key = arg0;
+        velocity = read_one<uint8_t>( filename, fd );
+      } else if ( masked == EventType::ControlChange ) {
+        read_one<uint8_t>( filename, fd );
+      } else if ( masked == EventType::ProgramChange ) {
+      } else {
+        throw std::runtime_error( "Unhandled MIDI event type" );
+      }
       last_status = event_type;
-      channel = event_type & 0xf;
-      event_type = static_cast<EventType>( event_type & 0xf0 );
-    } else if ( last_status.has_value() ) {
-      key = event_type;
-      event_type = *last_status;
-      velocity = read_one<uint8_t>( filename, fd );
       channel = event_type & 0xf;
       event_type = static_cast<EventType>( event_type & 0xf0 );
     } else {
@@ -281,38 +292,38 @@ public:
       current = CheckSystemCall( filename, lseek( fd, 0, SEEK_CUR ) );
     }
 
-    size_t ts_now = 0;
-    std::vector<std::vector<MidiEvent>::const_iterator> track_iters {};
-    std::vector<std::vector<MidiEvent>::const_iterator> track_ends {};
-    std::vector<size_t> timestamps {};
+    // the MIDI file separates events into tracks, but we want to reintegrate
+    // all of them into a single stream
+    std::vector<std::deque<MidiEvent>> tracks {};
 
     for ( const auto& track : tracks_ ) {
-      track_iters.push_back( track.events().begin() );
-      track_ends.push_back( track.events().end() );
-      timestamps.push_back( track.events().front().ticks );
+      std::deque events( track.events().begin(), track.events().end() );
+      tracks.push_back( events );
     }
 
-    while ( not track_iters.empty() ) {
+    // Keep advancing time to the next event we can see in any channel
+    float current_time = 0;
+    while ( not tracks.empty() ) {
       size_t min_idx = 0;
-      for ( size_t i = 0; i < timestamps.size(); i++ ) {
-        if ( timestamps[i] < timestamps[min_idx] )
+      for ( size_t i = 0; i < tracks.size(); i++ ) {
+        if ( tracks.at( i ).front().ticks < tracks.at( min_idx ).front().ticks ) {
           min_idx = i;
+        }
       }
-      MidiEvent event = *track_iters[min_idx];
-      if ( not starting_tempo_.has_value() and event.event_type == MidiEvent::MetaEvent
-           and event.meta_event_type == MidiEvent::Tempo ) {
-        starting_tempo_ = event.tempo;
-      }
-      event.ticks = timestamps[min_idx] - ts_now;
+      current_time += tracks.at( min_idx ).front().ticks / (float)header_.ticks_per_beat;
+      std::deque<MidiEvent>& track = tracks.at( min_idx );
+      MidiEvent& event = track.front();
+      if ( event.event_type == 0x80 or event.event_type == 0x90 ) {}
+      size_t ticks = event.ticks;
       events_.push_back( event );
-      ts_now = timestamps[min_idx];
-      ++track_iters[min_idx];
-      if ( track_iters[min_idx] == track_ends[min_idx] ) {
-        track_iters.erase( track_iters.begin() + min_idx );
-        track_ends.erase( track_ends.begin() + min_idx );
-        timestamps.erase( timestamps.begin() + min_idx );
-      } else {
-        timestamps[min_idx] += track_iters[min_idx]->ticks;
+
+      for ( std::deque<MidiEvent>& t : tracks ) {
+        t.front().ticks -= ticks;
+      }
+      track.pop_front();
+
+      if ( track.empty() ) {
+        tracks.erase( tracks.begin() + min_idx );
       }
     }
 
@@ -330,6 +341,13 @@ public:
       const MidiEvent& event = *iter;
       if ( have_any_notes )
         ticks_in_current_timeslot += event.ticks;
+      if ( ticks_in_current_timeslot >= ticks_per_piano_roll ) {
+        size_t rolls = ticks_in_current_timeslot / ticks_per_piano_roll;
+        ticks_in_current_timeslot %= ticks_per_piano_roll;
+        for ( size_t i = 0; i < rolls; i++ ) {
+          piano_roll_.push_back( piano_roll_.back() );
+        }
+      }
       MidiEvent::EventType type = event.event_type;
       if ( type == MidiEvent::NoteOn and event.velocity > 0 ) {
         piano_roll_.back()[*event.key] = PianoRollEvent::NoteDown;
@@ -337,13 +355,6 @@ public:
       } else if ( type == MidiEvent::NoteOff or ( type == MidiEvent::NoteOn and event.velocity == 0 ) ) {
         piano_roll_.back()[*event.key] = PianoRollEvent::NoteUp;
         have_any_notes = true;
-      }
-      if ( ticks_in_current_timeslot >= ticks_per_piano_roll ) {
-        size_t rolls = ticks_in_current_timeslot / ticks_per_piano_roll;
-        ticks_in_current_timeslot %= ticks_per_piano_roll;
-        for ( size_t i = 0; i < rolls; i++ ) {
-          piano_roll_.push_back( piano_roll_.back() );
-        }
       }
       ++iter;
     }
