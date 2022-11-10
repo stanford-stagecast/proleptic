@@ -95,6 +95,7 @@ void HTTPWriter<MessageType>::write_to( RingBuffer& buffer )
   maybe_print( "Origin", message_.headers.origin, attempt );
   maybe_print( "Sec-WebSocket-Key", message_.headers.sec_websocket_key, attempt );
   maybe_print( "Sec-WebSocket-Accept", message_.headers.sec_websocket_accept, attempt );
+  maybe_print( "Location", message_.headers.location, attempt );
 
   /* end of headers */
   attempt.write( "\r\n" );

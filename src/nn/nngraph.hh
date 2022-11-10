@@ -4,6 +4,7 @@
 #include <utility>
 #include <vector>
 
+#include "backprop.hh"
 #include "inference.hh"
 #include "network.hh"
 
@@ -28,8 +29,10 @@ public:
 template<NetworkT Network>
 class NetworkGraph
 {
-  std::vector<std::vector<float>> weight_values_, bias_values_, activation_values_;
-  std::vector<AutoCDF> weight_cdfs_ {}, bias_cdfs_ {}, activation_cdfs_ {};
+  std::vector<std::vector<float>> weight_values_, bias_values_, activation_values_, weight_gradient_values_,
+    bias_gradient_values_;
+  std::vector<AutoCDF> weight_cdfs_ {}, bias_cdfs_ {}, activation_cdfs_ {}, weight_gradient_cdfs_ {},
+    bias_gradient_cdfs_ {};
   std::vector<std::string> weight_svgs_, bias_svgs_;
 
   std::pair<float, float> io_xrange_ { init_range }, io_yrange_ { init_range };
@@ -42,6 +45,11 @@ public:
 
   template<int batch_size>
   void add_activations( const NetworkInference<Network, batch_size>& activations );
+
+  void reset_gradients();
+
+  template<int batch_size>
+  void add_gradients( const NetworkBackPropagation<Network, batch_size>& activations );
 
   std::string io_graph( const std::vector<std::pair<float, float>>& target_vs_actual,
                         const std::string_view title,

@@ -67,11 +67,25 @@ struct GetActivations
   static constexpr auto& get( const T& act ) { return act.first.output; }
 };
 
+template<class T>
+struct GetWeightGradient
+{
+  static constexpr auto& get( const T& net ) { return net.first.weight_gradient; }
+};
+
+template<class T>
+struct GetBiasGradient
+{
+  static constexpr auto& get( const T& net ) { return net.first.bias_gradient; }
+};
+
 template<NetworkT Network>
 NetworkGraph<Network>::NetworkGraph()
   : weight_values_( Network::num_layers )
   , bias_values_( Network::num_layers )
   , activation_values_( Network::num_layers )
+  , weight_gradient_values_( Network::num_layers )
+  , bias_gradient_values_( Network::num_layers )
   , weight_svgs_( Network::num_layers )
   , bias_svgs_( Network::num_layers )
 {
@@ -79,6 +93,8 @@ NetworkGraph<Network>::NetworkGraph()
     weight_cdfs_.emplace_back( "CDF of weights @ layer " + to_string( i ), "weight" );
     bias_cdfs_.emplace_back( "CDF of biases @ layer " + to_string( i ), "bias" );
     activation_cdfs_.emplace_back( "CDF of activations @ layer " + to_string( i ), "activation" );
+    weight_gradient_cdfs_.emplace_back( "CDF of weight gradient @ layer " + to_string( i ), "weight gradient" );
+    bias_gradient_cdfs_.emplace_back( "CDF of bias gradient @ layer " + to_string( i ), "bias gradient" );
   }
 }
 
@@ -93,6 +109,7 @@ template<NetworkT Network>
 void NetworkGraph<Network>::initialize( const Network& net )
 {
   reset_activations();
+  reset_gradients();
 
   /* precompute weight and bias graphs */
   for ( size_t i = 0; i < Network::num_layers; ++i ) {
@@ -113,6 +130,13 @@ void NetworkGraph<Network>::reset_activations()
 }
 
 template<NetworkT Network>
+void NetworkGraph<Network>::reset_gradients()
+{
+  clear_all( weight_gradient_values_ );
+  clear_all( bias_gradient_values_ );
+}
+
+template<NetworkT Network>
 vector<string> NetworkGraph<Network>::layer_graphs()
 {
   vector<string> layers;
@@ -123,6 +147,12 @@ vector<string> NetworkGraph<Network>::layer_graphs()
     svg.append( weight_svgs_.at( i ) );
     svg.append( bias_svgs_.at( i ) );
     svg.append( activation_cdfs_.at( i ).graph( 640, 480, activation_values_.at( i ) ) );
+    if ( not weight_gradient_values_.at( i ).empty() ) {
+      svg.append( weight_gradient_cdfs_.at( i ).graph( 640, 480, weight_gradient_values_.at( i ) ) );
+    }
+    if ( not bias_gradient_values_.at( i ).empty() ) {
+      svg.append( bias_gradient_cdfs_.at( i ).graph( 640, 480, bias_gradient_values_.at( i ) ) );
+    }
   }
   return layers;
 }
@@ -133,6 +163,18 @@ void NetworkGraph<Network>::add_activations( const NetworkInference<Network, bat
 {
   for ( size_t i = 0; i < Network::num_layers; ++i ) {
     extract<GetActivations>( activations, i, activation_values_.at( i ) );
+  }
+}
+
+template<NetworkT Network>
+template<int batch_size>
+void NetworkGraph<Network>::add_gradients( const NetworkBackPropagation<Network, batch_size>& backprop )
+{
+  for ( size_t i = 0; i < Network::num_layers; ++i ) {
+    extract<GetWeightGradient>( backprop, i, weight_gradient_values_.at( i ) );
+  }
+  for ( size_t i = 0; i < Network::num_layers; ++i ) {
+    extract<GetBiasGradient>( backprop, i, bias_gradient_values_.at( i ) );
   }
 }
 
@@ -170,3 +212,9 @@ template void NetworkGraph<DNN>::add_activations<BATCH_SIZE>( const NetworkInfer
 template class NetworkGraph<DNN_timestamp>;
 template void NetworkGraph<DNN_timestamp>::add_activations<BATCH_SIZE>(
   const NetworkInference<DNN_timestamp, BATCH_SIZE>& inference );
+
+template class NetworkGraph<DNN_piano_roll_compressor>;
+template void NetworkGraph<DNN_piano_roll_compressor>::add_activations<1>(
+  const NetworkInference<DNN_piano_roll_compressor, 1>& inference );
+template void NetworkGraph<DNN_piano_roll_compressor>::add_gradients<1>(
+  const NetworkBackPropagation<DNN_piano_roll_compressor, 1>& backprop );

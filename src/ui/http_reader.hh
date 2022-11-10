@@ -306,6 +306,8 @@ public:
           target_.sec_websocket_key = state.second;
         } else if ( header_equals( state.first, "Sec-WebSocket-Accept" ) ) {
           target_.sec_websocket_accept = state.second;
+        } else if ( header_equals( state.first, "Location" ) ) {
+          target_.location = state.second;
         }
 
         current_line_ = std::move( state );

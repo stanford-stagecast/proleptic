@@ -41,6 +41,7 @@ include_directories ("${PROJECT_SOURCE_DIR}/src/ui")
 include_directories ("${PROJECT_SOURCE_DIR}/src/audio")
 include_directories ("${PROJECT_SOURCE_DIR}/src/stats")
 include_directories ("${PROJECT_SOURCE_DIR}/src/dbus")
+include_directories ("${PROJECT_SOURCE_DIR}/src/visualizer")
 
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/nn")

@@ -12,6 +12,7 @@ struct HTTPHeaders
   std::string upgrade {};
   std::string origin {};
   std::string sec_websocket_key {}, sec_websocket_accept {};
+  std::string location {};
 };
 
 struct HTTPRequest
