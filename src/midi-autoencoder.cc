@@ -19,7 +19,7 @@ static auto prng = get_random_engine();
 static vector<MidiFile> midi_files {};
 
 // Training parameters
-static constexpr float TARGET_ACCURACY = 0.95;
+static constexpr float TARGET_ACCURACY = 0.99;
 static constexpr float LEARNING_RATE = 0.01;
 static constexpr size_t AVERAGE_WINDOW = 1000;
 
@@ -153,7 +153,23 @@ void program_body( ostream& outstream )
       balanced.push( .5f * ( recall + selectivity ) );
 
     float learning_rate = train->train_with_backoff(
-      nn, input, [&expected]( const auto& predicted ) { return predicted - expected; }, LEARNING_RATE );
+      nn,
+      input,
+      [&]( const auto& predicted ) {
+        auto sigmoid = []( const auto x ) { return 1.0 / ( 1.0 + exp( -x ) ); };
+        auto one_minus_x = []( const auto x ) { return 1.0 - x; };
+        auto sigmoid_prime = [&]( const auto x ) { return sigmoid( x ) * ( 1.0 - sigmoid( x ) ); };
+
+        Output sigmoid_predicted = predicted.unaryExpr( sigmoid );
+
+        Output pd
+          = ( -expected.cwiseQuotient( sigmoid_predicted )
+              + expected.unaryExpr( one_minus_x ).cwiseQuotient( sigmoid_predicted.unaryExpr( one_minus_x ) ) )
+              .cwiseProduct( predicted.unaryExpr( sigmoid_prime ) );
+
+        return pd;
+      },
+      LEARNING_RATE );
 
     if ( false and mapped != expected ) {
       cout << "Expected: " << expected << "\n";
@@ -172,13 +188,15 @@ void program_body( ostream& outstream )
       cout << "Threads: " << Eigen::nbThreads() << "\n";
       cout << "Difference: " << differences.mean() << "\n";
       cout << "Baseline: " << zeroes.mean() << "\n";
+      cout << "\n";
       cout << "Exact: " << successes.mean() << "\n";
       cout << "Accuracy: " << accuracies.mean() << "\n";
+      cout << "Balanced: " << balanced.mean() << "\n";
+      cout << "\n";
+      cout << "F Score: " << f_scores.mean() << "\n";
       cout << "Precision: " << precisions.mean() << "\n";
       cout << "Recall: " << recalls.mean() << "\n";
-      cout << "F Score: " << f_scores.mean() << "\n";
       cout << "Selectivity: " << selectivities.mean() << "\n";
-      cout << "Balanced: " << balanced.mean() << "\n";
       cout << endl;
       last_update_time = std::chrono::steady_clock::now();
     }
