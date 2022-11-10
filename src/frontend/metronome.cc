@@ -1,6 +1,7 @@
 #include <alsa/asoundlib.h>
 #include <chrono>
 #include <deque>
+#include <fstream>
 #include <iostream>
 
 #include "alsa_devices.hh"
@@ -13,18 +14,20 @@
 using namespace std;
 using namespace chrono;
 
-const int input_size = 4;
+const int input_size = 16;
 
 static constexpr unsigned int audio_horizon = input_size + 1; /* samples */
 static constexpr float max_amplitude = 0.9;
 static constexpr float note_decay_rate = 0.9998;
 static constexpr auto simulated_latency = milliseconds( 100 );
 
-// static string nn_file = "/usr/local/share/predict-period.dnn";
-static string nn_file
-  = "/home/qizhengz/stagecast/models_new/period-from-pattern-sixteenth-with-missing-no-dotted-eighth.dnn";
-// static string nn_file = "/home/qizhengz/stagecast/simplenn-1031/predict-period-from-pattern-new.dnn";
-// static string nn_file = "/home/qizhengz/stagecast/models_new/period-from-midi-quarter-with-missing.dnn";
+// duration_threshold is equal to length of 1/32 note under tempo 180
+// assume time signature is 4/4 in this case
+float duration_threshold = 60.0 / 180 / 8;
+
+// path to the serialized DNN file we are using
+// static string nn_file = "/home/qizhengz/stagecast/simplenn-1031/dnn_1110_with0s.dnn";
+static string nn_file = "/home/qizhengz/stagecast/simplenn-1031/dnn_1109.dnn";
 
 float largest_element_in_array( array<float, input_size> my_array )
 {
@@ -46,30 +49,68 @@ float smallest_element_in_array( array<float, input_size> my_array )
   return smallest_element;
 }
 
-float compute_period_rule_based( array<float, input_size> timestamp_deltas )
+// float compute_period_rule_based( array<float, input_size> timestamp_deltas )
+// {
+
+//   float smallest_interval = 100.0;
+//   for ( size_t i = 0; i < input_size; i++ ) {
+//     if ( timestamp_deltas[i] < smallest_interval ) {
+//       smallest_interval = timestamp_deltas[i];
+//     }
+//   }
+//   if ( smallest_interval == 100.0 )
+//     smallest_interval = 0.0;
+
+//   float average_interval = 0.0;
+//   size_t count = 0;
+
+//   for ( size_t i = 0; i < input_size; i++ ) {
+//     for ( int x = 1; x < 6; x++ ) {
+//       if ( abs( timestamp_deltas[i] / (float)x - smallest_interval ) / smallest_interval < 0.1 ) {
+//         average_interval += timestamp_deltas[i] / x;
+//         count++;
+//       }
+//     }
+//   }
+//   if ( count != 0 )
+//     average_interval /= count;
+
+//   return average_interval;
+// }
+
+float compute_period_rule_based( array<float, input_size> timestamps )
 {
 
   float smallest_interval = 100.0;
-  for ( size_t i = 0; i < input_size; i++ ) {
-    if ( timestamp_deltas[i] < smallest_interval and timestamp_deltas[i] > 0.01 ) {
-      smallest_interval = timestamp_deltas[i];
+  for ( size_t i = 1; i < input_size; i++ ) {
+    if ( timestamps[i] == 0.0 )
+      continue;
+    if ( timestamps[i] < smallest_interval ) {
+      smallest_interval = timestamps[i];
     }
   }
+
   if ( smallest_interval == 100.0 )
-    smallest_interval = 0.0;
+    return 0.0;
 
   float average_interval = 0.0;
   size_t count = 0;
 
-  for ( size_t i = 0; i < input_size; i++ ) {
-    for ( int x = 1; x < 6; x++ ) {
-      if ( timestamp_deltas[i] > 0.01
-           and abs( timestamp_deltas[i] / (float)x - smallest_interval ) / smallest_interval < 0.1 ) {
-        average_interval += timestamp_deltas[i] / x;
+  for ( size_t i = 1; i < input_size; i++ ) {
+    if ( timestamps[i] == 0.0 )
+      continue;
+
+    // for ( int x = 1; x < 6; x++ ) {
+    float x = 1.0;
+    while ( x < 6.0 ) {
+      if ( abs( timestamps[i] / x - smallest_interval ) / smallest_interval < 0.1 ) {
+        average_interval += timestamps[i] / x;
         count++;
       }
+      x += 0.5;
     }
   }
+
   if ( count != 0 )
     average_interval /= count;
 
@@ -102,7 +143,6 @@ float compute_phase_based_on_clock( steady_clock::time_point current_time,
                                     float last_phase )
 {
   float duration = duration_cast<milliseconds>( current_time - last_time ).count() / 1000.f;
-  // cout << "duration = " << duration << endl;
   float current_phase = 0;
 
   if ( duration < last_period ) {
@@ -144,6 +184,67 @@ array<float, input_size + 1> calculate_input( deque<steady_clock::time_point> ti
   return ret_mat;
 }
 
+float oscillator_forward( float last_period, float period )
+{
+  if ( period != 0.0 and last_period != 0.0 ) {
+    // check if period increases or decreases by a factor
+    // if so, adjust the rendered period so that it is not oscillating
+    float x = 2.0;
+    while ( x < 6.0 ) {
+      if ( abs( period / x - last_period ) / last_period < 0.3 ) {
+        period = last_period;
+        break;
+      }
+      if ( abs( period * x - last_period ) / last_period < 0.3 ) {
+        period = last_period;
+        break;
+      }
+      x += 0.5;
+    }
+  }
+
+  // manually cap period in a certain reasonable range
+  while ( period != 0.0 and ( 60.0 / period < 60 or 60.0 / period > 180 ) ) {
+    if ( 60.0 / period > 180 )
+      period *= 2;
+    else
+      period /= 2;
+  }
+
+  return period;
+}
+
+bool check_if_time_val_too_close( steady_clock::time_point time_val, deque<steady_clock::time_point> press_queue )
+{
+  // if there is no element in press_queue, proceed with True
+  if ( press_queue.size() == 0 )
+    return false;
+
+  // check the last element in press_queue, compute duration
+  steady_clock::time_point last_time_val = press_queue.back();
+  float duration = ( duration_cast<milliseconds>( time_val - last_time_val ) ).count() / 1000.f;
+
+  // see if duration is too small, if so, discard the current time_val
+  if ( duration < duration_threshold )
+    return true;
+  else
+    return false;
+}
+
+bool at_least_four_valid_inputs( array<float, input_size> timestamp_deltas )
+{
+  int count_zeros = 0;
+  for ( float delta : timestamp_deltas ) {
+    if ( delta == 0.0 ) {
+      count_zeros += 1;
+    }
+  }
+  if ( count_zeros <= 12 )
+    return true;
+  else
+    return false;
+}
+
 void program_body( const string_view audio_device, const string& midi_device )
 {
   /* speed up C++ I/O by decoupling from C standard I/O */
@@ -174,7 +275,9 @@ void program_body( const string_view audio_device, const string& midi_device )
   FileDescriptor piano { CheckSystemCall( midi_device, open( midi_device.c_str(), O_RDONLY ) ) };
   MidiProcessor midi;
   deque<steady_clock::time_point> press_queue {};
+  // deque<uint8_t> note_queue {};
   size_t num_notes = 0;
+  ofstream log( "logfile_jamie2.txt", std::ios_base::app | std::ios_base::out );
 
   /* get ready to play an audio signal */
   ChannelPair audio_signal { 16384 };  // the output signal
@@ -263,11 +366,17 @@ void program_body( const string_view audio_device, const string& midi_device )
           amp_left = max_amplitude;
           // keep a few extra in case some of the new presses are discarded to simulate latency
           if ( num_notes < input_size + 1 + 4 ) {
-            press_queue.push_back( time_val );
-            num_notes++;
+            // do not add the current time_val to queue if it is too close to the last one
+            if ( !check_if_time_val_too_close( time_val, press_queue ) ) {
+              press_queue.push_back( time_val );
+              num_notes++;
+            }
           } else {
-            press_queue.push_back( time_val );
-            press_queue.pop_front();
+            // do not add the current time_val to queue if it is too close to the last one
+            if ( !check_if_time_val_too_close( time_val, press_queue ) ) {
+              press_queue.push_back( time_val );
+              press_queue.pop_front();
+            }
           }
         }
         midi.pop_event();
@@ -288,11 +397,19 @@ void program_body( const string_view audio_device, const string& midi_device )
           timestamp_deltas[k] = 0;
         else
           timestamp_deltas[k] = past_timestamps[k + 1] - past_timestamps[k];
+        // log << timestamp_deltas[k] << ",";
       }
+      // log << "\n";
 
       // predict period
-      // float period = nn.predict_period( timestamp_deltas );
-      float period = compute_period_rule_based( timestamp_deltas );
+      float period;
+      if ( last_period != 0.0 or at_least_four_valid_inputs( timestamp_deltas ) )
+        // period = nn.predict_period( timestamp_deltas );
+        period = compute_period_rule_based( timestamp_deltas );
+      else
+        period = 0.0;
+
+      // print some log information
       cerr << "timestamp_deltas = ";
       for ( int i = 0; i < input_size; i++ ) {
         cerr << timestamp_deltas[i] << " ";
@@ -300,40 +417,12 @@ void program_body( const string_view audio_device, const string& midi_device )
       cerr << "\n";
       cerr << "predicted period = " << period << "\n";
 
-      // a very simple oscillator
-      if ( period != 0.0 and last_period != 0.0 ) {
-        // check if period increases or decreases by a factor
-        // if so, adjust the rendered period so that it is not oscillating
-        for ( int x = 2; x < 6; x++ ) {
-          if ( abs( period / x - last_period ) / last_period < 0.1 ) {
-            period = last_period;
-            break;
-          }
-          if ( abs( period * x - last_period ) / last_period < 0.1 ) {
-            period = last_period;
-            break;
-          }
-        }
-
-        // check if period is oscillating slightly in a range
-        // if so, adjust the rendered period so that it is not oscillating
-        if ( abs( period - last_period ) / ( last_period ) < 0.15 ) {
-          period = last_period;
-        }
-
-        // manually cap period in a certain reasonable range
-        while ( period < 0.3 or period > 1.0 ) {
-          if ( period < 0.3 ) {
-            period *= 2;
-          } else {
-            period /= 2;
-          }
-        }
-      }
+      // adjust predicted period on previous prediction
+      period = oscillator_forward( last_period, period );
       last_period = period;
       cerr << "adjusted period = " << period << "\n";
 
-      // compute phase
+      // determine phase based on the external clock
       float phase;
       if ( period == 0.0 ) {
         phase = 0.0;
