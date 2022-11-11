@@ -17,6 +17,7 @@ using namespace chrono;
 static constexpr unsigned int audio_horizon = 16; /* samples */
 static constexpr float max_amplitude = 0.9;
 static constexpr float note_decay_rate = 0.9998;
+static constexpr float tick_decay_rate = 0.998;
 static constexpr auto simulated_latency = milliseconds( 100 );
 
 static string predictor_file = "/usr/local/share/piano-roll-predictor.dnn";
@@ -40,7 +41,7 @@ void program_body( const string_view audio_device, const string& midi_device )
   auto playback_interface = make_shared<AudioInterface>( interface_name, short_name, SND_PCM_STREAM_PLAYBACK );
   AudioInterface::Configuration config;
   config.sample_rate = 48000;           /* samples per second */
-  config.buffer_size = 48 * 20;         /* maximum samples of queued audio = 1 millisecond */
+  config.buffer_size = 48 * 5;          /* maximum samples of queued audio = 1 millisecond */
   config.period_size = 16;              /* chunk size for kernel's management of audio buffer */
   config.avail_minimum = audio_horizon; /* device is writeable when full horizon can be written */
   long microseconds_per_samp = static_cast<long>( 1000000 / double( config.sample_rate ) + 0.5 );
@@ -75,22 +76,24 @@ void program_body( const string_view audio_device, const string& midi_device )
   /* current amplitude of the sine waves */
   array<float, 88> amp_left = {}, amp_right = {};
 
-  steady_clock::time_point last_note_pred { steady_clock::now() };
-  steady_clock::time_point next_note_pred { steady_clock::now() };
-  steady_clock::time_point last_pred_time { steady_clock::now() };
-  steady_clock::time_point curr_time { steady_clock::now() };
+  const float TEMPO = 90;
+  time_point next_beat_time { steady_clock::now() };
+  time_point next_tick_time { steady_clock::now() };
+  time_point last_pred_time { steady_clock::now() };
+  const duration beat_length = microseconds( (unsigned)( ( 60 / TEMPO ) * 1e6 ) );
+  size_t beat_count = 0;
+  float amp_tick = 0;
+  float tick_frequency = 440;
+  array<bool, 88> played_last_pred {};
   array<bool, 88> should_play_next_pred {};
-  steady_clock::duration next_note_duration = milliseconds( 1000 );
-  steady_clock::duration last_note_duration = milliseconds( 1000 );
-  bool seen_note = false;
-  float time_since_pred_note = 0;
+
   SimpleNN nn { predictor_file };
 
   /* rule #1: write a continuous sine wave (but no more than 1.3 ms into the future) */
   event_loop->add_rule(
     "calculate sine wave",
     [&] {
-      curr_time = steady_clock::now();
+      time_point curr_time = steady_clock::now();
       while ( next_sample_to_calculate <= playback_interface->cursor() + audio_horizon ) {
         const double time = next_sample_to_calculate / double( config.sample_rate );
         /* compute the sine wave amplitude (middle A, 440 Hz) */
@@ -102,26 +105,33 @@ void program_body( const string_view audio_device, const string& midi_device )
           total_amp_left += amp_left[i] * sin( 2 * M_PI * frequency * time );
           total_amp_right += amp_right[i] * sin( 2 * M_PI * ( 2 * frequency ) * time );
         }
+        if ( curr_time >= next_beat_time ) {
+          tick_frequency = beat_count ? 440 : 800;
+          next_beat_time += beat_length;
+          beat_count++;
+          beat_count %= 4;
+          amp_tick = 0.5 * max_amplitude;
+        }
+        total_amp_left += amp_tick * sin( 2 * M_PI * tick_frequency * time );
+        total_amp_right += amp_tick * sin( 2 * M_PI * tick_frequency * time );
         total_amp_left *= 0.2;
         total_amp_right *= 0.2;
-        if ( not seen_note )
-          total_amp_right = 0.0;
         audio_signal.safe_set( next_sample_to_calculate, { total_amp_left, total_amp_right } );
-        for ( size_t i = 0; i < 88; i++ ) {
-          amp_left[i] *= note_decay_rate;
-        }
-        // amp_right = some equation based on note_decay_rate and next_note_pred
-        for ( size_t i = 0; i < 88; i++ ) {
-          if ( should_play_next_pred[i] && next_note_pred <= curr_time
-               && ( curr_time - next_note_pred ) < simulated_latency ) {
-            time_since_pred_note
-              = ( config.sample_rate * duration_cast<microseconds>( curr_time - next_note_pred ).count() )
-                / 1000000.f;
-            amp_right[i] = max_amplitude * pow( note_decay_rate, time_since_pred_note );
-          } else {
-            amp_right[i] *= note_decay_rate;
+        if ( curr_time >= next_tick_time ) {
+          for ( size_t i = 0; i < 88; i++ ) {
+            if ( should_play_next_pred[i] ) {
+              amp_right[i] = max_amplitude;
+              played_last_pred[i] = true;
+            }
           }
         }
+        for ( size_t i = 0; i < 88; i++ ) {
+          amp_left[i] *= note_decay_rate;
+          amp_right[i] *= note_decay_rate;
+        }
+        amp_tick *= tick_decay_rate;
+        // amp_right = some equation based on note_decay_rate and next_note_pred
+        for ( size_t i = 0; i < 88; i++ ) {}
         next_sample_to_calculate++;
         curr_time += microseconds( microseconds_per_samp );
       }
@@ -192,38 +202,33 @@ void program_body( const string_view audio_device, const string& midi_device )
       return !pending_queue.empty() and pending_queue.front().time < now - simulated_latency;
     } );
 
+  event_loop->add_rule(
+    "update ticks",
+    [&] {
+      const auto now = steady_clock::now();
+
+      if ( now > next_tick_time ) {
+        piano_roll.push_back( piano_roll.back() );
+        if ( piano_roll.size() > SimpleNN::HISTORY + 1 ) {
+          piano_roll.pop_front();
+        }
+        next_tick_time = next_tick_time + beat_length / 4;
+      }
+    },
+    [&] { return steady_clock::now() > next_tick_time; } );
+
   /* rule #5: get DNN prediction */
   event_loop->add_rule(
     "get DNN prediction",
     [&] {
       const auto now = steady_clock::now();
-      const auto adjusted_now = now - simulated_latency;
+      const auto delayed_now = now - simulated_latency;
       std::vector<SimpleNN::KeyPress> past_timestamps;
-
-      for ( const auto& press : history_queue ) {
-        if ( press.velocity > 0 and press.key >= 21 and press.key <= 108 ) {
-          past_timestamps.push_back( SimpleNN::KeyPress( press.key - 21, press.time ) );
-          seen_note = true;
-        }
-      }
-
-      if ( next_note_pred < adjusted_now ) {
-        last_note_pred = next_note_pred;
-        const auto prediction = nn.predict_next_timeslot( past_timestamps );
-        next_note_pred = prediction.start;
-        last_note_duration = next_note_duration;
-        next_note_duration = prediction.length;
-        piano_roll.push_back( piano_roll.back() );
-        if ( piano_roll.size() > SimpleNN::HISTORY + 1 ) {
-          piano_roll.pop_front();
-        }
-      }
 
       for ( const auto& press : history_queue ) {
         if ( press.key < 21 or press.key > 108 )
           continue;
-        if ( press.time > last_note_pred - last_note_duration / 2
-             && press.time <= next_note_pred - next_note_duration / 2 ) {
+        if ( press.time > delayed_now - beat_length / 4 ) {
           piano_roll.back()[press.key - 21] = press.velocity > 0 ? true : false;
         }
       }
@@ -240,18 +245,22 @@ void program_body( const string_view audio_device, const string& midi_device )
       nn.train_next_note_values( old_notes, piano_roll.back() );
 
       vector<array<bool, 88>> notes( piano_roll.begin() + 1, piano_roll.end() );
-      // cerr << "\n";
+      cerr << "\n";
       for ( size_t j = 0; j < notes.size(); j++ ) {
         for ( size_t i = 0; i < 88; i++ ) {
-          // cerr << (bool)notes[j][i];
+          cerr << (bool)notes[j][i];
         }
-        // cerr << "\n";
+        cerr << "\n";
       }
-      should_play_next_pred = nn.predict_next_note_values( notes );
+      const array<bool, 88> next_pred = nn.predict_next_note_values( notes );
       for ( size_t i = 0; i < 88; i++ ) {
-        // cerr << should_play_next_pred[i];
+        should_play_next_pred[i] = next_pred[i] and not played_last_pred[i];
+        if ( not next_pred[i] ) {
+          played_last_pred[i] = false;
+        }
+        cerr << next_pred[i];
       }
-      // cerr << endl;
+      cerr << endl;
 
       last_pred_time = now;
     },
