@@ -19,7 +19,10 @@ Synthesizer::Synthesizer( const string& sample_directory )
   }
 }
 
-void Synthesizer::process_new_data( uint8_t event_type, uint8_t event_note, uint8_t event_velocity )
+void Synthesizer::process_new_data( uint8_t event_type,
+                                    uint8_t event_note,
+                                    uint8_t event_velocity,
+                                    unsigned long sample_offset )
 {
   if ( event_type == SUSTAIN ) {
     // std::cerr << (size_t) midi_processor.get_event_type() << " " << (size_t) event_note << " " <<
@@ -33,12 +36,19 @@ void Synthesizer::process_new_data( uint8_t event_type, uint8_t event_note, uint
     auto& k = keys.at( event_note - KEY_OFFSET );
 
     if ( !direction ) {
-      k.releases.push_back( { 0, event_velocity, 1.0, false } );
+      k.releases.push_back( { sample_offset, event_velocity, 1.0, false } );
       k.presses.back().released = true;
     } else {
-      k.presses.push_back( { 0, event_velocity, 1.0, false } );
+      k.presses.push_back( { sample_offset, event_velocity, 1.0, false } );
     }
   }
+}
+
+void Synthesizer::stop_press_early( uint8_t event_note )
+{
+  auto& k = keys.at( event_note - KEY_OFFSET );
+  if ( k.presses.size() > 0 )
+    k.presses.erase( k.presses.begin() );
 }
 
 wav_frame_t Synthesizer::calculate_curr_sample() const
