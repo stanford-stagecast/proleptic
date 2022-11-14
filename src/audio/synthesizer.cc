@@ -89,7 +89,6 @@ void Synthesizer::add_key_release( uint8_t adj_event_note, uint8_t event_vel )
       k.future.at( offset ).first = new_sample.first;
       k.future.at( offset ).second = new_sample.second;
     }
-    
 
     // Add release sound
     if ( !note_repo.note_finished( false, adj_event_note, event_vel, offset ) ) {
