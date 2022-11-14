@@ -14,113 +14,112 @@ using namespace std;
 Synthesizer::Synthesizer( const string& sample_directory )
   : note_repo( sample_directory )
 {
+  total_future.resize( 48000 * 30 ); // Samples per second * 30 seconds (maximum length of key press sound)
   for ( size_t i = 0; i < NUM_KEYS; i++ ) {
-    keys.push_back( { {}, {} } );
+    keys.push_back( {} );
   }
 }
 
-void Synthesizer::process_new_data( uint8_t event_type,
-                                    uint8_t event_note,
-                                    uint8_t event_velocity,
-                                    unsigned long sample_offset )
+void Synthesizer::process_new_data( uint8_t event_type, uint8_t event_note, uint8_t event_velocity )
 {
   if ( event_type == SUSTAIN ) {
-    // std::cerr << (size_t) midi_processor.get_event_type() << " " << (size_t) event_note << " " <<
-    // (size_t)event_velocity << "\n";
     if ( event_velocity == 127 )
       sustain_down = true;
     else
       sustain_down = false;
   } else if ( event_type == KEY_DOWN || event_type == KEY_UP ) {
     bool direction = event_type == KEY_DOWN ? true : false;
-    auto& k = keys.at( event_note - KEY_OFFSET );
 
     if ( !direction ) {
-      k.releases.push_back( { sample_offset, event_velocity, 1.0, false } );
-      k.presses.back().released = true;
+      add_key_release( event_note - KEY_OFFSET, event_velocity );
     } else {
-      k.presses.push_back( { sample_offset, event_velocity, 1.0, false } );
+      add_key_press( event_note - KEY_OFFSET, event_velocity );
     }
   }
 }
 
-void Synthesizer::stop_press_early( uint8_t event_note )
+void Synthesizer::add_key_press( uint8_t adj_event_note, uint8_t event_vel )
 {
-  auto& k = keys.at( event_note - KEY_OFFSET );
-  if ( k.presses.size() > 0 )
-    k.presses.erase( k.presses.begin() );
+  auto& k = keys.at( adj_event_note );
+  k.released = false;
+  k.future.resize( 48000 * 30 ); // Samples per second * 30 seconds (maximum length of key press sound)
+
+  size_t offset = 0;
+
+  // Update key future and total future
+  while ( !note_repo.note_finished( true, adj_event_note, event_vel, offset ) ) {
+    float amplitude_multiplier = 0.2; /* to avoid clipping */
+
+    const std::pair<float, float> curr_sample = note_repo.get_sample( true, adj_event_note, event_vel, offset );
+
+    // Update key future
+    k.future.at( offset ).first += curr_sample.first * amplitude_multiplier;
+    k.future.at( offset ).second += curr_sample.second * amplitude_multiplier;
+
+    // Update total future
+    total_future.at( offset ).first += curr_sample.first * amplitude_multiplier;
+    total_future.at( offset ).second += curr_sample.second * amplitude_multiplier;
+
+    offset++;
+  }
 }
 
-wav_frame_t Synthesizer::calculate_curr_sample() const
+void Synthesizer::add_key_release( uint8_t adj_event_note, uint8_t event_vel )
 {
-  std::pair<float, float> total_sample = { 0, 0 };
+  auto& k = keys.at( adj_event_note );
+  k.released = true;
+  k.future.resize( 48000 * 30 ); // Samples per second * 30 seconds (maximum length of key press sound)
 
-  for ( size_t i = 0; i < NUM_KEYS; i++ ) {
-    auto& k = keys.at( i );
-    size_t active_presses = k.presses.size();
-    size_t active_releases = k.releases.size();
+  float vol_ratio = 1.0;
 
-    for ( size_t j = 0; j < active_presses; j++ ) {
-      // auto t1 = high_resolution_clock::now();
-      float amplitude_multiplier = k.presses.at( j ).vol_ratio * 0.2; /* to avoid clipping */
+  // Update key future and total future
+  for ( size_t offset = 0; offset < 48000 * 30; offset++ ) {
+    if ( vol_ratio > 0 )
+      vol_ratio -= 0.0001;
 
-      const std::pair<float, float> curr_sample
-        = note_repo.get_sample( true, i, k.presses.at( j ).velocity, k.presses.at( j ).offset );
+    const std::pair<float, float> new_sample
+      = { k.future.at( offset ).first * vol_ratio, k.future.at( offset ).second * vol_ratio };
 
-      total_sample.first += curr_sample.first * amplitude_multiplier;
-      total_sample.second += curr_sample.second * amplitude_multiplier;
-      // auto t2 = high_resolution_clock::now();
-      // if (frames_processed % 50000 == 0) std::cerr << "Time to get one key press sample: " <<
-      // duration_cast<nanoseconds>(t2 - t1).count() << "\n";
+    // Update total future by getting delta of new key future and old key future
+    total_future.at( offset ).first += new_sample.first - k.future.at( offset ).first;
+    total_future.at( offset ).second += new_sample.second - k.future.at( offset ).second;
+
+    // Update key future
+    k.future.at( offset ).first = new_sample.first;
+    k.future.at( offset ).second = new_sample.second;
+
+    // Add release sound
+    if ( !note_repo.note_finished( false, adj_event_note, event_vel, offset ) ) {
+      float amplitude_multiplier = exp10( -37 / 20.0 ) * 0.2;
+
+      const std::pair<float, float> rel_sample = note_repo.get_sample( false, adj_event_note, event_vel, offset );
+
+      // Update key future
+      k.future.at( offset ).first += rel_sample.first * amplitude_multiplier;
+      k.future.at( offset ).second += rel_sample.second * amplitude_multiplier;
+
+      // Update total future
+      total_future.at( offset ).first += rel_sample.first * amplitude_multiplier;
+      total_future.at( offset ).second += rel_sample.second * amplitude_multiplier;
     }
 
-    for ( size_t j = 0; j < active_releases; j++ ) {
-      // auto t1 = high_resolution_clock::now();
-
-      float amplitude_multiplier = exp10( -37 / 20.0 ) * 0.2; /* to avoid clipping */
-
-      const std::pair<float, float> curr_sample
-        = note_repo.get_sample( false, i, k.releases.at( j ).velocity, k.releases.at( j ).offset );
-
-      total_sample.first += curr_sample.first * amplitude_multiplier;
-      total_sample.second += curr_sample.second * amplitude_multiplier;
-      // auto t2 = high_resolution_clock::now();
-      // if (frames_processed % 50000 == 0) std::cerr << "Time to get one key release sample: " <<
-      // duration_cast<nanoseconds>(t2 - t1).count() << "\n";
-    }
+    offset++;
   }
+}
 
-  return total_sample;
+wav_frame_t Synthesizer::get_curr_sample() const
+{
+  return total_future.front();
 }
 
 void Synthesizer::advance_sample()
 {
   frames_processed++;
+  total_future.pop_front();
+  total_future.push_back( { 0, 0 } );
   for ( size_t i = 0; i < NUM_KEYS; i++ ) {
     auto& k = keys.at( i );
-    size_t active_presses = k.presses.size();
-    size_t active_releases = k.releases.size();
-
-    for ( size_t j = 0; j < active_presses; j++ ) {
-      k.presses.at( j ).offset++;
-
-      if ( note_repo.note_finished( true, i, k.presses.at( j ).velocity, k.presses.at( j ).offset ) ) {
-        k.presses.erase( k.presses.begin() );
-        j--;
-        active_presses--;
-      } else if ( ( k.presses.at( j ).released && !sustain_down ) & ( k.presses.at( j ).vol_ratio > 0 ) ) {
-        k.presses.at( j ).vol_ratio -= 0.0001;
-      }
-    }
-
-    for ( size_t j = 0; j < active_releases; j++ ) {
-      k.releases.at( j ).offset++;
-
-      if ( note_repo.note_finished( false, i, k.releases.at( j ).velocity, k.releases.at( j ).offset ) ) {
-        k.releases.erase( k.releases.begin() );
-        j--;
-        active_releases--;
-      }
-    }
+    if ( k.future.size() > 0 )
+      k.future.pop_front();
   }
 }

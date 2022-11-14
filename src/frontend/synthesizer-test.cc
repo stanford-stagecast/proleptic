@@ -66,7 +66,7 @@ void program_body( const string_view device_prefix, const string& midi_filename,
     "synthesize piano",
     [&] {
       while ( samples_written <= playback_interface->cursor() + 64 ) {
-        pair<float, float> samp = synth.calculate_curr_sample();
+        pair<float, float> samp = synth.get_curr_sample();
         // cout << "total samp: " << samp.first << "\n";
         audio_signal.safe_set( samples_written, samp );
         samples_written++;

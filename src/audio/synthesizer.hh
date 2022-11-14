@@ -2,41 +2,34 @@
 
 #include "midi_processor.hh"
 #include "note_repository.hh"
-//#include <deque>
+#include <deque>
 #include <vector>
 
 class Synthesizer
 {
-  struct sound
-  {
-    unsigned long offset;
-    unsigned long velocity;
-    float vol_ratio;
-    bool released = false;
-  };
 
   struct key
   {
-    std::vector<sound> presses;
-    std::vector<sound> releases;
+    std::deque<std::pair<float, float>> future {};
+    bool released = false;
   };
 
   NoteRepository note_repo;
   std::vector<key> keys {};
+  std::deque<std::pair<float, float>> total_future {};
   bool sustain_down = false;
   size_t frames_processed = 0;
 
 public:
   Synthesizer( const std::string& sample_directory );
 
-  void process_new_data( uint8_t event_type,
-                         uint8_t event_note,
-                         uint8_t event_velocity,
-                         unsigned long sample_offset = 0 );
+  void process_new_data( uint8_t event_type, uint8_t event_note, uint8_t event_velocity );
 
-  void stop_press_early( uint8_t event_note );
+  void add_key_press( uint8_t adj_event_note, uint8_t event_vel );
 
-  wav_frame_t calculate_curr_sample() const;
+  void add_key_release( uint8_t adj_event_note, uint8_t event_vel );
+
+  wav_frame_t get_curr_sample() const;
 
   void advance_sample();
 };
