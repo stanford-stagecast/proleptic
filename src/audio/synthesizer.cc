@@ -77,16 +77,19 @@ void Synthesizer::add_key_release( uint8_t adj_event_note, uint8_t event_vel )
     if ( vol_ratio > 0 )
       vol_ratio -= 0.0001;
 
-    const std::pair<float, float> new_sample
-      = { k.future.at( offset ).first * vol_ratio, k.future.at( offset ).second * vol_ratio };
+    if ( !sustain_down ) {
+      const std::pair<float, float> new_sample
+        = { k.future.at( offset ).first * vol_ratio, k.future.at( offset ).second * vol_ratio };
 
-    // Update total future by getting delta of new key future and old key future
-    total_future.at( offset ).first += new_sample.first - k.future.at( offset ).first;
-    total_future.at( offset ).second += new_sample.second - k.future.at( offset ).second;
+      // Update total future by getting delta of new key future and old key future
+      total_future.at( offset ).first += new_sample.first - k.future.at( offset ).first;
+      total_future.at( offset ).second += new_sample.second - k.future.at( offset ).second;
 
-    // Update key future
-    k.future.at( offset ).first = new_sample.first;
-    k.future.at( offset ).second = new_sample.second;
+      // Update key future
+      k.future.at( offset ).first = new_sample.first;
+      k.future.at( offset ).second = new_sample.second;
+    }
+    
 
     // Add release sound
     if ( !note_repo.note_finished( false, adj_event_note, event_vel, offset ) ) {
