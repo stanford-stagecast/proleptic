@@ -102,8 +102,6 @@ void Synthesizer::add_key_release( uint8_t adj_event_note, uint8_t event_vel )
       total_future.at( offset ).first += rel_sample.first * amplitude_multiplier;
       total_future.at( offset ).second += rel_sample.second * amplitude_multiplier;
     }
-
-    offset++;
   }
 }
 
