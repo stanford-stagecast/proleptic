@@ -15,6 +15,8 @@ class NoteRepository
 public:
   NoteRepository( const std::string& sample_directory );
 
+  const std::vector<wav_frame_t> get_wav( const bool direction, const size_t note, const uint8_t velocity ) const;
+
   const wav_frame_t get_sample( const bool direction,
                                 const size_t note,
                                 const uint8_t velocity,

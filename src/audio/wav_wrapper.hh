@@ -13,6 +13,8 @@ class WavWrapper
 public:
   WavWrapper( const std::string& filename );
 
+  size_t size() const { return samples_.size() / 2; };
+
   wav_frame_t view( size_t offset ) const;
   bool at_end( size_t offset ) const;
 

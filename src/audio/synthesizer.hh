@@ -2,21 +2,26 @@
 
 #include "midi_processor.hh"
 #include "note_repository.hh"
+#include "typed_ring_buffer.hh"
+
 #include <deque>
 #include <vector>
+
+static constexpr unsigned int FUTURE_LENGTH
+  = 2425 * 4096; // just longer than longest piano sample (25.862625 seconds)
 
 class Synthesizer
 {
 
   struct key
   {
-    std::deque<std::pair<float, float>> future {};
+    EndlessBuffer<std::pair<float, float>> future { FUTURE_LENGTH };
     bool released = false;
   };
 
   NoteRepository note_repo;
   std::vector<key> keys {};
-  std::deque<std::pair<float, float>> total_future {};
+  EndlessBuffer<std::pair<float, float>> total_future { FUTURE_LENGTH };
   bool sustain_down = false;
   size_t frames_processed = 0;
 
