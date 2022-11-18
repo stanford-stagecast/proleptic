@@ -24,5 +24,6 @@ add_exec(notes-demo)
 add_exec(predict-midi)
 add_exec(midi-autoencoder)
 add_exec(midi-demo)
+add_exec(extract-metronome)
 
 add_subdirectory(libsimplenn)

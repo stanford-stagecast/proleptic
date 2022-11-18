@@ -236,6 +236,8 @@ private:
   std::vector<MidiEvent> events_ {};
   std::vector<MidiTrack> tracks_ {};
   PianoRoll<128> piano_roll_ {};
+  std::vector<float> time_in_beats_ {};
+  std::vector<uint32_t> periods_ {};
   std::optional<uint32_t> starting_tempo_ = std::nullopt;
 
   template<class T>
@@ -303,6 +305,7 @@ public:
 
     // Keep advancing time to the next event we can see in any channel
     float current_time = 0;
+    uint32_t current_tempo = 0;
     while ( not tracks.empty() ) {
       size_t min_idx = 0;
       for ( size_t i = 0; i < tracks.size(); i++ ) {
@@ -316,6 +319,21 @@ public:
       if ( event.event_type == 0x80 or event.event_type == 0x90 ) {}
       size_t ticks = event.ticks;
       events_.push_back( event );
+
+      // tempo change
+      if ( event.event_type == 0xFF and event.meta_event_type.value() == 0x51 ) {
+        current_tempo = event.tempo.value();
+      }
+      // NoteOn
+      if ( event.event_type == 0x90 and event.velocity > 0 ) {
+        // push current time (in beats) into time_in_beats_ queue
+        // push current period (in microseconds per quarter note) into periods_ queue
+        if ( time_in_beats_.size() == 0 or time_in_beats_.back() != current_time ) {
+          time_in_beats_.push_back( current_time );
+          periods_.push_back( current_tempo );
+          // cout << current_time << "\t\t" << current_tempo << endl;
+        }
+      }
 
       for ( std::deque<MidiEvent>& t : tracks ) {
         t.front().ticks -= ticks;
@@ -365,4 +383,6 @@ public:
   const std::vector<MidiEvent>& events() const { return events_; }
   std::optional<uint32_t> starting_tempo() const { return starting_tempo_; };
   const PianoRoll<128>& piano_roll() const { return piano_roll_; };
+  const std::vector<float>& time_in_beats() const { return time_in_beats_; };
+  const std::vector<uint32_t>& periods() const { return periods_; };
 };
