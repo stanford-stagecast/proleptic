@@ -16,13 +16,9 @@
  * 100,000 iterations.
  */
 #include "backprop.hh"
-#include "cdf.hh"
 #include "dnn_types.hh"
-#include "eventloop.hh"
 #include "exception.hh"
-#include "grapher.hh"
 #include "inference.hh"
-#include "mmap.hh"
 #include "parser.hh"
 #include "random.hh"
 #include "serdes.hh"

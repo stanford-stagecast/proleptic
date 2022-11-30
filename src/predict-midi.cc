@@ -3,7 +3,6 @@
 #include "dnn_types.hh"
 #include "inference.hh"
 #include "midi_file.hh"
-#include "mmap.hh"
 #include "piano_roll.hh"
 #include "randomize_network.hh"
 #include "serdes.hh"
