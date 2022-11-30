@@ -32,7 +32,7 @@ void program_body( const string& midi_filename )
       }
 
       const uint64_t ms_since_first_event = ( event_ts - ns_of_first_event.value() ) / MILLION;
-      cout << ms_since_first_event << " 0x" << hex << static_cast<int>( midi.get_event_type() ) << " 0x"
+      cout << dec << ms_since_first_event << " 0x" << hex << static_cast<int>( midi.get_event_type() ) << " 0x"
            << static_cast<int>( midi.get_event_note() ) << " 0x" << static_cast<int>( midi.get_event_velocity() )
            << endl;
 
