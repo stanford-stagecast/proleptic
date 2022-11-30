@@ -1,0 +1,634 @@
+#include <alsa/asoundlib.h>
+#include <chrono>
+#include <deque>
+#include <fstream>
+#include <iostream>
+#include <numeric>
+
+#include "alsa_devices.hh"
+#include "audio_device_claim.hh"
+#include "eventloop.hh"
+#include "midi_processor.hh"
+#include "simplenn.hh"
+#include "stats_printer.hh"
+
+using namespace std;
+using namespace chrono;
+
+const int input_size = 4;
+
+static constexpr unsigned int audio_horizon = 16; /* samples */
+static constexpr float max_amplitude = 0.9;
+static constexpr float note_decay_rate = 0.9998;
+static constexpr auto simulated_latency = milliseconds( 100 );
+
+// duration_threshold is equal to length of 1/32 note under tempo 180
+// assume time signature is 4/4 in this case
+float duration_threshold = 60.0 / 180 / 8;
+
+float vector_min( vector<float> vec )
+{
+  float min = vec[0];
+  for ( float k : vec ) {
+    if ( k < min ) {
+      min = k;
+    }
+  }
+  return min;
+}
+
+float vector_of_tuple_min_index( vector<tuple<float, float>> vec )
+{
+  float min = get<1>( vec[0] );
+  int min_index = 0;
+  for ( int i = 0; i < (int)vec.size(); ++i ) {
+    if ( get<1>( vec[i] ) < min ) {
+      min = get<1>( vec[i] );
+      min_index = i;
+    }
+  }
+  return min_index;
+}
+
+// float vector_of_tuple_min_index_ind_error( vector<tuple<float, vector<float>>> vec )
+float vector_of_tuple_min_index_ind_error( auto vec )
+{
+  float min = accumulate( get<1>( vec[0] ).begin(), get<1>( vec[0] ).end(), 0.0 );
+  int min_index = 0;
+  for ( int i = 0; i < (int)vec.size(); ++i ) {
+    vector<float> ind_errors = get<1>( vec[i] );
+    float error_sum = accumulate( ind_errors.begin(), ind_errors.end(), 0.0 );
+    if ( error_sum < min ) {
+      min = error_sum;
+      min_index = i;
+    }
+  }
+  return min_index;
+}
+
+float largest_element_in_array( array<float, input_size> my_array )
+{
+  float largest_element = -1.0;
+  for ( float element : my_array ) {
+    if ( element > largest_element )
+      largest_element = element;
+  }
+  return largest_element;
+}
+
+float smallest_element_in_array( array<float, input_size> my_array )
+{
+  float smallest_element = 50.0;
+  for ( float element : my_array ) {
+    if ( element < smallest_element )
+      smallest_element = element;
+  }
+  return smallest_element;
+}
+
+float compute_period_rule_based( array<float, input_size> timestamps )
+{
+
+  float smallest_interval = 100.0;
+  for ( size_t i = 1; i < input_size; i++ ) {
+    if ( timestamps[i] == 0.0 )
+      continue;
+    if ( timestamps[i] < smallest_interval ) {
+      smallest_interval = timestamps[i];
+    }
+  }
+
+  if ( smallest_interval == 100.0 )
+    return 0.0;
+
+  float average_interval = 0.0;
+  size_t count = 0;
+
+  for ( size_t i = 1; i < input_size; i++ ) {
+    if ( timestamps[i] == 0.0 )
+      continue;
+
+    // for ( int x = 1; x < 6; x++ ) {
+    float x = 1.0;
+    while ( x < 6.0 ) {
+      if ( abs( timestamps[i] / x - smallest_interval ) / smallest_interval < 0.1 ) {
+        average_interval += timestamps[i] / x;
+        count++;
+      }
+      x += 0.5;
+    }
+  }
+
+  if ( count != 0 )
+    average_interval /= count;
+
+  return average_interval;
+}
+
+float compute_phase_sixteenth( float first_timestamp, float period )
+{
+  float sixteenth_note_interval = period / 4;
+  while ( first_timestamp > sixteenth_note_interval ) {
+    first_timestamp -= sixteenth_note_interval;
+  }
+  return ( first_timestamp / sixteenth_note_interval ) * 2 * M_PI;
+}
+
+float compute_phase_quarter( float first_timestamp, float period )
+{
+  float quarter_note_interval = period;
+  while ( first_timestamp > quarter_note_interval ) {
+    first_timestamp -= quarter_note_interval;
+  }
+  return ( first_timestamp / quarter_note_interval ) * 2 * M_PI;
+}
+
+// this computes phase based on an external time-clock instead of the last timestamp
+float compute_phase_based_on_clock( steady_clock::time_point current_time,
+                                    float current_period,
+                                    steady_clock::time_point last_time,
+                                    float last_period,
+                                    float last_phase )
+{
+  float duration = duration_cast<milliseconds>( current_time - last_time ).count() / 1000.f;
+  float current_phase = 0;
+
+  if ( duration < last_period ) {
+    current_phase = last_phase + duration / last_period * 2 * M_PI;
+    while ( current_phase > 2 * M_PI )
+      current_phase -= 2 * M_PI;
+  } else {
+    float time_in_period = duration;
+    while ( time_in_period > current_period ) {
+      time_in_period -= last_period;
+    }
+    current_phase = time_in_period / current_period * 2 * M_PI;
+  }
+
+  return current_phase;
+}
+
+array<float, input_size> calculate_input( deque<steady_clock::time_point> times )
+{
+  array<float, input_size> ret_mat {};
+  deque<float> timestamps;
+  steady_clock::time_point current_time = steady_clock::now();
+  for ( const auto& time : times ) {
+    if ( ( current_time - time ) < simulated_latency ) {
+      continue;
+    }
+    timestamps.push_back( duration_cast<milliseconds>( current_time - time - simulated_latency ).count() / 1000.f );
+  }
+  reverse( begin( timestamps ), end( timestamps ) );
+
+  for ( size_t i = 0; i < input_size; i++ ) {
+    if ( i >= timestamps.size() ) {
+      ret_mat[i] = 0;
+    } else {
+      ret_mat[i] = timestamps[i];
+    }
+  }
+
+  return ret_mat;
+}
+
+float oscillator_forward( float last_period, float period )
+{
+  if ( period != 0.0 and last_period != 0.0 ) {
+    // check if period increases or decreases by a factor
+    // if so, adjust the rendered period so that it is not oscillating
+    float x = 2.0;
+    while ( x < 6.0 ) {
+      if ( abs( period / x - last_period ) / last_period < 0.3 ) {
+        period = last_period;
+        break;
+      }
+      if ( abs( period * x - last_period ) / last_period < 0.3 ) {
+        period = last_period;
+        break;
+      }
+      x += 0.5;
+    }
+  }
+
+  // manually cap period in a certain reasonable range
+  while ( period != 0.0 and ( 60.0 / period < 60 or 60.0 / period > 180 ) ) {
+    if ( 60.0 / period > 180 )
+      period *= 2;
+    else
+      period /= 2;
+  }
+
+  return period;
+}
+
+bool check_if_time_val_too_close( steady_clock::time_point time_val, deque<steady_clock::time_point> press_queue )
+{
+  // if there is no element in press_queue, proceed with True
+  if ( press_queue.size() == 0 )
+    return false;
+
+  // check the last element in press_queue, compute duration
+  steady_clock::time_point last_time_val = press_queue.back();
+  float duration = ( duration_cast<milliseconds>( time_val - last_time_val ) ).count() / 1000.f;
+
+  // see if duration is too small, if so, discard the current time_val
+  if ( duration < duration_threshold )
+    return true;
+  else
+    return false;
+}
+
+bool at_least_four_valid_inputs( array<float, input_size> timestamp_deltas )
+{
+  int count_zeros = 0;
+  for ( float delta : timestamp_deltas ) {
+    if ( delta == 0.0 ) {
+      count_zeros += 1;
+    }
+  }
+  if ( count_zeros <= 12 )
+    return true;
+  else
+    return false;
+}
+
+tuple<array<float, input_size>, int> get_absolute_timing( deque<steady_clock::time_point> times,
+                                                          steady_clock::time_point begin_time )
+{
+  array<float, input_size> ret_mat {};
+  int effective_len = input_size;
+
+  vector<float> timestamps;
+  for ( const auto& time : times ) {
+    if ( ( time - begin_time ) < simulated_latency ) {
+      continue;
+    }
+    timestamps.push_back( duration_cast<milliseconds>( time - begin_time - simulated_latency ).count() / 1000.f );
+  }
+
+  for ( size_t i = 0; i < input_size; i++ ) {
+    if ( i >= timestamps.size() ) {
+      ret_mat[i] = 0;
+      effective_len--;
+    } else {
+      ret_mat[i] = timestamps[i];
+    }
+  }
+
+  return make_tuple( ret_mat, effective_len );
+}
+
+float sine_wave_val( float period, float phase, float current_time )
+{
+  return cos( ( 2 * M_PI / period ) * ( current_time + phase ) );
+}
+
+float compute_sine_error( float sine_value )
+{
+  vector<float> errors;
+  // errors.push_back( 0.25 * abs( sine_value - 1 ) ); // full beat
+  // errors.push_back( 0.5 * abs( sine_value + 1 ) );  // half beat
+  // errors.push_back( abs( sine_value ) );            // quarter beat
+  errors.push_back( abs( sine_value - 1 ) );
+  return vector_min( errors );
+}
+
+float find_next_beat_val( float period, float offset, float current_time )
+{
+  int factor = (int)( ( current_time + offset ) / period );
+  float upper_multiple = ( (float)factor + 1 ) * period;
+  return upper_multiple - offset;
+}
+
+float find_lastest_timestamp( array<float, input_size> timestamps )
+{
+  for ( int i = input_size - 1; i >= 0; --i ) {
+    if ( timestamps[i] > 0.0 )
+      return timestamps[i];
+  }
+  return 0.0;
+}
+
+void program_body( const string_view audio_device, const string& midi_device )
+{
+  /* speed up C++ I/O by decoupling from C standard I/O */
+  ios::sync_with_stdio( false );
+
+  /* create event loop */
+  auto event_loop = make_shared<EventLoop>();
+
+  /* find the audio device */
+  auto [name, interface_name] = ALSADevices::find_device( { audio_device } );
+
+  /* claim exclusive access to the audio device */
+  const auto device_claim = AudioDeviceClaim::try_claim( name );
+
+  /* use ALSA to initialize and configure audio device */
+  const auto short_name = audio_device.substr( 0, 16 );
+  auto playback_interface = make_shared<AudioInterface>( interface_name, short_name, SND_PCM_STREAM_PLAYBACK );
+  AudioInterface::Configuration config;
+  config.sample_rate = 48000;           /* samples per second */
+  config.buffer_size = 48;              /* maximum samples of queued audio = 1 millisecond */
+  config.period_size = 16;              /* chunk size for kernel's management of audio buffer */
+  config.avail_minimum = audio_horizon; /* device is writeable when full horizon can be written */
+  long microseconds_per_samp = static_cast<long>( 1000000 / double( config.sample_rate ) + 0.5 );
+  playback_interface->set_config( config );
+  playback_interface->initialize();
+
+  /* open the MIDI device */
+  FileDescriptor piano { CheckSystemCall( midi_device, open( midi_device.c_str(), O_RDONLY ) ) };
+  MidiProcessor midi;
+  deque<steady_clock::time_point> press_queue {};
+  size_t num_notes = 0;
+
+  /* get ready to play an audio signal */
+  ChannelPair audio_signal { 16384 };  // the output signal
+  size_t next_sample_to_calculate = 0; // what's the next sample # to be written to the output signal?
+
+  /* current amplitude of the sine waves */
+  float amp_left = 0, amp_right = 0;
+
+  steady_clock::time_point next_note_pred { steady_clock::now() };
+  steady_clock::time_point last_pred_time { steady_clock::now() };
+  steady_clock::time_point curr_time { steady_clock::now() };
+  float time_since_pred_note = 0;
+  array<float, input_size> past_timestamps {};
+  int past_timestamps_eff_len;
+  float latest_timestamp = 0.0;
+  size_t counter = 0;
+
+  // begin_time: used for obtaining the absolute timings
+  steady_clock::time_point begin_time { steady_clock::now() };
+  steady_clock::time_point checkpoint_time { steady_clock::now() };
+
+  // initialize a sine wave for the metronome based on estimated tempo
+  float tempo = 90.0;
+  float current_period = 60.0 / tempo;
+  float current_phase = 0.0;
+  float current_time_from_start;
+
+  // beat-tracking parameters
+  float current_beat_val = 0.0;
+
+  // period & phase adjustment parameters
+  float phase_step = 0.01;
+  float period_step = 0.01;
+  int len_period_adjustments = 3;
+  int len_phase_adjustments = 7;
+
+  // initialize the vector for storing phase adjustments
+  vector<float> phase_adjustments { 0.0 };
+  float phase_step_multiple = 1.0;
+  while ( (int)phase_adjustments.size() < len_phase_adjustments ) {
+    phase_adjustments.push_back( phase_step_multiple * phase_step );
+    phase_adjustments.push_back( ( -1 ) * phase_step_multiple * phase_step );
+    phase_step_multiple += 1.0;
+  }
+
+  // initialize the vector for storing period adjustments
+  vector<float> period_adjustments { 0.0 };
+  float period_step_multiple = 1.0;
+  while ( (int)period_adjustments.size() < len_period_adjustments ) {
+    period_adjustments.push_back( period_step_multiple * period_step );
+    period_adjustments.push_back( ( -1 ) * period_step_multiple * period_step );
+    period_step_multiple += 1.0;
+  }
+
+  // generate pairs of potential adjustments
+  vector<tuple<float, float>> pairs_adjustments;
+  for ( float period_ad : period_adjustments ) {
+    for ( float phase_ad : phase_adjustments ) {
+      pairs_adjustments.push_back( make_tuple( period_ad, phase_ad ) );
+    }
+  }
+
+  /* rule #1: write a continuous sine wave (but no more than 1.3 ms into the future) */
+  event_loop->add_rule(
+    "calculate sine wave",
+    [&] {
+      curr_time = steady_clock::now();
+      while ( next_sample_to_calculate <= playback_interface->cursor() + audio_horizon ) {
+        const double time = next_sample_to_calculate / double( config.sample_rate );
+        /* compute the sine wave amplitude (middle A, 440 Hz) */
+        audio_signal.safe_set(
+          next_sample_to_calculate,
+          { amp_left * sin( 2 * M_PI * 440 * time ), amp_right * sin( 2 * M_PI * 440 * 1.5 * time ) } );
+        amp_left *= note_decay_rate;
+        // amp_right = some equation based on note_decay_rate and next_note_pred
+        if ( next_note_pred <= curr_time && ( curr_time - next_note_pred ) < simulated_latency ) {
+          time_since_pred_note
+            = ( config.sample_rate * duration_cast<microseconds>( curr_time - next_note_pred ).count() ) / 1000000;
+          amp_right = max_amplitude * pow( note_decay_rate, time_since_pred_note );
+        } else {
+          amp_right *= note_decay_rate;
+        }
+        next_sample_to_calculate++;
+        curr_time += microseconds( microseconds_per_samp );
+      }
+    },
+    /* when should this rule run? commit to an output signal until some horizon in the future */
+    [&] { return next_sample_to_calculate <= playback_interface->cursor() + audio_horizon; } );
+
+  /* rule #2: play the output signal whenever space available in audio output buffer */
+  event_loop->add_rule(
+    "play sine wave",
+    playback_interface->fd(), /* file descriptor event cares about */
+    Direction::Out,           /* execute rule when file descriptor is "writeable"
+                                 -> there's room in the output buffer (config.buffer_size) */
+    [&] {
+      playback_interface->play( next_sample_to_calculate, audio_signal );
+      /* now that we've played these samples, pop them from the outgoing audio signal */
+      audio_signal.pop_before( playback_interface->cursor() );
+    },
+    [&] {
+      return next_sample_to_calculate > playback_interface->cursor();
+    },     /* rule should run as long as any new samples available to play */
+    [] {}, /* no callback if EOF or closed */
+    [&] {  /* on error such as buffer overrun/underrun, recover the ALSA interface */
+          playback_interface->recover();
+          return true;
+    } );
+
+  /* rule #3: read MIDI data */
+  event_loop->add_rule(
+    "read MIDI event",
+    piano,
+    Direction::In,
+    [&] { midi.read_from_fd( piano ); },
+    [&] { return not midi.data_timeout(); } );
+
+  /* rule #4: process MIDI data */
+  event_loop->add_rule(
+    "process MIDI event",
+    [&] {
+      while ( midi.has_event() ) {
+        steady_clock::time_point time_val = midi.get_event_time();
+        if ( midi.get_event_type() == 144 ) { /* key down */
+          amp_left = max_amplitude;
+          // add current key-down to press_queue
+          if ( !check_if_time_val_too_close( time_val, press_queue ) ) {
+            press_queue.push_back( time_val );
+            num_notes++;
+          }
+          // pop if queue is full
+          if ( num_notes > input_size ) {
+            press_queue.pop_front();
+            num_notes--;
+          }
+        }
+        midi.pop_event();
+      }
+    },
+    [&] { return midi.has_event(); } );
+
+  /* rule #5: get DNN prediction */
+  event_loop->add_rule(
+    "get DNN prediction",
+    [&] {
+      auto past_timestamps_info = get_absolute_timing( press_queue, begin_time );
+      past_timestamps = get<0>( past_timestamps_info );
+      past_timestamps_eff_len = get<1>( past_timestamps_info );
+      last_pred_time = steady_clock::now();
+
+      cerr << "past_timestamps = ";
+      for ( int i = 0; i < input_size; i++ ) {
+        cerr << past_timestamps[i] << " ";
+      }
+      cerr << endl;
+
+      // QZ on 12/1: add this check so that we don't update period or phase when
+      // there are no new timestamps incoming
+      if ( find_lastest_timestamp( past_timestamps ) != latest_timestamp ) {
+        // initialize the vector for storing errors (individual, grid search)
+        vector<tuple<tuple<float, float>, vector<float>>> errors;
+        for ( int i = 0; i < (int)pairs_adjustments.size(); ++i ) {
+          errors.push_back( make_tuple( pairs_adjustments[i], vector<float>() ) );
+        }
+
+        // error computation (grid search)
+        for ( int i = 0; i < (int)errors.size(); ++i ) {
+          // if the vector of errors is not full, just push the new individual error term
+          int size_error_vec = get<1>( errors[i] ).size();
+          float period_adjustment = get<0>( get<0>( errors[i] ) );
+          float phase_adjustment = get<1>( get<0>( errors[i] ) );
+          if ( size_error_vec < past_timestamps_eff_len ) {
+            for ( int j = size_error_vec; j < past_timestamps_eff_len; ++j )
+              get<1>( errors[i] )
+                .push_back( compute_sine_error( sine_wave_val(
+                  current_period + period_adjustment, current_phase + phase_adjustment, past_timestamps[j] ) ) );
+          }
+          // otherwise, pop the first error term, and then push the new individual error term
+          else {
+            get<1>( errors[i] )
+              .push_back( compute_sine_error( sine_wave_val(
+                current_period + period_adjustment, current_phase + phase_adjustment, past_timestamps.back() ) ) );
+            get<1>( errors[i] ).erase( get<1>( errors[i] ).begin() );
+          }
+        }
+
+        int min_error_index = vector_of_tuple_min_index_ind_error( errors );
+        float period_change = get<0>( get<0>( errors[min_error_index] ) );
+        float phase_change = get<1>( get<0>( errors[min_error_index] ) );
+        // limit period in a range, so that it does not depart too drastically
+        // away from the estimated tempo
+        // if (current_period + period_change <= 60.0 / tempo + 4 * period_step and
+        //     current_period + period_change >= 60.0 / tempo - 4 * period_step)
+        //   current_period += period_change;
+        current_period += period_change;
+        // update phase
+        current_phase += phase_change;
+        cerr << "current period = " << current_period << endl;
+        cerr << "current phase  = " << current_phase << endl;
+      }
+      // update latest_timestamp, and proceed to determine position of the next best
+      // this should fix the missing beat issue
+      latest_timestamp = find_lastest_timestamp( past_timestamps );
+
+      // determine when the next beat is
+      checkpoint_time = steady_clock::now();
+      current_time_from_start = ( duration_cast<milliseconds>( checkpoint_time - begin_time ) ).count() / 1000.f;
+
+      float next_beat_val = find_next_beat_val( current_period, current_phase, current_time_from_start );
+      // QZ on 12/1: some checks to see if we should render this computed beat pos
+      // similar to a simple oscillator
+      // if ( next_beat_val < current_beat_val ) {
+      //   next_beat_val = current_beat_val;
+      // }
+      // else if ( abs( next_beat_val - current_beat_val ) > 0
+      //             and abs( next_beat_val - current_beat_val ) < current_period * 0.5 ) {
+      //   next_beat_val += current_period;
+      // }
+      if ( abs( next_beat_val - current_beat_val ) > 0
+           and abs( next_beat_val - current_beat_val ) < current_period * 0.5 ) {
+        // next_beat_val += current_period;
+        next_beat_val = current_beat_val;
+      }
+      current_beat_val = next_beat_val;
+      // compute time_to_next here
+      float time_to_next = current_time_from_start - next_beat_val;
+      time_to_next -= 0.5 * ( duration_cast<milliseconds>( simulated_latency ) ).count() / 1000.f;
+      // cout << "time_to_next = " << time_to_next << endl;
+      cout << latest_timestamp << "\t" << next_beat_val << "\t" << current_period << "\t" << current_phase << endl;
+
+      // render metromone audio only when the latest beat has not been rendered
+      if ( next_note_pred < steady_clock::now() ) {
+        // cerr << "time_to_next = " << time_to_next << endl;
+        counter++;
+        next_note_pred = checkpoint_time - round<milliseconds>( duration<float> { time_to_next } );
+      }
+      // cerr << "time_to_next = " << time_to_next << endl;
+      // counter++;
+      // next_note_pred = checkpoint_time - round<milliseconds>( duration<float> { time_to_next } );
+    },
+    [&] { return duration_cast<milliseconds>( steady_clock::now() - last_pred_time ).count() >= 50; } );
+
+  /* add a task that prints statistics occasionally */
+  StatsPrinterTask stats_printer { event_loop };
+
+  stats_printer.add( playback_interface );
+
+  /* run the event loop forever */
+  while ( event_loop->wait_next_event( stats_printer.wait_time_ms() ) != EventLoop::Result::Exit ) {}
+}
+
+void usage_message( const string_view argv0 )
+{
+  cerr << "Usage: " << argv0 << " [audio_device] [midi_device]\n";
+
+  cerr << "Available audio devices:";
+
+  const auto devices = ALSADevices::list();
+
+  if ( devices.empty() ) {
+    cerr << " none\n";
+  } else {
+    cerr << "\n";
+    for ( const auto& dev : devices ) {
+      for ( const auto& interface : dev.interfaces ) {
+        cerr << "  '" << interface.second << "'\n";
+      }
+    }
+  }
+}
+
+int main( int argc, char* argv[] )
+{
+  try {
+    if ( argc <= 0 ) {
+      abort();
+    }
+
+    if ( argc != 3 ) {
+      usage_message( argv[0] );
+      return EXIT_FAILURE;
+    }
+
+    program_body( argv[1], argv[2] );
+  } catch ( const exception& e ) {
+    cerr << e.what() << "\n";
+    return EXIT_FAILURE;
+  }
+
+  return EXIT_SUCCESS;
+}
