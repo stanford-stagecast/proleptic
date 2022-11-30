@@ -138,31 +138,40 @@ Input generate_input_notes( Output& true_output )
   auto rotation_distribution = uniform_int_distribution<int>( 0, spacing.size() - 1 );
   const int rotation = rotation_distribution( prng );
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
   array<int, 64> timeslots {};
   int index = 0;
   int j = rotation;
 
   int n = input_notes.cols() + true_output.cols();
+  assert( n <= 64 );
 
   while ( index < n ) {
     int beats = spacing[j];
     for ( int i = 0; i < beats; i++ ) {
+      assert( index < 64 );
       timeslots[index++] = 0;
-      if ( index > n )
-        break;
+      if ( index >= n )
+        goto exit_loop;
     }
+    assert( index < 64 );
     timeslots[index++] = 1;
     j = ( j + 1 ) % spacing.size();
   }
+exit_loop:
 
   for ( int i = 0; i < input_notes.cols(); i++ ) {
+    assert( i < 64 );
     input_notes( i ) = timeslots[i];
   }
 
   for ( int i = 0; i < true_output.cols(); i++ ) {
+    assert( i + input_notes.cols() < 64 );
     true_output( i ) = timeslots[i + input_notes.cols()];
   }
 
+#pragma GCC diagnostic pop
   return input_notes;
 }
 

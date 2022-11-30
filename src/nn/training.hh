@@ -45,7 +45,7 @@ struct NetworkTraining
                             const std::function<PdLossWrtOutputs( const Output )>& pd_loss_wrt_outputs,
                             float max_learning_rate )
   {
-    std::unique_ptr<Network> nn_backup = make_unique<Network>( nn );
+    std::unique_ptr<Network> nn_backup = std::make_unique<Network>( nn );
     float learning_rate = max_learning_rate;
     size_t i = 0;
     infer->apply( nn, input );

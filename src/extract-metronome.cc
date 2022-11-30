@@ -109,8 +109,8 @@ void program_body()
 
   // visualization of the metronome beats
   // (in progress, for now, just print...)
-  for ( float mb : metronome_beats )
-    cout << mb << endl;
+  // for ( float mb : metronome_beats )
+  //   cout << mb << endl;
 }
 
 int main( int argc, char* argv[] )

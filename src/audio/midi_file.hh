@@ -325,13 +325,13 @@ public:
         current_tempo = event.tempo.value();
       }
       // NoteOn
-      if ( event.event_type == 0x90 and event.velocity > 0 ) {
+      if ( event.event_type == 0x90 and event.velocity != 0 ) {
         // push current time (in beats) into time_in_beats_ queue
         // push current period (in microseconds per quarter note) into periods_ queue
         if ( time_in_beats_.size() == 0 or time_in_beats_.back() != current_time ) {
           time_in_beats_.push_back( current_time );
           periods_.push_back( current_tempo );
-          // cout << current_time << "\t\t" << current_tempo << endl;
+          cout << current_time << "\t\t\t" << current_tempo << "\t\t" << unsigned( event.velocity.value() ) << endl;
         }
       }
 
