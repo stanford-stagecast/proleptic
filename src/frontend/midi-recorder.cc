@@ -1,13 +1,13 @@
+#include <fcntl.h>
 #include <iostream>
+#include <optional>
+#include <sys/stat.h>
+#include <sys/types.h>
 
-#include "alsa_devices.hh"
-#include "audio_device_claim.hh"
-#include "eventloop.hh"
-#include "spans.hh"
-#include "stats_printer.hh"
-#include "wav_wrapper.hh"
-
-#include <alsa/asoundlib.h>
+#include "exception.hh"
+#include "file_descriptor.hh"
+#include "midi_processor.hh"
+#include "timer.hh"
 
 using namespace std;
 
@@ -16,54 +16,32 @@ void program_body( const string& midi_filename )
   /* speed up C++ I/O by decoupling from C standard I/O */
   ios::sync_with_stdio( false );
 
-  /* create event loop */
-  auto event_loop = make_shared<EventLoop>();
-
   FileDescriptor piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDONLY ) ) };
 
-  string data( 1024, 'x' );
-  auto data_writable = string_span::from_view( data );
+  MidiProcessor midi;
 
-  event_loop->add_rule( "read MIDI data", piano, Direction::In, [&] {
-    const auto bytes_read = piano.read( data_writable );
-    string_view data_read_this_time { data.data(), bytes_read };
+  optional<uint64_t> ns_of_first_event;
 
-    for ( const uint8_t byte : data_read_this_time ) {
-      if ( byte != 0xfe ) {
-        cerr << "Piano gave us: " << static_cast<unsigned int>( byte ) << "\n";
+  while ( not piano.eof() ) {
+    midi.read_from_fd( piano );
+
+    if ( midi.has_event() ) {
+      const uint64_t event_ts = Timer::timestamp_ns();
+      if ( not ns_of_first_event.has_value() ) {
+        ns_of_first_event.emplace( event_ts );
       }
+
+      const uint64_t ms_since_first_event = ( event_ts - ns_of_first_event.value() ) / MILLION;
+      cout << ms_since_first_event << " 0x" << hex << static_cast<int>( midi.get_event_type() ) << " 0x"
+           << static_cast<int>( midi.get_event_note() ) << " 0x" << static_cast<int>( midi.get_event_velocity() )
+           << "\n";
     }
-  } );
-
-  /* add a task that prints statistics occasionally */
-  //  StatsPrinterTask stats_printer { event_loop };
-
-  //  stats_printer.add( playback_interface );
-
-  /* run the event loop forever */
-  while ( event_loop->wait_next_event( -1 ) != EventLoop::Result::Exit ) {}
+  }
 }
 
 void usage_message( const string_view argv0 )
 {
-  cerr << "Usage: " << argv0 << " [midi_filename]\n";
-
-  /*
-  cerr << "Available devices:";
-
-  const auto devices = ALSADevices::list();
-
-  if ( devices.empty() ) {
-    cerr << " none\n";
-  } else {
-    cerr << "\n";
-    for ( const auto& dev : devices ) {
-      for ( const auto& interface : dev.interfaces ) {
-        cerr << "  '" << interface.second << "'\n";
-      }
-    }
-  }
-  */
+  cerr << "Usage: " << argv0 << " midi_device [typically /dev/snd/midi*]\n";
 }
 
 int main( int argc, char* argv[] )
