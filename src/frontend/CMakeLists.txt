@@ -18,6 +18,7 @@ add_executable ("example2" "example2.cc")
 
 add_exec(play-sine-wave)
 add_exec(midi-input)
+add_exec(midi-recorder)
 add_exec_with_samplerate(synthesizer-test)
 add_exec(curis-demo)
 add_exec_with_simplenn(split-ear-demo)
