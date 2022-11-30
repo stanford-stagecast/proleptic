@@ -96,7 +96,7 @@ Eigen::Matrix<float, 1, input_size> pick_timestamp_segment( vector<float> midi_t
     vector<float> timestamps;
     // choose a random time-point as the current time
     float current_time = static_cast<float>( rand() )
-                         / ( static_cast<float>( RAND_MAX / midi_timestamps[midi_timestamps.size() - 1] ) );
+                         / ( static_cast<float>( RAND_MAX ) / midi_timestamps[midi_timestamps.size() - 1] );
     for ( int k = midi_timestamps.size() - 1; k >= 0; --k ) {
       if ( midi_timestamps[k] <= current_time ) {
         timestamps.push_back( current_time - midi_timestamps[k] );

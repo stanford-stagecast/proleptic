@@ -15,7 +15,12 @@ pkg_check_modules ( Eigen REQUIRED IMPORTED_TARGET GLOBAL eigen3 )
 if(OpenMP_CXX_FOUND)
   target_link_libraries(PkgConfig::Eigen INTERFACE OpenMP::OpenMP_CXX)
 endif()
-target_compile_options(PkgConfig::Eigen INTERFACE -fno-aggressive-loop-optimizations)
+
+include (CheckCXXCompilerFlag)
+check_cxx_compiler_flag(-faggressive-loop-optimizations COMPILER_SUPPORTS_AGGRESSIVE_LOOP_OPTIMIZATION)
+if (COMPILER_SUPPORTS_AGGRESSIVE_LOOP_OPTIMIZATION)
+  target_compile_options(PkgConfig::Eigen INTERFACE -fno-aggressive-loop-optimizations)
+endif()
 
 pkg_check_modules ( ALSA REQUIRED IMPORTED_TARGET GLOBAL alsa )
 pkg_check_modules ( DBus REQUIRED IMPORTED_TARGET GLOBAL dbus-1 )

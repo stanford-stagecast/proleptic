@@ -39,10 +39,10 @@ static auto test_piece_distribution = uniform_int_distribution<unsigned>( 0, 4 )
 
 // Training parameters
 // static constexpr int number_of_iterations = 100;
-static constexpr float learning_rate = 0.001;
+/* static constexpr float learning_rate = 0.001; */
 static constexpr int batch_size = 1;
 
-const complex<double> complex_i( 0.0, 1.0 );
+/* const complex<double> complex_i( 0.0, 1.0 ); */
 
 struct RandomState
 {
@@ -100,7 +100,7 @@ Eigen::Matrix<float, 1, input_size> pick_timestamp_segment( vector<float> midi_t
   while ( exit_flag == false ) {
     vector<float> timestamps;
     float current_time = static_cast<float>( rand() )
-                         / ( static_cast<float>( RAND_MAX / midi_timestamps[midi_timestamps.size() - 1] ) );
+                         / ( static_cast<float>( RAND_MAX ) / midi_timestamps[midi_timestamps.size() - 1] );
     // float current_time = 20.0;
     for ( int k = midi_timestamps.size() - 1; k >= 0; --k ) {
       if ( midi_timestamps[k] <= current_time ) {
