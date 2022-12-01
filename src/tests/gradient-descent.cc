@@ -4,7 +4,6 @@
 #include "eventloop.hh"
 #include "exception.hh"
 #include "gradient_descent.hh"
-#include "grapher.hh"
 #include "inference.hh"
 #include "mmap.hh"
 #include "parser.hh"
