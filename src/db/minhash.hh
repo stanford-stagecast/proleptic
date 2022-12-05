@@ -10,7 +10,7 @@ public:
     : MultiHash<T, n_hashes, prime, m_buckets>( prng )
   {}
 
-  T minhash( T x ) const
+  T minhash( const T& x ) const
   {
     Eigen::Vector<T, 1> v( x );
     return minhash<1>( v )( 0 );

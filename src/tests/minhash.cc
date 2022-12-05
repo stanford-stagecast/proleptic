@@ -51,10 +51,19 @@ void program_body()
   check( hasher.hash<2>( { 100, 200 } ) != hasher.hash<2>( { 200, 100 } ) );
 
   // MinHashing: same input => same output (order-independent)
+  check( hasher.minhash<2>( { 0, 1 } ) == hasher.minhash<2>( { 0, 1 } ) );
+  check( hasher.minhash<2>( { 1, 0 } ) == hasher.minhash<2>( { 0, 1 } ) );
   check( hasher.minhash<3>( { 1, 2, 3 } ) == hasher.minhash<3>( { 1, 2, 3 } ) );
   check( hasher.minhash<3>( { 1, 2, 3 } ) == hasher.minhash<3>( { 3, 2, 1 } ) );
   check( hasher.minhash<3>( { 1, 2, 3 } ) != hasher.minhash<3>( { 4, 5, 6 } ) );
   check( hasher.minhash<3>( { 1, 2, 3 } ) != hasher.minhash<3>( { 4, 5, 6 } ) );
+
+  // Does not work for similar but unequal sets (need LSH for that)
+  check( hasher.minhash<4>( { 1, 2, 3, 4 } ) == hasher.minhash<4>( { 1, 2, 3, 4 } ) );
+  check( hasher.minhash<4>( { 1, 2, 3, 4 } ) != hasher.minhash<4>( { 1, 2, 3, 400 } ) );
+  check( hasher.minhash<4>( { 1, 2, 3, 4 } ) != hasher.minhash<4>( { 1, 2, 300, 400 } ) );
+  check( hasher.minhash<4>( { 1, 2, 3, 4 } ) != hasher.minhash<4>( { 1, 200, 300, 400 } ) );
+  check( hasher.minhash<4>( { 1, 2, 3, 4 } ) != hasher.minhash<4>( { 100, 200, 300, 400 } ) );
 }
 
 int main( int argc, char* argv[] )
