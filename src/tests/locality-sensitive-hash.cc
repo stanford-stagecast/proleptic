@@ -40,13 +40,7 @@ template<size_t N>
 Eigen::Vector<uint32_t, BANDS> get_buckets( MH minhash, LSH lsh, Eigen::Vector<uint32_t, N> a )
 {
   const Eigen::Vector<uint32_t, HASHES> a_sig = minhash.minhash<N>( a );
-
-  Eigen::Matrix<uint32_t, ROWS, BANDS> a_banded;
-  for ( size_t i = 0; i < HASHES; i++ ) {
-    a_banded( i / BANDS, i % BANDS ) = a_sig[i];
-  }
-
-  const Eigen::Vector<uint32_t, BANDS> a_buckets = lsh.get_buckets( a_banded );
+  const Eigen::Vector<uint32_t, BANDS> a_buckets = lsh.get_buckets( a_sig );
   return a_buckets;
 }
 

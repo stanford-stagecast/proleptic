@@ -35,8 +35,9 @@ public:
   {
     using Matrix = Eigen::Matrix<T, n_hashes, N>;
     Matrix temp = ( coefficients_ * x.transpose() ).colwise() + offsets_;
-    temp.noalias() = temp.unaryExpr( []( const T a ) { return a % static_cast<T>( prime ); } );
-    temp.noalias() = temp.unaryExpr( []( const T a ) { return a % static_cast<T>( m_buckets ); } );
+    temp.noalias() = temp.unaryExpr( []( const T a ) { return static_cast<T>( a % static_cast<T>( prime ) ); } );
+    temp.noalias()
+      = temp.unaryExpr( []( const T a ) { return static_cast<T>( a % static_cast<T>( m_buckets ) ); } );
     return temp;
   }
 
