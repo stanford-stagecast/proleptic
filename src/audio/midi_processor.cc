@@ -1,6 +1,7 @@
 #include "midi_processor.hh"
 #include "eventloop.hh"
 #include "exception.hh"
+#include "spans.hh"
 #include <fcntl.h>
 #include <iostream>
 
@@ -10,7 +11,6 @@ using namespace chrono;
 void MidiProcessor::read_from_fd( FileDescriptor& fd )
 {
   unprocessed_midi_bytes_.push_from_fd( fd );
-
   pop_active_sense_bytes();
   last_event_time_ = steady_clock::now();
 }
@@ -18,6 +18,9 @@ void MidiProcessor::read_from_fd( FileDescriptor& fd )
 void MidiProcessor::pop_event()
 {
   while ( unprocessed_midi_bytes_.readable_region().size() >= 3 ) {
+    cerr << unprocessed_midi_bytes_.readable_region().at( 0 );
+    cerr << unprocessed_midi_bytes_.readable_region().at( 1 );
+    cerr << unprocessed_midi_bytes_.readable_region().at( 2 );
     unprocessed_midi_bytes_.pop( 3 );
     pop_active_sense_bytes();
   }
@@ -32,7 +35,8 @@ void MidiProcessor::pop_active_sense_bytes()
 {
   while ( unprocessed_midi_bytes_.readable_region().size()
           and uint8_t( unprocessed_midi_bytes_.readable_region().at( 0 ) ) == 0xfe ) {
-    unprocessed_midi_bytes_.pop( 1 );
+     cerr << unprocessed_midi_bytes_.readable_region().at( 0 );
+     unprocessed_midi_bytes_.pop( 1 );
   }
 }
 

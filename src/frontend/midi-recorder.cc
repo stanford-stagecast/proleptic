@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <fstream>
 #include <iostream>
 #include <optional>
 #include <sys/stat.h>
@@ -11,7 +12,7 @@
 
 using namespace std;
 
-void program_body( const string& midi_filename )
+void program_body( const string& midi_filename, const string& txt_filename )
 {
   /* speed up C++ I/O by decoupling from C standard I/O */
   ios::sync_with_stdio( false );
@@ -19,6 +20,9 @@ void program_body( const string& midi_filename )
   FileDescriptor piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDONLY ) ) };
 
   MidiProcessor midi;
+
+  ofstream output_ts_file;
+  output_ts_file.open(txt_filename);
 
   optional<uint64_t> ns_of_first_event;
 
@@ -32,13 +36,14 @@ void program_body( const string& midi_filename )
       }
 
       const uint64_t ms_since_first_event = ( event_ts - ns_of_first_event.value() ) / MILLION;
-      cout << dec << ms_since_first_event << " 0x" << hex << static_cast<int>( midi.get_event_type() ) << " 0x"
+      output_ts_file << dec << ms_since_first_event << " 0x" << hex << static_cast<int>( midi.get_event_type() ) << " 0x"
            << static_cast<int>( midi.get_event_note() ) << " 0x" << static_cast<int>( midi.get_event_velocity() )
            << endl;
 
       midi.pop_event();
     }
   }
+  output_ts_file.close();
 }
 
 void usage_message( const string_view argv0 )
@@ -53,12 +58,12 @@ int main( int argc, char* argv[] )
       abort();
     }
 
-    if ( argc != 2 ) {
+    if ( argc != 3 ) {
       usage_message( argv[0] );
       return EXIT_FAILURE;
     }
 
-    program_body( argv[1] );
+    program_body( argv[1], argv[2] );
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
     return EXIT_FAILURE;
