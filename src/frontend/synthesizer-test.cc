@@ -12,6 +12,20 @@
 
 using namespace std;
 
+void recordMidiText( uint8_t event_type, uint8_t event_note, uint8_t event_vel )
+{
+  optional<uint64_t> ns_of_first_event;
+
+  const uint64_t event_ts = Timer::timestamp_ns();
+  if ( not ns_of_first_event.has_value() ) {
+    ns_of_first_event.emplace( event_ts );
+  }
+
+  const uint64_t ms_since_first_event = ( event_ts - ns_of_first_event.value() ) / MILLION;
+  cout << dec << ms_since_first_event << " 0x" << hex << static_cast<int>( event_type ) << " 0x"
+       << static_cast<int>( event_note ) << " 0x" << static_cast<int>( event_vel ) << endl;
+}
+
 void program_body( const string_view device_prefix, const string& midi_filename, const string& sample_directory )
 {
   /* speed up C++ I/O by decoupling from C standard I/O */
@@ -54,6 +68,8 @@ void program_body( const string_view device_prefix, const string& midi_filename,
     [&] {
       while ( midi_processor.has_event() ) {
         synth.process_new_data(
+          midi_processor.get_event_type(), midi_processor.get_event_note(), midi_processor.get_event_velocity() );
+        recordMidiText(
           midi_processor.get_event_type(), midi_processor.get_event_note(), midi_processor.get_event_velocity() );
         midi_processor.pop_event();
       }
