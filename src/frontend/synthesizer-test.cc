@@ -12,10 +12,10 @@
 
 using namespace std;
 
+optional<uint64_t> ns_of_first_event;
+
 void recordMidiText( uint8_t event_type, uint8_t event_note, uint8_t event_vel )
 {
-  optional<uint64_t> ns_of_first_event;
-
   const uint64_t event_ts = Timer::timestamp_ns();
   if ( not ns_of_first_event.has_value() ) {
     ns_of_first_event.emplace( event_ts );
