@@ -8,11 +8,19 @@
 #include "stats_printer.hh"
 #include "synthesizer.hh"
 #include "wav_wrapper.hh"
+#include "wav_writer.hh"
 #include <alsa/asoundlib.h>
+#include <csignal>
 
 using namespace std;
 
 optional<uint64_t> ns_of_first_event;
+
+static bool stop_signal_called = false;
+void sig_int_handler( int )
+{
+  stop_signal_called = true; // Handles Ctrl+C by changing variable.
+}
 
 void recordMidiText( uint8_t event_type, uint8_t event_note, uint8_t event_vel )
 {
@@ -26,7 +34,10 @@ void recordMidiText( uint8_t event_type, uint8_t event_note, uint8_t event_vel )
        << static_cast<int>( event_note ) << " 0x" << static_cast<int>( event_vel ) << endl;
 }
 
-void program_body( const string_view device_prefix, const string& midi_filename, const string& sample_directory )
+void program_body( const string_view device_prefix,
+                   const string& midi_filename,
+                   const string& sample_directory,
+                   const string& wav_output_name )
 {
   /* speed up C++ I/O by decoupling from C standard I/O */
   ios::sync_with_stdio( false );
@@ -58,6 +69,7 @@ void program_body( const string_view device_prefix, const string& midi_filename,
   FileDescriptor piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDONLY ) ) };
   Synthesizer synth { sample_directory };
   MidiProcessor midi_processor {};
+  WavWriter wav_writer( wav_output_name, config.sample_rate );
 
   /* rule #1: read events from MIDI piano */
   event_loop->add_rule( "read MIDI data", piano, Direction::In, [&] { midi_processor.read_from_fd( piano ); } );
@@ -85,6 +97,7 @@ void program_body( const string_view device_prefix, const string& midi_filename,
         pair<float, float> samp = synth.get_curr_sample();
         // cout << "total samp: " << samp.first << "\n";
         audio_signal.safe_set( samples_written, samp );
+        wav_writer.write_one( samp );
         samples_written++;
         synth.advance_sample();
       }
@@ -118,7 +131,8 @@ void program_body( const string_view device_prefix, const string& midi_filename,
   stats_printer.add( playback_interface );
 
   /* run the event loop forever */
-  while ( event_loop->wait_next_event( stats_printer.wait_time_ms() ) != EventLoop::Result::Exit ) {}
+  while ( event_loop->wait_next_event( stats_printer.wait_time_ms() ) != EventLoop::Result::Exit
+          && !stop_signal_called ) {}
 }
 
 void usage_message( const string_view argv0 )
@@ -144,16 +158,17 @@ void usage_message( const string_view argv0 )
 int main( int argc, char* argv[] )
 {
   try {
+    signal( SIGINT, &sig_int_handler ); // Sends Ctrl+C to signal handler.
     if ( argc <= 0 ) {
       abort();
     }
 
-    if ( argc != 4 ) {
+    if ( argc != 5 ) {
       usage_message( argv[0] );
       return EXIT_FAILURE;
     }
 
-    program_body( argv[1], argv[2], argv[3] );
+    program_body( argv[1], argv[2], argv[3], argv[4] );
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
     return EXIT_FAILURE;
