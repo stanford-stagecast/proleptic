@@ -9,6 +9,10 @@ class NoteFiles
   WavWrapper fast;
   WavWrapper rel;
 
+  std::string slow_name;
+  std::string med_name;
+  std::string fast_name;
+
   bool has_damper_;
 
 public:

@@ -18,7 +18,7 @@ public:
   wav_frame_t view( size_t offset ) const;
   bool at_end( size_t offset ) const;
 
-  void bend_pitch( const double pitch_bend_ratio );
+  void bend_pitch( const double pitch_bend_ratio, std::string name );
 
   /* can't copy or assign */
   WavWrapper( const WavWrapper& other ) = delete;

@@ -1,4 +1,5 @@
 #include "wav_wrapper.hh"
+#include "wav_writer.hh"
 #include "exception.hh"
 
 #include <iostream>
@@ -71,9 +72,10 @@ wav_frame_t WavWrapper::view( size_t offset ) const
   return sample;
 }
 
-void WavWrapper::bend_pitch( const double pitch_bend_ratio )
+void WavWrapper::bend_pitch( const double pitch_bend_ratio, std::string name )
 {
   vector<float> new_samples( samples_.size() * 2 ); /* hopefully enough samples */
+  WavWriter wav_writer( name, 48000 );
 
   SRC_DATA resample_info;
   resample_info.data_in = samples_.data();
@@ -89,6 +91,9 @@ void WavWrapper::bend_pitch( const double pitch_bend_ratio )
   }
 
   new_samples.resize( NUM_CHANNELS * resample_info.output_frames_gen );
+  for ( size_t i = 0; i < new_samples.size() - 1; i += 2) {
+    wav_writer.write_one( {new_samples[i], new_samples[i + 1]} );
+  }
 
   samples_.swap( new_samples );
 }
