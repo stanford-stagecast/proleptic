@@ -9,7 +9,6 @@ class NoteRepository
 
   void add_notes( const std::string& sample_directory,
                   const std::string& name,
-                  const unsigned int num_notes,
                   const bool has_damper = true );
 
 public:

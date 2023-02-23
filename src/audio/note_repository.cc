@@ -13,38 +13,95 @@ constexpr float HIGH_XFIN_HIVEL = 119; // Equivalent to MED_XFOUT_HIVEL
 
 NoteRepository::NoteRepository( const string& sample_directory )
 {
-  add_notes( sample_directory, "A0", 2 );
-  add_notes( sample_directory, "C1", 3 );
-  add_notes( sample_directory, "D#1", 3 );
-  add_notes( sample_directory, "F#1", 3 );
-  add_notes( sample_directory, "A1", 3 );
-  add_notes( sample_directory, "C2", 3 );
-  add_notes( sample_directory, "D#2", 3 );
-  add_notes( sample_directory, "F#2", 3 );
-  add_notes( sample_directory, "A2", 3 );
-  add_notes( sample_directory, "C3", 3 );
-  add_notes( sample_directory, "D#3", 3 );
-  add_notes( sample_directory, "F#3", 3 );
-  add_notes( sample_directory, "A3", 3 );
-  add_notes( sample_directory, "C4", 3 );
-  add_notes( sample_directory, "D#4", 3 );
-  add_notes( sample_directory, "F#4", 3 );
-  add_notes( sample_directory, "A4", 3 );
-  add_notes( sample_directory, "C5", 3 );
-  add_notes( sample_directory, "D#5", 3 );
-  add_notes( sample_directory, "F#5", 3 );
-  add_notes( sample_directory, "A5", 3 );
-  add_notes( sample_directory, "C6", 3 );
-  add_notes( sample_directory, "D#6", 3 );
-
+  add_notes( sample_directory, "A0");
+  add_notes( sample_directory, "U-A0");
+  add_notes( sample_directory, "D-C1");
+  add_notes( sample_directory, "C1");
+  add_notes( sample_directory, "U-C1");
+  add_notes( sample_directory, "D-D#1");
+  add_notes( sample_directory, "D#1");
+  add_notes( sample_directory, "U-D#1");
+  add_notes( sample_directory, "D-F#1");
+  add_notes( sample_directory, "F#1");
+  add_notes( sample_directory, "U-F#1");
+  add_notes( sample_directory, "D-A1");
+  add_notes( sample_directory, "A1");
+  add_notes( sample_directory, "U-A1");
+  add_notes( sample_directory, "D-C2");
+  add_notes( sample_directory, "C2");
+  add_notes( sample_directory, "U-C2");
+  add_notes( sample_directory, "D-D#2");
+  add_notes( sample_directory, "D#2");
+  add_notes( sample_directory, "U-D#2");
+  add_notes( sample_directory, "D-F#2");
+  add_notes( sample_directory, "F#2");
+  add_notes( sample_directory, "U-F#2");
+  add_notes( sample_directory, "D-A2");
+  add_notes( sample_directory, "A2");
+  add_notes( sample_directory, "U-A2");
+  add_notes( sample_directory, "D-C3");
+  add_notes( sample_directory, "C3");
+  add_notes( sample_directory, "U-C3");
+  add_notes( sample_directory, "D-D#3");
+  add_notes( sample_directory, "D#3");
+  add_notes( sample_directory, "U-D#3");
+  add_notes( sample_directory, "D-F#3");
+  add_notes( sample_directory, "F#3");
+  add_notes( sample_directory, "U-F#3");
+  add_notes( sample_directory, "D-A3");
+  add_notes( sample_directory, "A3");
+  add_notes( sample_directory, "U-A3");
+  add_notes( sample_directory, "D-C4");
+  add_notes( sample_directory, "C4");
+  add_notes( sample_directory, "U-C4");
+  add_notes( sample_directory, "D-D#4");
+  add_notes( sample_directory, "D#4");
+  add_notes( sample_directory, "U-D#4");
+  add_notes( sample_directory, "D-F#4");
+  add_notes( sample_directory, "F#4");
+  add_notes( sample_directory, "U-F#4");
+  add_notes( sample_directory, "D-A4");
+  add_notes( sample_directory, "A4");
+  add_notes( sample_directory, "U-A4");
+  add_notes( sample_directory, "D-C5");
+  add_notes( sample_directory, "C5");
+  add_notes( sample_directory, "U-C5");
+  add_notes( sample_directory, "D-D#5");
+  add_notes( sample_directory, "D#5");
+  add_notes( sample_directory, "U-D#5");
+  add_notes( sample_directory, "D-F#5");
+  add_notes( sample_directory, "F#5");
+  add_notes( sample_directory, "U-F#5");
+  add_notes( sample_directory, "D-A5");
+  add_notes( sample_directory, "A5");
+  add_notes( sample_directory, "U-A5");
+  add_notes( sample_directory, "D-C6");
+  add_notes( sample_directory, "C6");
+  add_notes( sample_directory, "U-C6");
+  add_notes( sample_directory, "D-D#6");
+  add_notes( sample_directory, "D#6");
+  add_notes( sample_directory, "U-D#6");
   // keys below here do not have dampers
-  add_notes( sample_directory, "F#6", 3, false );
-  add_notes( sample_directory, "A6", 3, false );
-  add_notes( sample_directory, "C7", 3, false );
-  add_notes( sample_directory, "D#7", 3, false );
-  add_notes( sample_directory, "F#7", 3, false );
-  add_notes( sample_directory, "A7", 3, false );
-  add_notes( sample_directory, "C8", 2, false );
+  add_notes( sample_directory, "D-F#6", false );
+  add_notes( sample_directory, "F#6", false );
+  add_notes( sample_directory, "U-F#6", false );
+  add_notes( sample_directory, "D-A6", false );
+  add_notes( sample_directory, "A6", false );
+  add_notes( sample_directory, "U-A6", false );
+  add_notes( sample_directory, "D-C7", false );
+  add_notes( sample_directory, "C7", false );
+  add_notes( sample_directory, "U-C7", false );
+  add_notes( sample_directory, "D-D#7", false );
+  add_notes( sample_directory, "D#7", false );
+  add_notes( sample_directory, "U-D#7", false );
+  add_notes( sample_directory, "D-F#7", false );
+  add_notes( sample_directory, "F#7", false );
+  add_notes( sample_directory, "U-F#7", false );
+  add_notes( sample_directory, "D-A7", false );
+  add_notes( sample_directory, "A7", false );
+  add_notes( sample_directory, "U-A7", false );
+  add_notes( sample_directory, "D-C8", false );
+  add_notes( sample_directory, "C8", false );
 
   cerr << "Added " << notes.size() << " notes\n";
 }
@@ -191,26 +248,8 @@ bool NoteRepository::note_finished( const bool direction,
 
 void NoteRepository::add_notes( const string& sample_directory,
                                 const string& name,
-                                const unsigned int num_notes,
                                 const bool has_damper )
 {
-  unsigned int note_num_base = notes.size() + 1;
-  for ( unsigned int i = 0; i < num_notes; i++ ) {
-    unsigned int release_sample_num = note_num_base + i;
-
-    notes.emplace_back( sample_directory, name, release_sample_num, has_damper );
-    /* do we need to bend the pitch? */
-
-    const unsigned int pitch_bend_modulus = ( release_sample_num - 1 ) % 3;
-
-    if ( pitch_bend_modulus == 0 ) {
-      std::cerr << "NOT bending for: " << name << " = " << release_sample_num << "\n";
-    } else if ( pitch_bend_modulus == 1 ) {
-      std::cerr << "Bending UP from " << name << "\n";
-      notes.back().bend_pitch( pow( 2, -1.0 / 12.0 ) );
-    } else {
-      std::cerr << "Bending DOWN from " << name << "\n";
-      notes.back().bend_pitch( pow( 2, 1.0 / 12.0 ) );
-    }
-  }
+  unsigned int release_sample_num = notes.size() + 1;
+  notes.emplace_back( sample_directory, name, release_sample_num, has_damper );
 }
