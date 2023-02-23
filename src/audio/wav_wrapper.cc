@@ -1,6 +1,6 @@
 #include "wav_wrapper.hh"
-#include "wav_writer.hh"
 #include "exception.hh"
+#include "wav_writer.hh"
 
 #include <iostream>
 #include <samplerate.h>
@@ -91,8 +91,8 @@ void WavWrapper::bend_pitch( const double pitch_bend_ratio, std::string name )
   }
 
   new_samples.resize( NUM_CHANNELS * resample_info.output_frames_gen );
-  for ( size_t i = 0; i < new_samples.size() - 1; i += 2) {
-    wav_writer.write_one( {new_samples[i], new_samples[i + 1]} );
+  for ( size_t i = 0; i < new_samples.size() - 1; i += 2 ) {
+    wav_writer.write_one( { new_samples[i], new_samples[i + 1] } );
   }
 
   samples_.swap( new_samples );
