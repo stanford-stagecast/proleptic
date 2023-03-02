@@ -53,12 +53,12 @@ void Synthesizer::add_key_press( uint8_t adj_event_note, uint8_t event_vel )
     const std::pair<float, float> curr_sample = samples[offset];
 
     // Update key future
-    k.future.at( frames_processed ).first += curr_sample.first * amplitude_multiplier;
-    k.future.at( frames_processed ).second += curr_sample.second * amplitude_multiplier;
+    k.future.at( frames_processed + offset ).first += curr_sample.first * amplitude_multiplier;
+    k.future.at( frames_processed + offset ).second += curr_sample.second * amplitude_multiplier;
 
     // Update total future
-    total_future.at( frames_processed ).first += curr_sample.first * amplitude_multiplier;
-    total_future.at( frames_processed ).second += curr_sample.second * amplitude_multiplier;
+    total_future.at( frames_processed + offset ).first += curr_sample.first * amplitude_multiplier;
+    total_future.at( frames_processed + offset ).second += curr_sample.second * amplitude_multiplier;
 
     offset++;
   }
@@ -80,15 +80,15 @@ void Synthesizer::add_key_release( uint8_t adj_event_note, uint8_t event_vel )
 
     if ( !sustain_down ) {
       const std::pair<float, float> new_sample
-        = { k.future.at( frames_processed ).first * vol_ratio, k.future.at( frames_processed ).second * vol_ratio };
+        = { k.future.at( frames_processed + offset ).first * vol_ratio, k.future.at( frames_processed + offset ).second * vol_ratio };
 
       // Update total future by getting delta of new key future and old key future
-      total_future.at( frames_processed ).first += new_sample.first - k.future.at( frames_processed ).first;
-      total_future.at( frames_processed ).second += new_sample.second - k.future.at( frames_processed ).second;
+      total_future.at( frames_processed + offset ).first += new_sample.first - k.future.at( frames_processed + offset ).first;
+      total_future.at( frames_processed + offset ).second += new_sample.second - k.future.at( frames_processed + offset ).second;
 
       // Update key future
-      k.future.at( frames_processed ).first = new_sample.first;
-      k.future.at( frames_processed ).second = new_sample.second;
+      k.future.at( frames_processed + offset ).first = new_sample.first;
+      k.future.at( frames_processed + offset ).second = new_sample.second;
     }
 
     // Add release sound
@@ -98,12 +98,12 @@ void Synthesizer::add_key_release( uint8_t adj_event_note, uint8_t event_vel )
       const std::pair<float, float> rel_sample = rel_samples[offset];
 
       // Update key future
-      k.future.at( frames_processed ).first += rel_sample.first * amplitude_multiplier;
-      k.future.at( frames_processed ).second += rel_sample.second * amplitude_multiplier;
+      k.future.at( frames_processed + offset ).first += rel_sample.first * amplitude_multiplier;
+      k.future.at( frames_processed + offset ).second += rel_sample.second * amplitude_multiplier;
 
       // Update total future
-      total_future.at( frames_processed ).first += rel_sample.first * amplitude_multiplier;
-      total_future.at( frames_processed ).second += rel_sample.second * amplitude_multiplier;
+      total_future.at( frames_processed + offset ).first += rel_sample.first * amplitude_multiplier;
+      total_future.at( frames_processed + offset ).second += rel_sample.second * amplitude_multiplier;
     }
   }
 }
