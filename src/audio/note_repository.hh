@@ -7,9 +7,7 @@ class NoteRepository
 {
   std::vector<NoteFiles> notes {};
 
-  void add_notes( const std::string& sample_directory,
-                  const std::string& name,
-                  const bool has_damper = true );
+  void add_notes( const std::string& sample_directory, const std::string& name, const bool has_damper = true );
 
 public:
   NoteRepository( const std::string& sample_directory );

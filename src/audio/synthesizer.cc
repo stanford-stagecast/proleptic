@@ -79,12 +79,14 @@ void Synthesizer::add_key_release( uint8_t adj_event_note, uint8_t event_vel )
       vol_ratio -= 0.0001;
 
     if ( !sustain_down ) {
-      const std::pair<float, float> new_sample
-        = { k.future.at( frames_processed + offset ).first * vol_ratio, k.future.at( frames_processed + offset ).second * vol_ratio };
+      const std::pair<float, float> new_sample = { k.future.at( frames_processed + offset ).first * vol_ratio,
+                                                   k.future.at( frames_processed + offset ).second * vol_ratio };
 
       // Update total future by getting delta of new key future and old key future
-      total_future.at( frames_processed + offset ).first += new_sample.first - k.future.at( frames_processed + offset ).first;
-      total_future.at( frames_processed + offset ).second += new_sample.second - k.future.at( frames_processed + offset ).second;
+      total_future.at( frames_processed + offset ).first
+        += new_sample.first - k.future.at( frames_processed + offset ).first;
+      total_future.at( frames_processed + offset ).second
+        += new_sample.second - k.future.at( frames_processed + offset ).second;
 
       // Update key future
       k.future.at( frames_processed + offset ).first = new_sample.first;
