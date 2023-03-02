@@ -2,7 +2,6 @@
 
 #include "midi_processor.hh"
 #include "note_repository.hh"
-#include "typed_ring_buffer.hh"
 
 #include <deque>
 #include <vector>
@@ -15,15 +14,17 @@ class Synthesizer
 
   struct key
   {
-    EndlessBuffer<std::pair<float, float>> future { FUTURE_LENGTH };
+    std::vector<std::pair<float, float>> future { FUTURE_LENGTH };
     bool released = false;
   };
 
   NoteRepository note_repo;
   std::vector<key> keys {};
-  EndlessBuffer<std::pair<float, float>> total_future { FUTURE_LENGTH };
+  std::vector<std::pair<float, float>> total_future { FUTURE_LENGTH };
   bool sustain_down = false;
   size_t frames_processed = 0;
+
+  size_t get_buff_idx( size_t offset ) const { return ( frames_processed + offset ) % FUTURE_LENGTH; };
 
 public:
   Synthesizer( const std::string& sample_directory );
