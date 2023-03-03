@@ -50,7 +50,7 @@ void Synthesizer::add_key_press( uint8_t adj_event_note, uint8_t event_vel )
   while ( !note_repo.note_finished( true, adj_event_note, event_vel, offset ) ) {
     float amplitude_multiplier = 0.2; /* to avoid clipping */
 
-    const std::pair<float, float> curr_sample = samples[offset];
+    const std::pair<float, float> curr_sample = samples.at( offset );
 
     // Update key future
     k.future.at( get_buff_idx( offset ) ).first += curr_sample.first * amplitude_multiplier;

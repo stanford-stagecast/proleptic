@@ -122,8 +122,9 @@ const std::vector<wav_frame_t> NoteRepository::get_wav( const bool direction,
     } else if ( velocity <= LOW_XFOUT_HIVEL ) {
       const WavWrapper& wav = notes.at( note ).getSlow();
       const WavWrapper& wav_med = notes.at( note ).getMed();
-      std::vector<wav_frame_t> samples { wav.size() };
-      for ( size_t i = 0; i < wav.size(); i++ ) {
+      std::vector<wav_frame_t> samples { wav_med.size() };
+      size_t i;
+      for ( i = 0; i < wav.size(); i++ ) {
         std::pair<float, float> new_samp = wav.view( i );
         new_samp.first *= ( LOW_XFOUT_HIVEL - velocity ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL );
         new_samp.second *= ( LOW_XFOUT_HIVEL - velocity ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL );
@@ -134,6 +135,16 @@ const std::vector<wav_frame_t> NoteRepository::get_wav( const bool direction,
         new_samp.second
           += med_samp.second * ( ( velocity - LOW_XFOUT_LOVEL ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL ) );
         samples[i] = { new_samp.first, new_samp.second };
+      }
+
+      while ( i < wav_med.size() ) {
+        std::pair<float, float> new_samp = wav_med.view( i );
+        new_samp.first
+          = new_samp.first * ( ( velocity - LOW_XFOUT_LOVEL ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL ) );
+        new_samp.second
+          = new_samp.second * ( ( velocity - LOW_XFOUT_LOVEL ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL ) );
+        samples[i] = { new_samp.first, new_samp.second };
+        i++;
       }
 
       return samples;
@@ -148,8 +159,9 @@ const std::vector<wav_frame_t> NoteRepository::get_wav( const bool direction,
     } else if ( velocity <= HIGH_XFIN_HIVEL ) {
       const WavWrapper& wav = notes.at( note ).getMed();
       const WavWrapper& wav_fast = notes.at( note ).getFast();
-      std::vector<wav_frame_t> samples { wav.size() };
-      for ( size_t i = 0; i < wav.size(); i++ ) {
+      std::vector<wav_frame_t> samples { wav_fast.size() };
+      size_t i;
+      for ( i = 0; i < wav.size(); i++ ) {
         std::pair<float, float> new_samp = wav.view( i );
         new_samp.first *= ( LOW_XFOUT_HIVEL - velocity ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL );
         new_samp.second *= ( LOW_XFOUT_HIVEL - velocity ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL );
@@ -160,6 +172,16 @@ const std::vector<wav_frame_t> NoteRepository::get_wav( const bool direction,
         new_samp.second
           += fast_samp.second * ( ( velocity - LOW_XFOUT_LOVEL ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL ) );
         samples[i] = { new_samp.first, new_samp.second };
+      }
+
+      while ( i < wav_fast.size() ) {
+        std::pair<float, float> new_samp = wav_fast.view( i );
+        new_samp.first
+          = new_samp.first * ( ( velocity - LOW_XFOUT_LOVEL ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL ) );
+        new_samp.second
+          = new_samp.second * ( ( velocity - LOW_XFOUT_LOVEL ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL ) );
+        samples[i] = { new_samp.first, new_samp.second };
+        i++;
       }
 
       return samples;
