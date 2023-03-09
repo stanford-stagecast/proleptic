@@ -3,7 +3,7 @@
 using namespace std;
 
 WavWriter::WavWriter( const string& path, const int sample_rate )
-  : handle_( path, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_24, 2, sample_rate )
+  : handle_( path, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_32, 2, sample_rate )
 {
   if ( handle_.error() ) {
     throw runtime_error( path + ": " + handle_.strError() );
@@ -44,7 +44,7 @@ void WavWriter::write_one( pair<float, float> sample )
 
   float frame[2] = { sample.first, sample.second };
 
-  if ( 1 != handle_.writef( frame, 1 ) ) {
+  if ( 1 != handle_.writef( frame, 2 ) ) {
     throw runtime_error( "write: did not successfully write one" );
   }
 }
