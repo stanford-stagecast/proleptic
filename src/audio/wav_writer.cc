@@ -44,7 +44,7 @@ void WavWriter::write_one( pair<float, float> sample )
 
   float frame[2] = { sample.first, sample.second };
 
-  if ( 1 != handle_.writef( frame, 2 ) ) {
+  if ( 1 != handle_.writef( frame, 1 ) ) {
     throw runtime_error( "write: did not successfully write one" );
   }
 }
