@@ -300,7 +300,7 @@ vector<int> get_source_notes( vector<midi_event> notes, int start_time, int min_
   vector<int> end_index;
   for ( int i = start_index - MIN_NOTES; i > start_index - MAX_NOTES - 1; i-- ) {
     int idx = i;
-    if (idx < 0) {
+    if ( idx < 0 ) {
       idx = notes.size() + idx;
     }
     end_index.push_back( idx );
@@ -328,7 +328,7 @@ vector<match> find_matches_at_timestamp( int i, vector<midi_event> notes, bool d
   while ( sourceTime < MAX_TIME ) {
     vector<int> sourceId = get_source_notes( notes, i, sourceTime + offset );
 
-    if (sourceId.size() > 2) {
+    if ( sourceId.size() > 2 ) {
       numSourceNotes = sourceId[0] - sourceId[1];
       sourceTime = i - notes[sourceId[1]].timestamp;
 
@@ -351,8 +351,8 @@ void program_body( const string& midiPath )
   for ( int i = START; i < END; i += SKIP ) {
     vector<match> matches = find_matches_at_timestamp( i, events, false );
     string out = "";
-    for (match m : matches) {
-      out += to_string(m.target_time) + " " + to_string(m.score) + "\n";
+    for ( match m : matches ) {
+      out += to_string( m.target_time ) + " " + to_string( m.score ) + "\n";
     }
     cout << out;
   }
