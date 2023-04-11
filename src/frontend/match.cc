@@ -288,9 +288,9 @@ vector<int> get_source_notes( vector<midi_event> notes, int start_time, int min_
 {
   int start_index = -1;
   vector<int> source_id;
-  for ( midi_event e : notes ) {
-    if ( e.timestamp > start_time ) {
-      start_index = e.timestamp;
+  for ( size_t i = 0; i < notes.size(); i++ ) {
+    if ( notes[i].timestamp > start_time ) {
+      start_index = i;
       break;
     }
   }
@@ -299,7 +299,11 @@ vector<int> get_source_notes( vector<midi_event> notes, int start_time, int min_
 
   vector<int> end_index;
   for ( int i = start_index - MIN_NOTES; i > start_index - MAX_NOTES - 1; i-- ) {
-    end_index.push_back( i );
+    int idx = i;
+    if (idx < 0) {
+      idx = notes.size() + idx;
+    }
+    end_index.push_back( idx );
   }
 
   vector<int> ids;
@@ -323,18 +327,19 @@ vector<match> find_matches_at_timestamp( int i, vector<midi_event> notes, bool d
   int sourceTime = 0;
   while ( sourceTime < MAX_TIME ) {
     vector<int> sourceId = get_source_notes( notes, i, sourceTime + offset );
-    if ( sourceId.empty() ) {
-      break;
+
+    if (sourceId.size() > 2) {
+      numSourceNotes = sourceId[0] - sourceId[1];
+      sourceTime = i - notes[sourceId[1]].timestamp;
+
+      vector<match> sim = calculate_similarity_time( notes, sourceId, i, disp );
+      for ( int j = 0; j < static_cast<int>( sim.size() ); j++ ) {
+        sim[j].numSourceNotes = numSourceNotes;
+        sim[j].sourceTime = sourceTime;
+      }
+      sims_arr.insert( sims_arr.end(), sim.begin(), sim.end() );
+      offset += 500;
     }
-    numSourceNotes = sourceId[0] - sourceId[1];
-    sourceTime = i - notes[sourceId[1]].timestamp;
-    vector<match> sim = calculate_similarity_time( notes, sourceId, i, disp );
-    for ( int j = 0; j < static_cast<int>( sim.size() ); j++ ) {
-      sim[j].numSourceNotes = numSourceNotes;
-      sim[j].sourceTime = sourceTime;
-    }
-    sims_arr.insert( sims_arr.end(), sim.begin(), sim.end() );
-    offset += 500;
   }
   return sims_arr;
 }
@@ -344,7 +349,12 @@ void program_body( const string& midiPath )
   vector<midi_event> events = midi_to_timeseries( midiPath );
   vector<int> sims_arr;
   for ( int i = START; i < END; i += SKIP ) {
-    find_matches_at_timestamp( i, events, false );
+    vector<match> matches = find_matches_at_timestamp( i, events, false );
+    string out = "";
+    for (match m : matches) {
+      out += to_string(m.target_time) + " " + to_string(m.score) + "\n";
+    }
+    cout << out;
   }
 }
 
