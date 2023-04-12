@@ -37,6 +37,7 @@ add_subdirectory ("${PROJECT_SOURCE_DIR}/src/stats")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/dbus")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/visualizer")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/db")
+add_subdirectory ("${PROJECT_SOURCE_DIR}/src/matplotlib_cpp")
 
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/tests")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/frontend")

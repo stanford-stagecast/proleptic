@@ -1,3 +1,4 @@
+#include "../matplotlib_cpp/matplotlibcpp.h"
 #include <fstream>
 #include <iostream>
 #include <set>
@@ -7,6 +8,7 @@
 #include <vector>
 
 using namespace std;
+namespace plt = matplotlibcpp;
 
 constexpr int MIN_NOTES = 8;
 constexpr int MAX_NOTES = 200;  // Max length of snippet to be calculated
@@ -312,6 +314,7 @@ vector<int> get_source_notes( vector<midi_event> notes, int start_time, int min_
       ids.push_back( end_index[i] );
     }
   }
+
   if ( !ids.empty() ) {
     source_id.push_back( start_index );
     source_id.push_back( ids[0] );
@@ -328,17 +331,21 @@ vector<match> find_matches_at_timestamp( int i, vector<midi_event> notes, bool d
   while ( sourceTime < MAX_TIME ) {
     vector<int> sourceId = get_source_notes( notes, i, sourceTime + offset );
 
-    if ( sourceId.size() > 2 ) {
+    if ( sourceId.size() >= 2 ) {
+      // cout << "Hi\n";
       numSourceNotes = sourceId[0] - sourceId[1];
       sourceTime = i - notes[sourceId[1]].timestamp;
 
       vector<match> sim = calculate_similarity_time( notes, sourceId, i, disp );
+
       for ( int j = 0; j < static_cast<int>( sim.size() ); j++ ) {
         sim[j].numSourceNotes = numSourceNotes;
         sim[j].sourceTime = sourceTime;
       }
       sims_arr.insert( sims_arr.end(), sim.begin(), sim.end() );
       offset += 500;
+    } else {
+      break;
     }
   }
   return sims_arr;
@@ -346,16 +353,25 @@ vector<match> find_matches_at_timestamp( int i, vector<midi_event> notes, bool d
 
 void program_body( const string& midiPath )
 {
+
   vector<midi_event> events = midi_to_timeseries( midiPath );
   vector<int> sims_arr;
+  plt::figure_size( 2000, 2000 );
+  string title_str = "All matches >" + to_string( THRESHOLD ) + ", for \nMin Notes=" + to_string( MIN_NOTES )
+                     + " notes, Max Notes=" + to_string( MAX_NOTES );
+  plt::title( title_str, {} );
+  vector<int> x_array = {};
+  vector<int> y_array = {};
   for ( int i = START; i < END; i += SKIP ) {
     vector<match> matches = find_matches_at_timestamp( i, events, false );
-    string out = "";
+
     for ( match m : matches ) {
-      out += to_string( m.target_time ) + " " + to_string( m.score ) + "\n";
+      x_array.push_back( m.currTime );
+      y_array.push_back( m.target_time );
     }
-    cout << out;
   }
+  plt::scatter( x_array, y_array, 0.1, { { "color", "blue" } } );
+  plt::save( "./basic.png" );
 }
 
 void usage_message( const string_view argv0 )
