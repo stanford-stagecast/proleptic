@@ -1,4 +1,3 @@
-#include "../matplotlib_cpp/matplotlibcpp.h"
 #include <fstream>
 #include <iostream>
 #include <set>
@@ -16,7 +15,7 @@ constexpr int MIN_TIME = 1500;  // Min time in ms
 constexpr int MAX_TIME = 30000; // If more matches, increase snippet length
 constexpr float THRESHOLD = 0.7;
 constexpr int START = 191400;
-constexpr int SKIP = 10;
+constexpr int SKIP = 500;
 constexpr int END = 365000;
 
 //    MIDI EVENT TYPES
@@ -332,7 +331,6 @@ vector<match> find_matches_at_timestamp( int i, vector<midi_event> notes, bool d
     vector<int> sourceId = get_source_notes( notes, i, sourceTime + offset );
 
     if ( sourceId.size() >= 2 ) {
-      // cout << "Hi\n";
       numSourceNotes = sourceId[0] - sourceId[1];
       sourceTime = i - notes[sourceId[1]].timestamp;
 
@@ -351,32 +349,29 @@ vector<match> find_matches_at_timestamp( int i, vector<midi_event> notes, bool d
   return sims_arr;
 }
 
-void program_body( const string& midiPath )
+void program_body( const string& midiPath, const string& outputPath )
 {
-
   vector<midi_event> events = midi_to_timeseries( midiPath );
   vector<int> sims_arr;
-  plt::figure_size( 2000, 2000 );
-  string title_str = "All matches >" + to_string( THRESHOLD ) + ", for \nMin Notes=" + to_string( MIN_NOTES )
-                     + " notes, Max Notes=" + to_string( MAX_NOTES );
-  plt::title( title_str, {} );
-  vector<int> x_array = {};
-  vector<int> y_array = {};
+
+  ofstream outputFile;
+  outputFile.open(outputPath);
+  outputFile << "source_timestamp,target_timestamp,score\n";
+  
   for ( int i = START; i < END; i += SKIP ) {
     vector<match> matches = find_matches_at_timestamp( i, events, false );
 
     for ( match m : matches ) {
-      x_array.push_back( m.currTime );
-      y_array.push_back( m.target_time );
+      outputFile << to_string(m.currTime) + "," + to_string(m.target_time) + "," + to_string(m.score) + "\n";
     }
   }
-  plt::scatter( x_array, y_array, 0.1, { { "color", "blue" } } );
-  plt::save( "./basic.png" );
+  outputFile.close();
+
 }
 
 void usage_message( const string_view argv0 )
 {
-  cerr << "Usage: " << argv0 << " [MIDI file]\n";
+  cerr << "Usage: " << argv0 << " [MIDI file] [Match Output CSV Name]\n";
 }
 
 int main( int argc, char* argv[] )
@@ -386,12 +381,12 @@ int main( int argc, char* argv[] )
       abort();
     }
 
-    if ( argc != 2 ) {
+    if ( argc != 3 ) {
       usage_message( argv[0] );
       return EXIT_FAILURE;
     }
 
-    program_body( argv[1] );
+    program_body( argv[1], argv[2] );
 
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
