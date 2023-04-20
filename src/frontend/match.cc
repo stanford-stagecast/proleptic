@@ -7,7 +7,6 @@
 #include <vector>
 
 using namespace std;
-namespace plt = matplotlibcpp;
 
 constexpr int MIN_NOTES = 8;
 constexpr int MAX_NOTES = 200;  // Max length of snippet to be calculated
