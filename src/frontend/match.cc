@@ -14,7 +14,7 @@ constexpr int MIN_TIME = 1500;  // Min time in ms
 constexpr int MAX_TIME = 30000; // If more matches, increase snippet length
 constexpr float THRESHOLD = 0.7;
 constexpr int START = 191400;
-constexpr int SKIP = 500;
+constexpr int SKIP = 10;
 constexpr int END = 365000;
 
 //    MIDI EVENT TYPES
@@ -69,9 +69,9 @@ vector<vector<float>> note_similarity_vect2( vector<midi_event> sequence1,
 {
   // score is linear with time difference between notes
   vector<vector<float>> op( sequence2.size(), vector<float>( sequence1.size() ) );
-  float min_dist = 50 * ratio[0]; // acceptable time difference for same note
-
+  // acceptable time difference for same note
   for ( int i = 0; i < static_cast<int>( sequence2.size() ); i++ ) {
+    float min_dist = 50 * ratio[i];
     for ( int j = 0; j < static_cast<int>( sequence1.size() ); j++ ) {
       float time_diff = abs( sequence1[j].timestamp - sequence2[i].timestamp );
       // remapping time diff to 0.5-1
@@ -92,15 +92,16 @@ tuple<int, int, float, float, float> musical_similarity( vector<midi_event> tf1,
     e.timestamp -= last_time_1;
   }
 
-  int last_note = tf2.back().note;
+  int last_note = tf1.back().note;
   int ind = -1;
   int lastmatch1 = -1;
   int lastmatch2 = -1;
 
-  for ( size_t i = 0; i < tf2.size(); i++ ) {
+  for ( size_t i = tf2.size() - 1; i >= 1; i-- ) {
     midi_event e = tf2[i];
     if ( e.note == last_note ) {
       ind = i;
+      break;
     }
   }
 
@@ -142,8 +143,9 @@ tuple<int, int, float, float, float> musical_similarity( vector<midi_event> tf1,
       if ( scores[i][j] > score2[i] ) {
         score2[i] = scores[i][j];
       }
-      if ( score[j] != 0 )
+      if ( score[j] != 0 ) {
         last_nonzero_1 = j;
+      }
       if ( score2[i] != 0 )
         last_nonzero_2 = i;
     }
@@ -163,7 +165,7 @@ tuple<int, int, float, float, float> musical_similarity( vector<midi_event> tf1,
     score_sum += s;
   }
 
-  int count_score = sequence1.size() + sequence2.size() + count_zeros - score.size();
+  int count_score = sequence2.size() + count_zeros;
 
   // Similarity of the two sequences is the mean of the note similarity scores
   float score_1 = score_sum / ( count_score * 1.0 );
@@ -190,6 +192,13 @@ tuple<int, int, float, float, float> two_way_similarity( vector<midi_event> tf1,
 {
   tuple<int, int, float, float, float> score1_data = musical_similarity( tf1, tf2, disp );
   tuple<int, int, float, float, float> score2_data = musical_similarity( tf2, tf1, disp );
+  int intermediate = get<0>( score2_data );
+  get<0>( score2_data ) = get<1>( score2_data );
+  get<1>( score2_data ) = intermediate;
+
+  float inter2 = get<2>( score2_data );
+  get<2>( score2_data ) = get<3>( score2_data );
+  get<3>( score2_data ) = inter2;
 
   if ( get<4>( score1_data ) > get<4>( score2_data ) ) {
     return score1_data;
@@ -213,10 +222,10 @@ vector<match> calculate_similarity_time( vector<midi_event> notes,
   int length_ms = currTime - source_end;
 
   int target_start = length_ms;
-  bool rewinded = false;
   int target_id_end = 0;
   int target_id_start = 0;
   while ( target_start < currTime - 5000 ) {
+    // pick target_end by time length of course snip
     int target_end = target_start - length_ms;
 
     // Finding new end index
@@ -260,9 +269,7 @@ vector<match> calculate_similarity_time( vector<midi_event> notes,
     }
     if ( score > 0.5 ) {
       int target_time = target_start;
-      if ( rewinded ) {
-        rewinded = false;
-      } else if ( lm1 >= source_id_start - source_id_end - 2 ) {
+      if ( lm1 >= source_id_start - source_id_end - 2 ) {
         target_time = notes[target_id_end + lm2].timestamp + ( currTime - notes[source_id_end + lm1].timestamp );
       } else if ( lm2 >= target_id_start - target_id_end - 2 ) {
         if ( currTime - notes[source_id_end + lm1].timestamp < 0 ) {
@@ -354,18 +361,17 @@ void program_body( const string& midiPath, const string& outputPath )
   vector<int> sims_arr;
 
   ofstream outputFile;
-  outputFile.open(outputPath);
+  outputFile.open( outputPath );
   outputFile << "source_timestamp,target_timestamp,score\n";
-  
+
   for ( int i = START; i < END; i += SKIP ) {
     vector<match> matches = find_matches_at_timestamp( i, events, false );
 
     for ( match m : matches ) {
-      outputFile << to_string(m.currTime) + "," + to_string(m.target_time) + "," + to_string(m.score) + "\n";
+      outputFile << to_string( m.currTime ) + "," + to_string( m.target_time ) + "," + to_string( m.score ) + "\n";
     }
   }
   outputFile.close();
-
 }
 
 void usage_message( const string_view argv0 )
