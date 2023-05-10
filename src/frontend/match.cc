@@ -11,6 +11,12 @@
 
 using namespace std;
 
+constexpr int zero_penalty = 1;
+constexpr int length_incentive = 500000; // 50 seconds yields 10% increase in score
+constexpr int max_offset = 600;
+constexpr int timestamp_max_before_source = 5000; // ms behing the source timestamp
+constexpr int min_dist_const = 400;               // acceptable time difference for same note
+
 constexpr int MIN_NOTES = 8;
 constexpr int MAX_NOTES = 200;  // Max length of snippet to be calculated
 constexpr int MIN_TIME = 1500;  // Min time in ms
@@ -79,9 +85,7 @@ vector<midi_event> midi_to_timeseries( const string& midiPath )
 
 tuple<vector<vector<float>>, float, float> note_similarity_vect2_mean( vector<midi_event> sequence1,
                                                                        vector<midi_event> sequence2,
-                                                                       vector<float> ratio,
-                                                                       int max_offset = 600,
-                                                                       int min_dist_const = 400 )
+                                                                       vector<float> ratio )
 {
   int min_dist = min_dist_const;
   // vector<float> min_dist = min_dist_const * ratio[", None"];
@@ -161,10 +165,6 @@ tuple<vector<vector<float>>, float, float> note_similarity_vect2_mean( vector<mi
 
 tuple<int, int, float, float, float> musical_similarity( vector<midi_event> tf1,
                                                          vector<midi_event> tf2,
-                                                         int zero_penalty = 1,
-                                                         int length_incentive = 500000,
-                                                         int max_offset = 600,
-                                                         int min_dist_const = 400,
                                                          bool disp = false )
 {
   vector<midi_event> sequence1 = tf1;
@@ -220,8 +220,7 @@ tuple<int, int, float, float, float> musical_similarity( vector<midi_event> tf1,
     ratios_arr.push_back( time_ratio * i );
   }
 
-  tie( scores, mean_offset1, mean_offset2 )
-    = note_similarity_vect2_mean( sequence1, sequence2, ratios_arr, max_offset, min_dist_const );
+  tie( scores, mean_offset1, mean_offset2 ) = note_similarity_vect2_mean( sequence1, sequence2, ratios_arr );
   std::vector<float> score( sequence1.size(), 0 );
   std::vector<float> score2( sequence2.size(), 0 );
   int last_nonzero_1 = -1;
@@ -277,10 +276,6 @@ tuple<int, int, float, float, float> musical_similarity( vector<midi_event> tf1,
 
 tuple<int, int, float, float, float> two_way_similarity( vector<midi_event> tf1,
                                                          vector<midi_event> tf2,
-                                                         int zero_penalty = 1,
-                                                         int length_incentive = 500000,
-                                                         int max_offset = 600,
-                                                         int min_dist_const = 400,
                                                          bool disp = false )
 {
   int a1, b1, a2, b2;
@@ -297,11 +292,6 @@ tuple<int, int, float, float, float> two_way_similarity( vector<midi_event> tf1,
 vector<match> calculate_similarity_time( vector<midi_event> notes,
                                          vector<int> source_id,
                                          int currTime,
-                                         int timestamp_max_before_source = 5000,
-                                         int zero_penalty = 1,
-                                         int length_incentive = 500000,
-                                         int max_offset = 600,
-                                         int min_dist_const = 400,
                                          bool disp = false,
                                          int skip = 100 )
 /* Function that calls musical similarity on targets generated for a source_id.
@@ -368,10 +358,6 @@ vector<match> calculate_similarity_time( vector<midi_event> notes,
     tie( lm1, lm2, mo1, mo2, score )
       = two_way_similarity( vector<midi_event>( notes.begin() + source_id_end, notes.begin() + source_id_start ),
                             vector<midi_event>( notes.begin() + target_id_end, notes.begin() + target_id_start ),
-                            zero_penalty,
-                            length_incentive,
-                            max_offset,
-                            min_dist_const,
                             false );
 
     if ( score > 0.7 ) {
@@ -460,18 +446,7 @@ Args:
   return source_id;
 }
 
-vector<match> find_matches_at_timestamp( int i,
-                                         vector<midi_event> notes,
-                                         int minTime,
-                                         int maxNotes,
-                                         int maxTime,
-                                         float thresh,
-                                         int timestamp_max_before_source = 5000,
-                                         int zero_penalty = 1,
-                                         int length_incentive = 500000,
-                                         int max_offset = 600,
-                                         int min_dist_const = 400,
-                                         bool disp )
+vector<match> find_matches_at_timestamp( int i, vector<midi_event> notes, bool disp )
 /*
     Args:
         i:
@@ -500,15 +475,7 @@ vector<match> find_matches_at_timestamp( int i,
       numSourceNotes = sourceId[0] - sourceId[1];
       sourceTime = i - notes[sourceId[1]].timestamp;
 
-      vector<match> sim = calculate_similarity_time( notes,
-                                                     sourceId,
-                                                     i,
-                                                     timestamp_max_before_source,
-                                                     zero_penalty,
-                                                     length_incentive,
-                                                     max_offset,
-                                                     min_dist_const,
-                                                     disp );
+      vector<match> sim = calculate_similarity_time( notes, sourceId, i, disp );
 
       for ( int j = 0; j < static_cast<int>( sim.size() ); j++ ) {
         sim[j].numSourceNotes = numSourceNotes;
