@@ -1,5 +1,8 @@
+#include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <iostream>
+#include <limits.h>
 #include <set>
 #include <sstream>
 #include <string>
@@ -63,27 +66,94 @@ vector<midi_event> midi_to_timeseries( const string& midiPath )
   return events;
 }
 
-vector<vector<float>> note_similarity_vect2( vector<midi_event> sequence1,
-                                             vector<midi_event> sequence2,
-                                             vector<float> ratio )
+tuple<vector<vector<float>>, float, float> note_similarity_vect2_mean( vector<midi_event> sequence1,
+                                                                       vector<midi_event> sequence2,
+                                                                       vector<float> ratio,
+                                                                       int max_offset = 600,
+                                                                       int min_dist_const = 400 )
 {
-  // score is linear with time difference between notes
-  vector<vector<float>> op( sequence2.size(), vector<float>( sequence1.size() ) );
-  // acceptable time difference for same note
-  for ( int i = 0; i < static_cast<int>( sequence2.size() ); i++ ) {
-    float min_dist = 50 * ratio[i];
-    for ( int j = 0; j < static_cast<int>( sequence1.size() ); j++ ) {
-      float time_diff = abs( sequence1[j].timestamp - sequence2[i].timestamp );
-      // remapping time diff to 0.5-1
-      op[i][j]
-        = ( sequence1[j].note == sequence2[i].note ) * ( time_diff < min_dist ) * ( 1 - time_diff / min_dist );
+  int min_dist = min_dist_const;
+  // vector<float> min_dist = min_dist_const * ratio[", None"];
+
+  int n1 = sequence1.size();
+  int n2 = sequence2.size();
+  int smaller = n1 < n2 ? n1 : n2;
+
+  vector<vector<int>> time_diffs( n2, vector<int>( n1 ) );
+  vector<vector<int>> offset( n2, vector<int>( n1 ) );
+
+  vector<int> best_matching_times( n1, INT_MAX );
+  vector<int> best_matching_idxs( n1, INT_MAX );
+
+  vector<int> column_best_matching_idxs( n2 );
+
+  for ( int j = 0; j < n2; j++ ) {
+    for ( int i = 0; i < n1; i++ ) {
+      time_diffs[j][i] = sequence1[i].timestamp - sequence2[j].timestamp;
+
+      offset[j][i] = ( sequence1[i].note == sequence2[j].note ) * abs( time_diffs[j][i] );
+      if ( sequence1[i].note != sequence2[j].note ) {
+        offset[j][i] = 100000;
+        time_diffs[j][i] = 100000;
+      }
+      if ( offset[j][i] < best_matching_times[i] ) {
+        best_matching_times[i] = offset[j][i];
+        best_matching_idxs[i] = j;
+      }
+    }
+    column_best_matching_idxs[j] = distance( offset[j].begin(), min_element( offset[j].begin(), offset[j].end() ) );
+  }
+
+  float time_sum_1 = 0;
+  float num_under_1 = 0;
+  for ( int i = 0; i < n1; i++ ) {
+    if ( abs( time_diffs[best_matching_idxs[i]][i] ) < max_offset ) {
+      time_sum_1 -= time_diffs[best_matching_idxs[i]][i];
+      num_under_1++;
     }
   }
-  return op;
+  float offset1 = 0;
+  if ( num_under_1 > 0 ) {
+    offset1 = time_sum_1 / num_under_1;
+  }
+
+  float time_sum_2 = 0;
+  float num_under_2 = 0;
+  for ( int j = 0; j < n2; j++ ) {
+    if ( abs( time_diffs[j][column_best_matching_idxs[j]] ) < max_offset ) {
+      time_sum_2 += time_diffs[j][column_best_matching_idxs[j]];
+      num_under_2++;
+    }
+  }
+  float offset2 = 0;
+  if ( num_under_2 > 0 ) {
+    offset2 = time_sum_2 / num_under_2;
+  }
+  int rounded_offset2 = (int)offset2;
+  if ( rounded_offset2 != 0 ) {
+    for_each( sequence2.begin(), sequence2.end(), [rounded_offset2]( midi_event& event ) {
+      event.timestamp += rounded_offset2;
+    } );
+  }
+
+  vector<vector<float>> op( sequence2.size(), vector<float>( sequence1.size() ) );
+  for ( int j = 0; j < n2; j++ ) {
+    for ( int i = 0; i < n1; i++ ) {
+      float time_diff = abs( sequence1[i].timestamp - sequence2[j].timestamp );
+      op[j][i]
+        = ( sequence1[i].note == sequence2[j].note ) * ( time_diff < min_dist ) * ( 1 - time_diff / min_dist );
+    }
+  }
+
+  return make_tuple( op, offset1, offset2 );
 }
 
 tuple<int, int, float, float, float> musical_similarity( vector<midi_event> tf1,
                                                          vector<midi_event> tf2,
+                                                         int zero_penalty = 1,
+                                                         int length_incentive = 500000,
+                                                         int max_offset = 600,
+                                                         int min_dist_const = 400,
                                                          bool disp = false )
 {
   vector<midi_event> sequence1 = tf1;
@@ -106,12 +176,15 @@ tuple<int, int, float, float, float> musical_similarity( vector<midi_event> tf1,
   }
 
   int last_time_2 = 0;
+  float mo = 0;
   if ( ind != -1 ) {
     lastmatch1 = tf1.size() - 1;
     lastmatch2 = ind;
+    mo = tf2.back().timestamp - tf2[ind].timestamp;
     last_time_2 = tf2[ind].timestamp;
   } else {
     last_time_2 = tf2.back().timestamp;
+    mo = 0;
   }
 
   vector<midi_event> sequence2 = tf2;
@@ -122,14 +195,22 @@ tuple<int, int, float, float, float> musical_similarity( vector<midi_event> tf1,
   int seq_1_time_del = tf1.back().timestamp - tf1[0].timestamp;
   int seq_2_time_del = tf2.back().timestamp - tf2[0].timestamp;
 
-  float time_ratio = seq_2_time_del / ( seq_1_time_del * 1.0 );
+  float time_ratio = ( seq_2_time_del / ( seq_1_time_del * 1.0 ) ) / tf1.size();
 
   // Calculating score array by comparing every note from each sequence and taking the best match
   vector<float> ratios_arr;
   for ( int i = sequence2.size(); i >= 0; i-- ) {
     ratios_arr.push_back( time_ratio * i );
   }
-  vector<vector<float>> scores = note_similarity_vect2( sequence1, sequence2, ratios_arr );
+
+  float mean_offset1, mean_offset2;
+  vector<vector<float>> scores;
+  for ( int i = sequence2.size(); i >= 0; i-- ) {
+    ratios_arr.push_back( time_ratio * i );
+  }
+
+  tie( scores, mean_offset1, mean_offset2 )
+    = note_similarity_vect2_mean( sequence1, sequence2, ratios_arr, max_offset, min_dist_const );
   std::vector<float> score( sequence1.size(), 0 );
   std::vector<float> score2( sequence2.size(), 0 );
   int last_nonzero_1 = -1;
@@ -164,6 +245,7 @@ tuple<int, int, float, float, float> musical_similarity( vector<midi_event> tf1,
       count_zeros++;
     score_sum += s;
   }
+  count_zeros *= zero_penalty;
 
   int count_score = sequence2.size() + count_zeros;
 
@@ -172,38 +254,29 @@ tuple<int, int, float, float, float> musical_similarity( vector<midi_event> tf1,
 
   // including length in score, if at least 5 notes
   if ( tf1.size() > 5 ) {
-    score_1 += score_1 * seq_1_time_del / 500000.0; // 50 seconds yield 10% increase
+    score_1 += score_1 * seq_1_time_del / length_incentive; // 50 seconds yield 10% increase
   }
 
   if ( disp ) {
     // TODO: Draw graph
   }
 
-  // TODO: Figure out what these are
-  float mean_offset1 = 0;
-  float mean_offset2 = 0;
-
-  return make_tuple( lastmatch1, lastmatch2, mean_offset1, mean_offset2, score_1 );
+  return make_tuple( lastmatch1, lastmatch2, mean_offset1 + mo, mean_offset2 + mo, score_1 );
 }
 
 tuple<int, int, float, float, float> two_way_similarity( vector<midi_event> tf1,
                                                          vector<midi_event> tf2,
                                                          bool disp = false )
 {
-  tuple<int, int, float, float, float> score1_data = musical_similarity( tf1, tf2, disp );
-  tuple<int, int, float, float, float> score2_data = musical_similarity( tf2, tf1, disp );
-  int intermediate = get<0>( score2_data );
-  get<0>( score2_data ) = get<1>( score2_data );
-  get<1>( score2_data ) = intermediate;
+  int a1, b1, a2, b2;
+  float c1, d1, c2, d2, score1, score2;
+  tie( a1, b1, c1, d1, score1 ) = musical_similarity( tf1, tf2, disp );
+  tie( b2, a2, d2, c2, score2 ) = musical_similarity( tf2, tf1, disp );
 
-  float inter2 = get<2>( score2_data );
-  get<2>( score2_data ) = get<3>( score2_data );
-  get<3>( score2_data ) = inter2;
-
-  if ( get<4>( score1_data ) > get<4>( score2_data ) ) {
-    return score1_data;
+  if ( score1 > score2 ) {
+    return { a1, b1, c1, d1, score1 };
   }
-  return score2_data;
+  return { a2, b2, c2, d2, score2 };
 }
 
 vector<match> calculate_similarity_time( vector<midi_event> notes,
