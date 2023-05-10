@@ -414,6 +414,17 @@ vector<match> calculate_similarity_time( vector<midi_event> notes,
 }
 
 vector<int> get_source_notes( vector<midi_event> notes, int start_time, int min_time )
+/*
+Args:
+        notes: array of all notes in a recording, where each note is [t,note,vel]
+        start_time: start index of notes array - corresponding to current time
+        min_notes: min number of notes for a valid sequence, integer
+        max_notes: max note length for a snippet, integer
+        min_time: min time length for a valid sequence, integer (ms)\
+
+    Returns:
+        matches: list of matches [[currTime, pastTime1, score1], [currTime, pastTime2, score2],...]
+*/
 {
   int start_index = -1;
   vector<int> source_id;
