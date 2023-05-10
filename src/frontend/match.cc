@@ -45,6 +45,17 @@ struct match
   int sourceTime;
 };
 
+int time_to_index( vector<midi_event> notes, int given_timestamp )
+{
+  // Make binary search
+  for ( int i = 0; i < notes.size(); i++ ) {
+    if ( notes[i].timestamp >= given_timestamp ) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 vector<midi_event> midi_to_timeseries( const string& midiPath )
 {
   fstream midiFile;
@@ -266,6 +277,10 @@ tuple<int, int, float, float, float> musical_similarity( vector<midi_event> tf1,
 
 tuple<int, int, float, float, float> two_way_similarity( vector<midi_event> tf1,
                                                          vector<midi_event> tf2,
+                                                         int zero_penalty = 1,
+                                                         int length_incentive = 500000,
+                                                         int max_offset = 600,
+                                                         int min_dist_const = 400,
                                                          bool disp = false )
 {
   int a1, b1, a2, b2;
@@ -282,8 +297,28 @@ tuple<int, int, float, float, float> two_way_similarity( vector<midi_event> tf1,
 vector<match> calculate_similarity_time( vector<midi_event> notes,
                                          vector<int> source_id,
                                          int currTime,
+                                         int timestamp_max_before_source = 5000,
+                                         int zero_penalty = 1,
+                                         int length_incentive = 500000,
+                                         int max_offset = 600,
+                                         int min_dist_const = 400,
                                          bool disp = false,
                                          int skip = 100 )
+/* Function that calls musical similarity on targets generated for a source_id.
+        Target snips start at every 100 ms, and has same time length as source.
+
+    Args:
+        notes: list of all notes from a recording [[t,note,vel],[t,note,vel],[t,note,vel],...]
+        source_id: indices of note array corresponding to current time snippet (source_id_start>source_id_end)
+                  [source_id_start, source_id_end]
+        currTime: time stamp at which we are searching for matches (ms)
+        skip: interval at which to iterate over target timestamps
+        disp: boolean whether to print each match (defaults True)
+
+    Returns:
+        matches: list of matches [[currTime, pastTime1, score1], [currTime, pastTime2, score2],...]
+
+*/
 {
   vector<match> matches;
   vector<int> max_matches;
@@ -297,7 +332,7 @@ vector<match> calculate_similarity_time( vector<midi_event> notes,
   int target_start = length_ms;
   int target_id_end = 0;
   int target_id_start = 0;
-  while ( target_start < currTime - 5000 ) {
+  while ( target_start < currTime - timestamp_max_before_source ) {
     // pick target_end by time length of course snip
     int target_end = target_start - length_ms;
 
@@ -333,6 +368,10 @@ vector<match> calculate_similarity_time( vector<midi_event> notes,
     tie( lm1, lm2, mo1, mo2, score )
       = two_way_similarity( vector<midi_event>( notes.begin() + source_id_end, notes.begin() + source_id_start ),
                             vector<midi_event>( notes.begin() + target_id_end, notes.begin() + target_id_start ),
+                            zero_penalty,
+                            length_incentive,
+                            max_offset,
+                            min_dist_const,
                             false );
 
     if ( score > 0.7 ) {
@@ -343,18 +382,28 @@ vector<match> calculate_similarity_time( vector<midi_event> notes,
     if ( score > 0.5 ) {
       int target_time = target_start;
       if ( lm1 >= source_id_start - source_id_end - 2 ) {
-        target_time = notes[target_id_end + lm2].timestamp + ( currTime - notes[source_id_end + lm1].timestamp );
+        target_time
+          = notes[target_id_end - 1].timestamp + (int)mo2 + ( currTime - notes[source_id_end - 1].timestamp );
       } else if ( lm2 >= target_id_start - target_id_end - 2 ) {
-        if ( currTime - notes[source_id_end + lm1].timestamp < 0 ) {
+        if ( currTime - notes[source_id_end + lm1].timestamp < 1 ) {
           cout << "oops something went wrong with time calculations - might end in infinite loop" << endl;
         }
         target_start += currTime - notes[source_id_end + lm1].timestamp;
         continue;
       }
 
-      if ( target_time < currTime - 5000 ) {
-        matches.emplace_back(
-          currTime, target_time, score, source_id_start, source_id_end, target_id_end + lm2, target_id_end, 0, 0 );
+      target_time
+        = notes[target_id_start - 1].timestamp - (int)mo2 + ( currTime - notes[source_id_start - 1].timestamp );
+      if ( target_time < currTime - timestamp_max_before_source ) {
+        matches.emplace_back( currTime,
+                              target_time,
+                              score,
+                              source_id_start,
+                              source_id_end,
+                              time_to_index( notes, target_time ),
+                              target_id_end,
+                              0,
+                              0 );
       }
     }
     last_id_end = target_id_end;
