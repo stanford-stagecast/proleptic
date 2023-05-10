@@ -460,7 +460,34 @@ Args:
   return source_id;
 }
 
-vector<match> find_matches_at_timestamp( int i, vector<midi_event> notes, bool disp )
+vector<match> find_matches_at_timestamp( int i,
+                                         vector<midi_event> notes,
+                                         int minTime,
+                                         int maxNotes,
+                                         int maxTime,
+                                         float thresh,
+                                         int timestamp_max_before_source = 5000,
+                                         int zero_penalty = 1,
+                                         int length_incentive = 500000,
+                                         int max_offset = 600,
+                                         int min_dist_const = 400,
+                                         bool disp )
+/*
+    Args:
+        i:
+        notes:
+        minNotes:
+        minTime:
+        maxNotes:
+        maxTime:
+        thresh:
+        disp:
+
+    Returns:
+        sims_arr: np array of every match >0.5 found of the form -
+            ['source_timestamp', 'target_timestamp','score',
+            'source_id_start','source_id_end','target_id_start','target_id_end','match_len','match_time']
+*/
 {
   vector<match> sims_arr;
   int offset = 500;
@@ -473,7 +500,15 @@ vector<match> find_matches_at_timestamp( int i, vector<midi_event> notes, bool d
       numSourceNotes = sourceId[0] - sourceId[1];
       sourceTime = i - notes[sourceId[1]].timestamp;
 
-      vector<match> sim = calculate_similarity_time( notes, sourceId, i, disp );
+      vector<match> sim = calculate_similarity_time( notes,
+                                                     sourceId,
+                                                     i,
+                                                     timestamp_max_before_source,
+                                                     zero_penalty,
+                                                     length_incentive,
+                                                     max_offset,
+                                                     min_dist_const,
+                                                     disp );
 
       for ( int j = 0; j < static_cast<int>( sim.size() ); j++ ) {
         sim[j].numSourceNotes = numSourceNotes;
