@@ -497,7 +497,9 @@ void program_body( const string& midiPath, const string& outputPath, const strin
   ofstream outputParam;
   outputParam.open( paramPath );
 
-  outputParam << "{\"start\": \"" << START << "\", \"end\": \"" << END << "\", \"skip\": \"" << SKIP << "\", \"thresh\": \"" << THRESHOLD << "\", \"minNotes\": \"" << MIN_NOTES << "\", \"maxNotes\": \"" << MAX_NOTES << "\"}" ;
+  outputParam << "{\"start\": \"" << START << "\", \"end\": \"" << END << "\", \"skip\": \"" << SKIP
+              << "\", \"thresh\": \"" << THRESHOLD << "\", \"minNotes\": \"" << MIN_NOTES << "\", \"maxNotes\": \""
+              << MAX_NOTES << "\"}";
 
   outputParam.close();
 
