@@ -490,28 +490,34 @@ vector<match> find_matches_at_timestamp( int i, vector<midi_event> notes, bool d
   return sims_arr;
 }
 
-void program_body( const string& midiPath, const string& outputPath )
+void program_body( const string& midiPath, const string& outputPath, const string& paramPath )
 {
   vector<midi_event> events = midi_to_timeseries( midiPath );
   vector<int> sims_arr;
+  ofstream outputParam;
+  outputParam.open( paramPath );
 
-  ofstream outputFile;
-  outputFile.open( outputPath );
-  outputFile << "source_timestamp,target_timestamp,score\n";
+  outputParam << "{\"start\": \"" << START << "\", \"end\": \"" << END << "\", \"skip\": \"" << SKIP << "\", \"thresh\": \"" << THRESHOLD << "\", \"minNotes\": \"" << MIN_NOTES << "\", \"maxNotes\": \"" << MAX_NOTES << "\"}" ;
+
+  outputParam.close();
+
+  ofstream outputCSV;
+  outputCSV.open( outputPath );
+  outputCSV << "source_timestamp,target_timestamp,score\n";
 
   for ( int i = START; i < END; i += SKIP ) {
     vector<match> matches = find_matches_at_timestamp( i, events, false );
 
     for ( match m : matches ) {
-      outputFile << to_string( m.currTime ) + "," + to_string( m.target_time ) + "," + to_string( m.score ) + "\n";
+      outputCSV << to_string( m.currTime ) + "," + to_string( m.target_time ) + "," + to_string( m.score ) + "\n";
     }
   }
-  outputFile.close();
+  outputCSV.close();
 }
 
 void usage_message( const string_view argv0 )
 {
-  cerr << "Usage: " << argv0 << " [MIDI file] [Match Output CSV Name]\n";
+  cerr << "Usage: " << argv0 << " [MIDI file] [Match Output CSV Name] [Paramaters Output Path]\n";
 }
 
 int main( int argc, char* argv[] )
@@ -521,12 +527,12 @@ int main( int argc, char* argv[] )
       abort();
     }
 
-    if ( argc != 3 ) {
+    if ( argc != 4 ) {
       usage_message( argv[0] );
       return EXIT_FAILURE;
     }
 
-    program_body( argv[1], argv[2] );
+    program_body( argv[1], argv[2], argv[3] );
 
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
