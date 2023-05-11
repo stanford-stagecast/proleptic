@@ -369,7 +369,7 @@ vector<match> calculate_similarity_time( vector<midi_event> notes,
       int target_time = target_start;
       if ( lm1 >= source_id_start - source_id_end - 2 ) {
         target_time
-          = notes[target_id_end - 1].timestamp + (int)mo2 + ( currTime - notes[source_id_end - 1].timestamp );
+          = notes[target_id_start - 1].timestamp + (int)mo2 + ( currTime - notes[source_id_start - 1].timestamp );
       } else if ( lm2 >= target_id_start - target_id_end - 2 ) {
         if ( currTime - notes[source_id_end + lm1].timestamp < 1 ) {
           cout << "oops something went wrong with time calculations - might end in infinite loop" << endl;
