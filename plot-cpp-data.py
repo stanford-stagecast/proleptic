@@ -8,6 +8,10 @@ hypparam_file = open(sys.argv[2], 'r')
 hypparam = json.load(hypparam_file)
 simsDFall = pd.read_csv(sys.argv[1], dtype={'source_timestamp': int, 'target_timestamp':int, 'score':float})
 simsDF = simsDFall.loc[simsDFall['score']>0.7]
+if len(sys.argv) > 3:
+    dir = sys.argv[3] + "/"
+else:
+    dir = ""
 
 start = int(hypparam["start"])
 end = int(hypparam["end"])
@@ -25,7 +29,7 @@ def plot_above_thresh():
     #title = "All matches >"+str(thresh)+", for \nMin Notes=" + str(minNotes) + " notes, Max Notes=" + str(maxNotes)
     title = "All matches > 0.7"
     simsDF.plot.scatter(x="source_timestamp", y="target_timestamp", s='score', title=title)
-    plt.savefig("above_thresh_test.png")
+    plt.savefig(dir+"above_thresh_test.png")
 
 def plot_best_matches():
     percentage_matches_any = 0
@@ -89,7 +93,7 @@ def plot_best_matches():
     plt.title("Best match for \nMin Snippet Length=" + str(minNotes) + " notes, Max Notes=" + str(maxNotes))
     plt.xlabel("Source Timestamp (ms)")
     plt.ylabel("Best Match Timestamp")
-    plt.savefig("best_matches_test.png")
+    plt.savefig(dir+"best_matches_test.png")
 
     return distribution_hist, close_matches
 
@@ -101,8 +105,10 @@ def plot_expect_diff_histogram(distribution_hist):
     plt.hist(distribution_hist,bins=int(max(distribution_hist)-min(distribution_hist)))
     plt.title("Histogram of time difference from expected")
     plt.xlabel("Time difference (ms)")
+    plt.xlim(-100,100)
+    plt.ylim(0,1500)
     plt.ylabel("Frequency")
-    plt.savefig("expect_diff_histogram.png")
+    plt.savefig(dir+"expect_diff_histogram.png")
 
 # def plot_alignment_src_targ(distribution_hist, close_matches):
 #     close_matches_array = np.array(close_matches)
