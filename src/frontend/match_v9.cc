@@ -26,7 +26,7 @@ constexpr int MIN_TIME = 1500;  // Min time in ms
 constexpr int MAX_TIME = 30000; // If more matches, increase snippet length
 constexpr float THRESHOLD = 0.7;
 constexpr int START = 191400;
-constexpr int SKIP = 10;
+constexpr int SKIP = 100;
 constexpr int END = 365000;
 constexpr int NUM_PREV_MATCHES = 5; // check these many previous matches for speedup
 
@@ -681,7 +681,7 @@ void program_body( const string& midiPath, const string& outputPath, const strin
     }
   }
 
-  // number of timestamps that were speeded up
+  //
   cout << "Number of speedups: " << num_speedups << endl;
   cout << "Percentage speedups: " << ( 100.0 * (double)num_speedups * (double)SKIP ) / (double)( END - START )
        << endl;

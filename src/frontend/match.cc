@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <limits.h>
@@ -45,7 +46,7 @@ struct match
   float score;
   int source_id_start;
   int source_id_end;
-  int target_id_end_lm2;
+  int target_id_start;
   int target_id_end;
   int numSourceNotes;
   int sourceTime;
@@ -499,19 +500,23 @@ void program_body( const string& midiPath, const string& outputPath, const strin
 
   outputParam << "{\"start\": \"" << START << "\", \"end\": \"" << END << "\", \"skip\": \"" << SKIP
               << "\", \"thresh\": \"" << THRESHOLD << "\", \"minNotes\": \"" << MIN_NOTES << "\", \"maxNotes\": \""
-              << MAX_NOTES << "\"}";
+              << MAX_NOTES << "\", \"midiPath\": " << filesystem::absolute( midiPath ) << "}";
 
   outputParam.close();
 
   ofstream outputCSV;
   outputCSV.open( outputPath );
-  outputCSV << "source_timestamp,target_timestamp,score\n";
+  outputCSV << "source_timestamp,target_timestamp,score,source_id_start,source_id_end,target_id_start,target_id_"
+               "end,match_len,match_time\n";
 
   for ( int i = START; i < END; i += SKIP ) {
     vector<match> matches = find_matches_at_timestamp( i, events, false );
 
     for ( match m : matches ) {
-      outputCSV << to_string( m.currTime ) + "," + to_string( m.target_time ) + "," + to_string( m.score ) + "\n";
+      outputCSV << to_string( m.currTime ) + "," + to_string( m.target_time ) + "," + to_string( m.score ) + ","
+                     + to_string( m.source_id_start ) + "," + to_string( m.source_id_end ) + ","
+                     + to_string( m.target_id_start ) + "," + to_string( m.target_id_end ) + ","
+                     + to_string( m.numSourceNotes ) + "," + to_string( m.sourceTime ) + "\n";
     }
   }
   outputCSV.close();
