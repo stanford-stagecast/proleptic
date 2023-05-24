@@ -205,47 +205,6 @@ const std::vector<wav_frame_t> NoteRepository::get_wav( const bool direction,
   return samples;
 }
 
-const wav_frame_t NoteRepository::get_sample( const bool direction,
-                                              const size_t note,
-                                              const uint8_t velocity,
-                                              const unsigned long offset ) const
-{
-  if ( direction ) {
-    if ( velocity <= LOW_XFOUT_LOVEL ) {
-      return notes.at( note ).getSlow().view( offset );
-    } else if ( velocity <= LOW_XFOUT_HIVEL ) {
-      std::pair<float, float> new_samp = notes.at( note ).getSlow().view( offset );
-      new_samp.first *= ( LOW_XFOUT_HIVEL - velocity ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL );
-      new_samp.second *= ( LOW_XFOUT_HIVEL - velocity ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL );
-
-      std::pair<float, float> med_samp = notes.at( note ).getMed().view( offset );
-      new_samp.first += med_samp.first * ( ( velocity - LOW_XFOUT_LOVEL ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL ) );
-      new_samp.second
-        += med_samp.second * ( ( velocity - LOW_XFOUT_LOVEL ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL ) );
-
-      return new_samp;
-    } else if ( velocity <= HIGH_XFIN_LOVEL ) {
-      return notes.at( note ).getMed().view( offset );
-    } else if ( velocity <= HIGH_XFIN_HIVEL ) {
-      std::pair<float, float> new_samp = notes.at( note ).getMed().view( offset );
-      new_samp.first *= ( HIGH_XFIN_HIVEL - velocity ) / ( HIGH_XFIN_HIVEL - HIGH_XFIN_LOVEL );
-      new_samp.second *= ( HIGH_XFIN_HIVEL - velocity ) / ( HIGH_XFIN_HIVEL - HIGH_XFIN_LOVEL );
-
-      std::pair<float, float> fast_samp = notes.at( note ).getFast().view( offset );
-      new_samp.first
-        += fast_samp.first * ( ( velocity - HIGH_XFIN_LOVEL ) / ( HIGH_XFIN_HIVEL - HIGH_XFIN_LOVEL ) );
-      new_samp.second
-        += fast_samp.second * ( ( velocity - HIGH_XFIN_LOVEL ) / ( HIGH_XFIN_HIVEL - HIGH_XFIN_LOVEL ) );
-
-      return new_samp;
-    } else {
-      return notes.at( note ).getFast().view( offset );
-    }
-  }
-
-  return notes.at( note ).getRel().view( offset );
-}
-
 bool NoteRepository::note_finished( const bool direction,
                                     const size_t note,
                                     const uint8_t velocity,
