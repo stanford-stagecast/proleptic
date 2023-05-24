@@ -11,6 +11,8 @@
 #include <tuple>
 #include <vector>
 
+#include "timer.hh"
+
 using namespace std;
 
 constexpr int zero_penalty = 1;
@@ -27,7 +29,7 @@ constexpr int MAX_TIME = 30000; // If more matches, increase snippet length
 constexpr float THRESHOLD = 0.7;
 constexpr int START = 191400;
 constexpr int SKIP = 100;
-constexpr int END = 365000;
+constexpr int END = 36500;
 constexpr int NUM_PREV_MATCHES = 5; // check these many previous matches for speedup
 
 //    MIDI EVENT TYPES
@@ -358,10 +360,13 @@ vector<match> calculate_similarity_time( vector<midi_event> notes,
 
     int lm1, lm2;
     float mo1, mo2, score;
+    {
+      GlobalScopeTimer<Timer::Category::CalcSnippetsSim> timer;
     tie( lm1, lm2, mo1, mo2, score )
       = two_way_similarity( vector<midi_event>( notes.begin() + source_id_end, notes.begin() + source_id_start ),
                             vector<midi_event>( notes.begin() + target_id_end, notes.begin() + target_id_start ),
                             disp );
+    }
 
     if ( score > THRESHOLD ) {
       if ( disp ) {
@@ -680,7 +685,7 @@ void program_body( const string& midiPath, const string& outputPath, const strin
                      + to_string( m.numSourceNotes ) + "," + to_string( m.sourceTime ) + "\n";
     }
   }
-
+  global_timer().summary( cout );
   //
   cout << "Number of speedups: " << num_speedups << endl;
   cout << "Percentage speedups: " << ( 100.0 * (double)num_speedups * (double)SKIP ) / (double)( END - START )

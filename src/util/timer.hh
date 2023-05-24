@@ -67,6 +67,7 @@ public:
     KeyDown,
     KeyUp,
     AdvanceSample,
+    CalcSnippetsSim,
     count
   };
 
@@ -77,7 +78,8 @@ public:
                                                                                "Initializing synthesizer",
                                                                                "Key down",
                                                                                "Key up",
-                                                                               "Advance sample" } };
+                                                                               "Advance sample",
+                                                                               "Calculating snippets similarity" } };
 
 private:
   uint64_t _beginning_timestamp = timestamp_ns();
