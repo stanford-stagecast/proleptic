@@ -35,6 +35,8 @@ public:
 
   void add_key_release( uint8_t adj_event_note, uint8_t event_vel );
 
+  void add_shallow_key_press( uint8_t adj_event_note, uint8_t event_vel );
+
   wav_frame_t get_curr_sample() const;
 
   void advance_sample();

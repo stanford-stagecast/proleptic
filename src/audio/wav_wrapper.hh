@@ -8,15 +8,20 @@ using wav_frame_t = std::pair<float, float>;
 /* wrap WAV file with error/validity checks */
 class WavWrapper
 {
-  std::vector<float> samples_ {};
+  std::vector<wav_frame_t> samples_ {};
+
+  static void to_stereo( const std::vector<float>& raw, std::vector<wav_frame_t>& stereo );
 
 public:
   WavWrapper( const std::string& filename );
 
-  size_t size() const { return samples_.size() / 2; };
+  size_t size() const { return samples_.size(); };
 
-  wav_frame_t view( size_t offset ) const;
-  bool at_end( size_t offset ) const;
+  const wav_frame_t view( size_t offset ) const
+  {
+    return at_end( offset ) ? wav_frame_t {} : samples_.at( offset );
+  }
+  bool at_end( size_t offset ) const { return offset >= size(); }
 
   void bend_pitch( const double pitch_bend_ratio );
 

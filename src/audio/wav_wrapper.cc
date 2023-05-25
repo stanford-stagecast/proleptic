@@ -39,7 +39,8 @@ WavWrapper::WavWrapper( const string& filename )
   }
 
   /* read file into memory */
-  const auto retval = handle_.read( samples_.data(), NUM_CHANNELS * num_frames_in_input );
+  vector<float> samples_tmp( NUM_CHANNELS * num_frames_in_input );
+  const auto retval = handle_.read( samples_tmp.data(), NUM_CHANNELS * num_frames_in_input );
 
   if ( retval != NUM_CHANNELS * num_frames_in_input ) {
     throw runtime_error( "unexpected read of " + to_string( retval ) + " samples" );
@@ -50,25 +51,19 @@ WavWrapper::WavWrapper( const string& filename )
   if ( 0 != handle_.read( &dummy, 1 ) ) {
     throw runtime_error( "unexpected extra data in WAV file" );
   }
+
+  to_stereo( samples_tmp, samples_ );
 }
 
-bool WavWrapper::at_end( size_t offset ) const
+void WavWrapper::to_stereo( const vector<float>& raw, vector<wav_frame_t>& stereo )
 {
-  if ( offset >= samples_.size() / 2 ) {
-    return true;
+  if ( raw.size() % NUM_CHANNELS ) {
+    throw runtime_error( "size not divisible by NUM_CHANNELS" );
   }
-
-  return false;
-}
-
-wav_frame_t WavWrapper::view( size_t offset ) const
-{
-  if ( at_end( offset ) ) {
-    return { 0, 0 };
+  stereo.resize( raw.size() / NUM_CHANNELS );
+  for ( size_t i = 0; i < stereo.size(); i++ ) {
+    stereo.at( i ) = { raw.at( NUM_CHANNELS * i ), raw.at( NUM_CHANNELS * i + 1 ) };
   }
-  std::pair<float, float> sample = { samples_.at( offset * 2 ), samples_.at( ( offset * 2 ) + 1 ) };
-
-  return sample;
 }
 
 void WavWrapper::bend_pitch( const double pitch_bend_ratio )
@@ -76,7 +71,7 @@ void WavWrapper::bend_pitch( const double pitch_bend_ratio )
   vector<float> new_samples( samples_.size() * 2 ); /* hopefully enough samples */
 
   SRC_DATA resample_info;
-  resample_info.data_in = samples_.data();
+  resample_info.data_in = &samples_.at( 0 ).first;
   resample_info.data_out = new_samples.data();
   resample_info.input_frames = samples_.size() / NUM_CHANNELS;
   resample_info.output_frames = new_samples.size() / NUM_CHANNELS;
@@ -90,5 +85,5 @@ void WavWrapper::bend_pitch( const double pitch_bend_ratio )
 
   new_samples.resize( NUM_CHANNELS * resample_info.output_frames_gen );
 
-  samples_.swap( new_samples );
+  to_stereo( new_samples, samples_ );
 }

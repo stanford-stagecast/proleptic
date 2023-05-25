@@ -30,6 +30,23 @@ void program_body( const string& sample_directory )
 
   for ( unsigned int i = 0; i < 64; i++ ) {
     {
+      GlobalScopeTimer<Timer::Category::GetWav> timer;
+      synth->add_shallow_key_press( i + 22, 1 );
+    }
+
+    {
+      GlobalScopeTimer<Timer::Category::GetWav> timer;
+      synth->add_shallow_key_press( i + 22 + 1, 1 );
+    }
+
+    {
+      GlobalScopeTimer<Timer::Category::AdvanceSample> timer;
+      synth->advance_sample();
+    }
+  }
+
+  for ( unsigned int i = 0; i < 64; i++ ) {
+    {
       GlobalScopeTimer<Timer::Category::KeyUp> timer;
       synth->add_key_release( i + 22, 80 );
     }

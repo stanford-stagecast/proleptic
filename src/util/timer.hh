@@ -65,6 +65,7 @@ public:
     WaitingForEvent,
     InitSynth,
     KeyDown,
+    GetWav,
     KeyUp,
     AdvanceSample,
     CalcSnippetsSim,
@@ -78,6 +79,7 @@ public:
       "Waiting for event",
       "Initializing synthesizer",
       "Key down",
+      "Get wav",
       "Key up",
       "Advance sample",
       "Calculating snippets similarity" } };
