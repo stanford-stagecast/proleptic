@@ -22,6 +22,11 @@ public:
   const WavWrapper& getFast() const { return fast; };
   const WavWrapper& getRel() const { return rel; };
 
+  WavWrapper& getSlow() { return slow; };
+  WavWrapper& getMed() { return med; };
+  WavWrapper& getFast() { return fast; };
+  WavWrapper& getRel() { return rel; };
+
   bool has_damper() const { return has_damper_; }
 
   void bend_pitch( const double pitch_bend_ratio );

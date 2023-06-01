@@ -15,6 +15,8 @@ class WavWrapper
 public:
   WavWrapper( const std::string& filename );
 
+  void resize( size_t N ) { samples_.resize( N ); }
+
   size_t size() const { return samples_.size(); };
 
   const std::vector<wav_frame_t>& samples() const { return samples_; }

@@ -104,6 +104,21 @@ NoteRepository::NoteRepository( const string& sample_directory )
   add_notes( sample_directory, "C8", false );
 
   cerr << "Added " << notes.size() << " notes\n";
+
+  size_t maximum_keydown_length {};
+  for ( const auto& x : notes ) {
+    maximum_keydown_length = max( maximum_keydown_length, x.getSlow().size() );
+    maximum_keydown_length = max( maximum_keydown_length, x.getMed().size() );
+    maximum_keydown_length = max( maximum_keydown_length, x.getFast().size() );
+  }
+
+  cerr << "Resizing all keydowns to " << maximum_keydown_length << " samples.\n";
+
+  for ( auto& x : notes ) {
+    x.getSlow().resize( maximum_keydown_length );
+    x.getMed().resize( maximum_keydown_length );
+    x.getFast().resize( maximum_keydown_length );
+  }
 }
 
 const std::vector<wav_frame_t> NoteRepository::get_wav( const bool direction,
