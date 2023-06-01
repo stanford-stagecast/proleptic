@@ -53,6 +53,12 @@ WavWrapper::WavWrapper( const string& filename )
   }
 
   to_stereo( samples_tmp, samples_ );
+
+  /* scale to avoid clipping */
+  for ( auto& x : samples_ ) {
+    x.first *= 0.2;
+    x.second *= 0.2;
+  }
 }
 
 void WavWrapper::to_stereo( const vector<float>& raw, vector<wav_frame_t>& stereo )

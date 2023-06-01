@@ -69,7 +69,12 @@ void Synthesizer::add_shallow_key_press( uint8_t adj_event_note, uint8_t event_v
   auto& k = keys.at( adj_event_note );
   k.released = false;
 
-  const std::vector<std::pair<float, float>> samples = note_repo.get_wav( true, adj_event_note, event_vel );
+  NoteRepository::WavCombination combo = note_repo.get_keydown_combination( adj_event_note, event_vel );
+
+  const size_t max_size = combo.a->size();
+  if ( max_size > k.future.size() ) {
+    throw runtime_error( "note too big!" );
+  }
 }
 
 void Synthesizer::add_key_release( uint8_t adj_event_note, uint8_t event_vel )

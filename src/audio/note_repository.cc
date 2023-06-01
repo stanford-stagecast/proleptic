@@ -241,3 +241,37 @@ void NoteRepository::add_notes( const string& sample_directory, const string& na
   unsigned int release_sample_num = notes.size() + 1;
   notes.emplace_back( sample_directory, name, release_sample_num, has_damper );
 }
+
+NoteRepository::WavCombination NoteRepository::get_keydown_combination( const size_t note,
+                                                                        const uint8_t velocity ) const
+{
+  WavCombination ret;
+  if ( velocity <= LOW_XFOUT_LOVEL ) {
+    ret.a = &notes.at( note ).getSlow().samples();
+    ret.b = &notes.at( note ).getSlow().samples();
+    ret.a_weight = 1;
+    return ret;
+  } else if ( velocity <= LOW_XFOUT_HIVEL ) {
+    ret.a = &notes.at( note ).getSlow().samples();
+    ret.b = &notes.at( note ).getMed().samples();
+    ret.a_weight = ( LOW_XFOUT_HIVEL - velocity ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL );
+    ret.b_weight = ( velocity - LOW_XFOUT_LOVEL ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL );
+    return ret;
+  } else if ( velocity <= HIGH_XFIN_LOVEL ) {
+    ret.a = &notes.at( note ).getMed().samples();
+    ret.b = &notes.at( note ).getMed().samples();
+    ret.a_weight = 1;
+    return ret;
+  } else if ( velocity <= HIGH_XFIN_HIVEL ) {
+    ret.a = &notes.at( note ).getMed().samples();
+    ret.b = &notes.at( note ).getFast().samples();
+    ret.a_weight = ( LOW_XFOUT_HIVEL - velocity ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL );
+    ret.b_weight = ( velocity - LOW_XFOUT_LOVEL ) / ( LOW_XFOUT_HIVEL - LOW_XFOUT_LOVEL );
+    return ret;
+  } else {
+    ret.a = &notes.at( note ).getFast().samples();
+    ret.b = &notes.at( note ).getFast().samples();
+    ret.a_weight = 1;
+    return ret;
+  }
+}
