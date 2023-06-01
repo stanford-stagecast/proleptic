@@ -17,6 +17,8 @@ public:
 
   size_t size() const { return samples_.size(); };
 
+  const std::vector<wav_frame_t>& samples() const { return samples_; }
+
   const wav_frame_t view( size_t offset ) const
   {
     return at_end( offset ) ? wav_frame_t {} : samples_.at( offset );

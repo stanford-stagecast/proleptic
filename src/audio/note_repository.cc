@@ -112,13 +112,7 @@ const std::vector<wav_frame_t> NoteRepository::get_wav( const bool direction,
 {
   if ( direction ) {
     if ( velocity <= LOW_XFOUT_LOVEL ) {
-      const WavWrapper& wav = notes.at( note ).getSlow();
-      std::vector<wav_frame_t> samples { wav.size() };
-      for ( size_t i = 0; i < wav.size(); i++ ) {
-        std::pair<float, float> new_samp = wav.view( i );
-        samples[i] = { new_samp.first, new_samp.second };
-      }
-      return samples;
+      return notes.at( note ).getSlow().samples();
     } else if ( velocity <= LOW_XFOUT_HIVEL ) {
       const WavWrapper& wav = notes.at( note ).getSlow();
       const WavWrapper& wav_med = notes.at( note ).getMed();
