@@ -79,7 +79,7 @@ void Synthesizer::add_shallow_key_press( uint8_t adj_event_note, uint8_t event_v
   size_t offset = 0;
 
   // Update key future and total future
-  for ( int i = 0 ; i < max_size; i++ ) {
+  for ( int i = 0; i < max_size; i++ ) {
     float amplitude_multiplier = 0.2; /* to avoid clipping */
 
     const std::pair<float, float> curr_sample
@@ -94,7 +94,6 @@ void Synthesizer::add_shallow_key_press( uint8_t adj_event_note, uint8_t event_v
     total_future.at( get_buff_idx( i ) ).first += curr_sample.first;
     total_future.at( get_buff_idx( i ) ).second += curr_sample.second;
   }
-
 }
 
 void Synthesizer::add_key_release( uint8_t adj_event_note, uint8_t event_vel )
