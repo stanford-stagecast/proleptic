@@ -12,16 +12,15 @@ class TypedRingStorage : public RingStorage
 {
   static constexpr auto elem_size_ = sizeof( T );
 
-protected:
-  span<T> mutable_storage( const size_t index ) { return { RingStorage::storage( index * elem_size_ ) }; }
-  span_view<T> storage( const size_t index ) const { return { RingStorage::storage( index * elem_size_ ) }; }
-
 public:
   explicit TypedRingStorage( const size_t capacity )
     : RingStorage( capacity * elem_size_ )
   {}
 
   size_t capacity() const { return RingStorage::capacity() / elem_size_; }
+
+  span<T> mutable_storage( const size_t index ) { return { RingStorage::storage( index * elem_size_ ) }; }
+  span_view<T> storage( const size_t index ) const { return { RingStorage::storage( index * elem_size_ ) }; }
 };
 
 template<typename T>
