@@ -8,7 +8,7 @@
 #include <vector>
 
 static constexpr unsigned int FUTURE_LENGTH
-  = 2425 * 4096; // just longer than longest piano sample (25.862625 seconds)
+  = 304 * 4096; // just longer than longest piano sample (25.862625 seconds)
 
 class Synthesizer
 {

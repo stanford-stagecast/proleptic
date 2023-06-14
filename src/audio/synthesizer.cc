@@ -36,33 +36,7 @@ void Synthesizer::process_new_data( uint8_t event_type, uint8_t event_note, uint
 
 void Synthesizer::add_key_press( uint8_t adj_event_note, uint8_t event_vel )
 {
-  auto& k = keys.at( adj_event_note );
-  k.released = false;
-
-  const std::vector<std::pair<float, float>> samples = note_repo.get_wav( true, adj_event_note, event_vel );
-  auto key_region = k.future.mutable_storage( frames_processed % FUTURE_LENGTH );
-  auto total_region = total_future.mutable_storage( frames_processed % FUTURE_LENGTH );
-
-  size_t offset = 0;
-
-  // Update key future and total future
-  while ( !note_repo.note_finished( true, adj_event_note, event_vel, offset ) ) {
-    float amplitude_multiplier = 0.2; /* to avoid clipping */
-
-    const std::pair<float, float> curr_sample = samples.at( offset );
-
-    // Update key future
-    auto& sample = key_region[offset];
-    sample.first += curr_sample.first * amplitude_multiplier;
-    sample.second += curr_sample.second * amplitude_multiplier;
-
-    // Update total future
-    auto& total_sample = total_region[offset];
-    total_sample.first += curr_sample.first * amplitude_multiplier;
-    total_sample.second += curr_sample.second * amplitude_multiplier;
-
-    offset++;
-  }
+  add_shallow_key_press( adj_event_note, event_vel );
 }
 
 void Synthesizer::add_shallow_key_press( uint8_t adj_event_note, uint8_t event_vel )
@@ -110,7 +84,7 @@ void Synthesizer::add_key_release( uint8_t adj_event_note, uint8_t event_vel )
   auto total_region = total_future.mutable_storage( frames_processed % FUTURE_LENGTH );
 
   // Update key future and total future
-  for ( size_t offset = 0; offset < 48000 * 30; offset++ ) {
+  for ( size_t offset = 0; offset < FUTURE_LENGTH; offset++ ) {
     auto& key_sample = key_region[offset];
     auto& total_sample = total_region[offset];
 
