@@ -78,8 +78,6 @@ void Synthesizer::add_key_release( uint8_t adj_event_note, uint8_t event_vel )
   k.released = true;
 
   float vol_ratio = 1.0;
-
-  const std::vector<std::pair<float, float>> rel_samples = note_repo.get_wav( true, adj_event_note, event_vel );
   auto key_region = k.future.mutable_storage( frames_processed % FUTURE_LENGTH );
   auto total_region = total_future.mutable_storage( frames_processed % FUTURE_LENGTH );
 
@@ -100,21 +98,6 @@ void Synthesizer::add_key_release( uint8_t adj_event_note, uint8_t event_vel )
 
       // Update key future
       key_sample = new_sample;
-    }
-
-    // Add release sound
-    if ( !note_repo.note_finished( false, adj_event_note, event_vel, offset ) ) {
-      float amplitude_multiplier = exp10( -37 / 20.0 ) * 0.2;
-
-      const std::pair<float, float> rel_sample = rel_samples[offset];
-
-      // Update key future
-      key_sample.first += rel_sample.first * amplitude_multiplier;
-      key_sample.second += rel_sample.second * amplitude_multiplier;
-
-      // Update total future
-      total_sample.first += rel_sample.first * amplitude_multiplier;
-      total_sample.second += rel_sample.second * amplitude_multiplier;
     }
   }
 }
