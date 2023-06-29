@@ -30,3 +30,5 @@ add_exec(match)
 add_exec(match_v8)
 add_exec(match_v9)
 add_exec_with_simplenn(metronome-clock-recovery)
+
+add_exec(hash-map)
