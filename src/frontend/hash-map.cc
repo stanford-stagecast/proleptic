@@ -15,8 +15,8 @@ using namespace std;
 
 struct MidiEvent
 {
-  uint64_t timestamp; // when
-  unsigned short type, note, velocity;  // actual midi data 
+  uint64_t timestamp;                  // when
+  unsigned short type, note, velocity; // actual midi data
 };
 
 void program_body( const string& midi_device, const string& midi_filename )
@@ -61,13 +61,13 @@ void program_body( const string& midi_device, const string& midi_filename )
       now = Timer::timestamp_ns() - initial_timestamp;
     }
 
-  /*
-   * TO DO: Have code that runs every 5 ms (instead of sleep until next event, sleep until 5 ms from now.)
-   * Upon waking up we look at all the events that occurred since last wakeup (could be empty).
-   * Call fn with that set of events (could be empty). Fn will be responsible for:
-   * 1. Store data in some data struct
-   * 2. Find most similar part of history (if any).
-  */
+    /*
+     * TO DO: Have code that runs every 5 ms (instead of sleep until next event, sleep until 5 ms from now.)
+     * Upon waking up we look at all the events that occurred since last wakeup (could be empty).
+     * Call fn with that set of events (could be empty). Fn will be responsible for:
+     * 1. Store data in some data struct
+     * 2. Find most similar part of history (if any).
+     */
     piano.write( { data.begin(), data.size() } ); // write bytes to pno
   }
 }
