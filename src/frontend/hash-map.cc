@@ -19,13 +19,10 @@ struct MidiEvent
   unsigned short type, note, velocity; // actual midi data
 };
 
-void program_body( const string& midi_device, const string& midi_filename )
+void program_body( const string& midi_filename )
 {
   /* speed up C++ I/O by decoupling from C standard I/O */
   ios::sync_with_stdio( false );
-
-  FileDescriptor piano {
-    CheckSystemCall( midi_device, open( midi_device.c_str(), O_WRONLY ) ) }; // send data to pno
 
   /* read MIDI file */
   ifstream midi_data { midi_filename }; // opens midi_filename given
@@ -50,9 +47,6 @@ void program_body( const string& midi_device, const string& midi_filename )
   const uint64_t initial_timestamp = Timer::timestamp_ns();
 
   for ( const auto& ev : events ) {
-    std::array<char, 3> data {
-      char( ev.type ), char( ev.note ), char( ev.velocity ) }; // produce bytes of midi, pop array
-
     uint64_t now = Timer::timestamp_ns() - initial_timestamp; // compute current time
     uint64_t target_ns = MILLION * ev.timestamp;              // compute target time stamp for this current event
 
@@ -68,13 +62,12 @@ void program_body( const string& midi_device, const string& midi_filename )
      * 1. Store data in some data struct
      * 2. Find most similar part of history (if any).
      */
-    piano.write( { data.begin(), data.size() } ); // write bytes to pno
   }
 }
 
 void usage_message( const string_view argv0 )
 {
-  cerr << "Usage: " << argv0 << " midi_device [typically /dev/snd/midi*] midi_filename\n";
+  cerr << "Usage: " << argv0 << " midi_filename\n";
 }
 
 int main( int argc, char* argv[] )
@@ -84,12 +77,12 @@ int main( int argc, char* argv[] )
       abort();
     }
 
-    if ( argc != 3 ) {
+    if ( argc != 2 ) {
       usage_message( argv[0] );
       return EXIT_FAILURE;
     }
 
-    program_body( argv[1], argv[2] );
+    program_body( argv[1] );
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
     return EXIT_FAILURE;
