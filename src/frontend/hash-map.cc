@@ -48,13 +48,13 @@ void program_body( const string& midi_device, const string& midi_filename )
   cerr << "Read " << midi_filename << " with " << events.size() << " events.\n"; // done
 
   const uint64_t initial_timestamp = Timer::timestamp_ns();
+
   for ( const auto& ev : events ) {
     std::array<char, 3> data {
       char( ev.type ), char( ev.note ), char( ev.velocity ) }; // produce bytes of midi, pop array
 
     uint64_t now = Timer::timestamp_ns() - initial_timestamp; // compute current time
-
-    uint64_t target_ns = MILLION * ev.timestamp; // compute target time stamp for this current event
+    uint64_t target_ns = MILLION * ev.timestamp;              // compute target time stamp for this current event
 
     while ( target_ns > now ) {
       this_thread::sleep_for( chrono::nanoseconds( target_ns - now ) ); // sleep until target time stamp
