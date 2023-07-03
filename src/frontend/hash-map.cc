@@ -15,9 +15,27 @@ using namespace std;
 
 struct MidiEvent
 {
-  uint64_t timestamp;                  // when
   unsigned short type, note, velocity; // actual midi data
 };
+
+class MatchFinder
+{
+public:
+  void process_events( uint64_t starting_ts, uint64_t ending_ts, const vector<MidiEvent>& events )
+  {
+    // Dummy implementation
+    cout << "Processing chunk from " << starting_ts << ".." << ending_ts << " ms:";
+    for ( const auto& ev : events ) {
+      cout << " [" << ev.type << " " << ev.note << " " << ev.velocity << "]";
+    }
+    if ( events.empty() ) {
+      cout << " (none)";
+    }
+    cout << "\n";
+  }
+};
+
+static constexpr uint64_t chunk_duration_ms = 5;
 
 void program_body( const string& midi_filename )
 {
@@ -30,39 +48,35 @@ void program_body( const string& midi_filename )
   midi_data.unsetf( ios::oct );
   midi_data.unsetf( ios::hex );
 
-  vector<MidiEvent> events; // declare vector of events
+  vector<MidiEvent> events_in_chunk;
+  uint64_t end_of_chunk = chunk_duration_ms;
+  MatchFinder match_finder;
 
   while ( not midi_data.eof() ) { // until file reaches end
     if ( not midi_data.good() ) {
       throw runtime_error( midi_filename + " could not be parsed" );
     }
 
-    events.emplace_back(); // make new event
-    MidiEvent& ev = events.back();
-    midi_data >> ev.timestamp >> ev.type >> ev.note >> ev.velocity; // reads in data to event
-  }
+    MidiEvent ev;
+    uint64_t timestamp;
+    midi_data >> timestamp >> ev.type >> ev.note >> ev.velocity; // reads in data to event
 
-  cerr << "Read " << midi_filename << " with " << events.size() << " events.\n"; // done
-
-  const uint64_t initial_timestamp = Timer::timestamp_ns();
-
-  for ( const auto& ev : events ) {
-    uint64_t now = Timer::timestamp_ns() - initial_timestamp; // compute current time
-    uint64_t target_ns = MILLION * ev.timestamp;              // compute target time stamp for this current event
-
-    while ( target_ns > now ) {
-      this_thread::sleep_for( chrono::nanoseconds( target_ns - now ) ); // sleep until target time stamp
-      now = Timer::timestamp_ns() - initial_timestamp;
+    while ( timestamp >= end_of_chunk ) {
+      match_finder.process_events( end_of_chunk - chunk_duration_ms, end_of_chunk, events_in_chunk );
+      events_in_chunk.clear();
+      end_of_chunk += chunk_duration_ms;
     }
 
-    /*
-     * TO DO: Have code that runs every 5 ms (instead of sleep until next event, sleep until 5 ms from now.)
-     * Upon waking up we look at all the events that occurred since last wakeup (could be empty).
-     * Call fn with that set of events (could be empty). Fn will be responsible for:
-     * 1. Store data in some data struct
-     * 2. Find most similar part of history (if any).
-     */
+    events_in_chunk.push_back( move( ev ) );
   }
+
+  /*
+   * TO DO: Have code that runs every 5 ms (instead of sleep until next event, sleep until 5 ms from now.)
+   * Upon waking up we look at all the events that occurred since last wakeup (could be empty).
+   * Call fn with that set of events (could be empty). Fn will be responsible for:
+   * 1. Store data in some data struct
+   * 2. Find most similar part of history (if any).
+   */
 }
 
 void usage_message( const string_view argv0 )
