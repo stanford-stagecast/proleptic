@@ -23,7 +23,11 @@ class MatchFinder
 public:
   void process_events( uint64_t starting_ts, uint64_t ending_ts, const vector<MidiEvent>& events )
   {
-    // Dummy implementation
+    // Dummy implementation. Eventually this will need to:
+    // (1) store the event in a data structure (maybe many data structures)
+    // (2) try to find similar passages in the past
+    // (3) time how long all this takes (ideally <1 millisecond of wall-clock time)
+    //     [can use the Timer::timestamp_ns() function to measure how long things take IRL]
     cout << "Processing chunk from " << starting_ts << ".." << ending_ts << " ms:";
     for ( const auto& ev : events ) {
       cout << " [" << ev.type << " " << ev.note << " " << ev.velocity << "]";
