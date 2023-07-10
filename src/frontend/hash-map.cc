@@ -1,11 +1,11 @@
 #include <fcntl.h>
 #include <fstream>
 #include <iostream>
+#include <list>
 #include <optional>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <thread>
-#include <list>
 
 #include "exception.hh"
 #include "file_descriptor.hh"
@@ -23,21 +23,22 @@ const auto PIANO_OFFSET = 21;
 
 class Hash
 {
-	int num_buckets;
-	list<MidiEvent> *hash_table;
+  int num_buckets;
+  list<MidiEvent>* hash_table;
+
 public:
-	Hash(int num_buckets) {
-	  hash_table = new list<MidiEvent>[num_buckets];
+  Hash( int num_buckets ) { hash_table = new list<MidiEvent>[num_buckets]; }
+
+  int hash_function( unsigned short note )
+  {
+    return ( note - PIANO_OFFSET );
+    // return (note % num_buckets);
   }
 
-	int hash_function(unsigned short note) {
-		return (note - PIANO_OFFSET);
-    // return (note % num_buckets);
-	}
-
-	void insert_event(MidiEvent ev) {
-    int index = hash_function(ev.note);
-	  hash_table[index].push_back(ev);
+  void insert_event( MidiEvent ev )
+  {
+    int index = hash_function( ev.note );
+    hash_table[index].push_back( ev );
   }
 };
 
@@ -49,7 +50,7 @@ public:
     // cout << "Processing chunk from " << starting_ts << ".." << ending_ts << " ms:";
     for ( const auto& ev : events ) {
       // cout << " [" << ev.type << " " << ev.note << " " << ev.velocity << "]";
-      storage.insert_event(ev);
+      storage.insert_event( ev );
     } /*
     if ( events.empty() ) {
       cout << " (none)";
@@ -78,7 +79,7 @@ void program_body( const string& midi_filename )
 
   uint64_t epoch = Timer::timestamp_ns();
 
-  Hash storage(88);
+  Hash storage( 88 );
 
   while ( not midi_data.eof() ) { // until file reaches end
     if ( not midi_data.good() ) {
@@ -97,7 +98,8 @@ void program_body( const string& midi_filename )
     events_in_chunk.push_back( move( ev ) );
   }
   uint64_t end = Timer::timestamp_ns();
-  cout << "It took " << (end - epoch) / MILLION << " ms to STORE data." << "\n";
+  cout << "It took " << ( end - epoch ) / MILLION << " ms to STORE data."
+       << "\n";
 
   /*
    * TO DO: Have code that runs every 5 ms (instead of sleep until next event, sleep until 5 ms from now.)
