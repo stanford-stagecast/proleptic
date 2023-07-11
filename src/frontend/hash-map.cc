@@ -1,15 +1,10 @@
-#include <fcntl.h>
+#include <array>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
-#include <list>
 #include <optional>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <thread>
+#include <vector>
 
-#include "exception.hh"
-#include "file_descriptor.hh"
-#include "midi_processor.hh"
 #include "timer.hh"
 
 using namespace std;
@@ -19,61 +14,71 @@ struct MidiEvent
   unsigned short type, note, velocity; // actual midi data
 };
 
-const auto PIANO_OFFSET = 21;
+static constexpr uint8_t PIANO_OFFSET = 21;
+static constexpr uint8_t NUM_KEYS = 88;
+static constexpr uint64_t chunk_duration_ms = 5;
+static constexpr uint8_t KEYDOWN_TYPE = 0x90;
 
-class Hash
+struct TimingStats
 {
-  int num_buckets;
-  list<MidiEvent>* hash_table;
+  uint64_t max_ns {};
+  uint64_t total_ns {};
+  uint64_t count {};
 
-public:
-  Hash( int num_buckets ) { hash_table = new list<MidiEvent>[num_buckets]; }
+  optional<uint64_t> start_time {};
 
-  int hash_function( unsigned short note )
+  void start_timer()
   {
-    // return ( note - PIANO_OFFSET );
-    return ( note % num_buckets );
+    if ( start_time.has_value() ) {
+      throw runtime_error( "timer started when already running" );
+    }
+    start_time = Timer::timestamp_ns(); // start the timer
   }
 
-  void insert_event( MidiEvent ev )
+  void stop_timer()
   {
-    int index = hash_function( ev.note );
-    hash_table[index].push_back( ev );
+    if ( not start_time.has_value() ) {
+      throw runtime_error( "timer stopped when not running" );
+    }
+
+    const uint64_t time_elapsed = Timer::timestamp_ns() - start_time.value();
+    max_ns = max( time_elapsed, max_ns );
+    total_ns += time_elapsed;
+    count++;
+    start_time.reset();
   }
 };
-
-uint64_t max_tracker = 0;
-auto tot_tracker = 0;
-auto num_tracker = 0;
 
 class MatchFinder
 {
+  array<vector<MidiEvent>, NUM_KEYS> storage_;
+  TimingStats timing_stats_;
+
 public:
-  void process_events( uint64_t starting_ts, uint64_t ending_ts, const vector<MidiEvent>& events, Hash& storage )
+  void process_events( uint64_t starting_ts, uint64_t ending_ts, const vector<MidiEvent>& events )
   {
-    // cout << "Processing chunk from " << starting_ts << ".." << ending_ts << " ms:";
     for ( const auto& ev : events ) {
-      // cout << " [" << ev.type << " " << ev.note << " " << ev.velocity << "]";
-      uint64_t epoch = Timer::timestamp_ns();
-      storage.insert_event( ev );
-      uint64_t end = Timer::timestamp_ns();
-
-      tot_tracker += ( end - epoch );
-      num_tracker += 1;
-
-      if ( ( end - epoch ) > max_tracker ) {
-        max_tracker = ( end - epoch );
+      if ( ev.type != KEYDOWN_TYPE ) {
+        continue;
       }
-    } /*
-    if ( events.empty() ) {
-      cout << " (none)";
+      timing_stats_.start_timer();
+      storage_[ev.note - PIANO_OFFSET].push_back( ev );
+      timing_stats_.stop_timer();
     }
+  };
+
+  void print_stats() const
+  {
+    cout << "Timing stats:\n";
+    cout << "  total events: " << timing_stats_.count << "\n";
+    cout << "  max time:     ";
+    Timer::pp_ns( cout, timing_stats_.max_ns );
     cout << "\n";
-    */
+    cout << "  average time: ";
+    Timer::pp_ns( cout, timing_stats_.total_ns / timing_stats_.count );
+    cout << "\n";
   }
 };
-
-static constexpr uint64_t chunk_duration_ms = 5;
 
 void program_body( const string& midi_filename )
 {
@@ -90,10 +95,6 @@ void program_body( const string& midi_filename )
   uint64_t end_of_chunk = chunk_duration_ms;
   MatchFinder match_finder;
 
-  uint64_t epoch = Timer::timestamp_ns();
-
-  Hash storage( 88 );
-
   while ( not midi_data.eof() ) { // until file reaches end
     if ( not midi_data.good() ) {
       throw runtime_error( midi_filename + " could not be parsed" );
@@ -104,19 +105,23 @@ void program_body( const string& midi_filename )
     midi_data >> timestamp >> ev.type >> ev.note >> ev.velocity; // reads in data to event
 
     while ( timestamp >= end_of_chunk ) {
-      match_finder.process_events( end_of_chunk - chunk_duration_ms, end_of_chunk, events_in_chunk, storage );
+      match_finder.process_events( end_of_chunk - chunk_duration_ms, end_of_chunk, events_in_chunk );
       events_in_chunk.clear();
       end_of_chunk += chunk_duration_ms;
     }
-    events_in_chunk.push_back( move( ev ) );
+    events_in_chunk.push_back( std::move( ev ) );
   }
 
+  match_finder.print_stats();
+
   /*
-   * TO DO: Have code that runs every 5 ms (instead of sleep until next event, sleep until 5 ms from now.)
-   * Upon waking up we look at all the events that occurred since last wakeup (could be empty).
-   * Call fn with that set of events (could be empty). Fn will be responsible for:
-   * 1. Store data in some data struct
-   * 2. Find most similar part of history (if any).
+   * TO DO:
+   * Each time that MatchFinder::process_events is called for a KeyDown, it should find ALL times
+   * that the same key was KeyDowned in the past, and for all of THOSE times where there was any
+   * subsequent KeyDown, it should make a list of all the UNIQUE keys that came immediately after.
+   * This could be an empty list (if it's the first time this key has been seen in a KeyDown),
+   * or it could be a list of up to 88 entries (it could have preceded every other key going down
+   * at some point in the past).
    */
 }
 
@@ -138,8 +143,6 @@ int main( int argc, char* argv[] )
     }
 
     program_body( argv[1] );
-    cout << "Maximum time: " << ( max_tracker / MILLION ) << " ms\n";
-    cout << "Average time: " << ( tot_tracker / MILLION / num_tracker ) << " ms\n";
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
     return EXIT_FAILURE;
