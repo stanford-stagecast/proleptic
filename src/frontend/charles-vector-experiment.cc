@@ -1,3 +1,4 @@
+#include <chrono>
 #include <fcntl.h>
 #include <fstream>
 #include <iostream>
@@ -6,7 +7,6 @@
 #include <sys/types.h>
 #include <thread>
 #include <unordered_map>
-#include <chrono>
 
 #include "exception.hh"
 #include "file_descriptor.hh"
@@ -32,49 +32,36 @@ public:
     // (3) time how long all this takes (ideally <1 millisecond of wall-clock time)
     //     [can use the Timer::timestamp_ns() function to measure how long things take IRL]
 
+    // cout << "Processing chunk from " << starting_ts << ".." << ending_ts << " ms:";
 
-    
-  
-    //cout << "Processing chunk from " << starting_ts << ".." << ending_ts << " ms:";
-
-    
-    
     for ( const auto& ev : events ) {
-      //cout << " [" << ev.type << " " << ev.note << " " << ev.velocity << "]";
+      // cout << " [" << ev.type << " " << ev.note << " " << ev.velocity << "]";
     }
     if ( events.empty() ) {
-      //cout << " (none)";
+      // cout << " (none)";
     }
-    //cout << "\n";
-    
+    // cout << "\n";
   }
-
-
 };
 
-class Chunk{
-  public:
-    std::vector<MidiEvent> events_in_chunk;
+class Chunk
+{
+public:
+  std::vector<MidiEvent> events_in_chunk;
 
-    void add_event_in_chunk(MidiEvent new_event){
-      events_in_chunk.push_back(new_event);
-    }
+  void add_event_in_chunk( MidiEvent new_event ) { events_in_chunk.push_back( new_event ); }
 
-    vector<MidiEvent> get_vector(){
-      return events_in_chunk;
-    }
+  vector<MidiEvent> get_vector() { return events_in_chunk; }
 
-    void clear_chunk(){
-      events_in_chunk.clear();
-    }
+  void clear_chunk() { events_in_chunk.clear(); }
 
-    void print_chunk(){
-      for(const auto& ev: events_in_chunk){
-        cout << "[" << ev.note << "] [" << ev.type << "] [" << ev.velocity << "]" << endl;
-      }
+  void print_chunk()
+  {
+    for ( const auto& ev : events_in_chunk ) {
+      cout << "[" << ev.note << "] [" << ev.type << "] [" << ev.velocity << "]" << endl;
     }
+  }
 };
- 
 
 static constexpr uint64_t chunk_duration_ms = 20000;
 
@@ -95,7 +82,7 @@ void program_body( const string& midi_filename )
 
   uint64_t total_time;
 
-  //create hashmap to store 5ms chunks
+  // create hashmap to store 5ms chunks
   std::vector<Chunk> chunks;
 
   while ( not midi_data.eof() ) { // until file reaches end
@@ -111,34 +98,30 @@ void program_body( const string& midi_filename )
     clock_t start, end;
 
     start = clock();
-    
+
     while ( timestamp >= end_of_chunk ) {
       match_finder.process_events( end_of_chunk - chunk_duration_ms, end_of_chunk, events_in_chunk );
-      for ( const auto& ev: events_in_chunk){ //for loop adds all event in 5ms window to current chunk
-        current_chunk.add_event_in_chunk(ev);
+      for ( const auto& ev : events_in_chunk ) { // for loop adds all event in 5ms window to current chunk
+        current_chunk.add_event_in_chunk( ev );
       }
-      
+
       events_in_chunk.clear();
       end_of_chunk += chunk_duration_ms;
     }
-  
-    events_in_chunk.push_back( move( ev ) );
-    
 
-    
-    chunks.push_back(current_chunk);
-    
+    events_in_chunk.push_back( move( ev ) );
+
+    chunks.push_back( current_chunk );
+
     cout << "*************" << endl;
     cout << "Beginning of chunk" << endl;
     current_chunk.print_chunk();
     cout << "end of chunk" << endl;
-    
-    
-    
+
     current_chunk.clear_chunk();
     end = clock();
-    double time_taken_ms = (double(end - start) / double(CLOCKS_PER_SEC)) * 1000;
-    cout << "time taken in milliseconds : " << fixed << time_taken_ms << setprecision(5) << endl;
+    double time_taken_ms = ( double( end - start ) / double( CLOCKS_PER_SEC ) ) * 1000;
+    cout << "time taken in milliseconds : " << fixed << time_taken_ms << setprecision( 5 ) << endl;
     cout << "*************" << endl;
   }
 
