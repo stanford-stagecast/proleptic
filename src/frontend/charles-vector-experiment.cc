@@ -76,7 +76,7 @@ class Chunk{
 };
  
 
-static constexpr uint64_t chunk_duration_ms = 5;
+static constexpr uint64_t chunk_duration_ms = 20000;
 
 void program_body( const string& midi_filename )
 {
