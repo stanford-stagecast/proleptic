@@ -31,8 +31,8 @@ public:
 
   int hash_function( unsigned short note )
   {
-    return ( note - PIANO_OFFSET );
-    // return (note % num_buckets);
+    // return ( note - PIANO_OFFSET );
+    return ( note % num_buckets );
   }
 
   void insert_event( MidiEvent ev )
@@ -42,6 +42,10 @@ public:
   }
 };
 
+uint64_t max_tracker = 0;
+auto tot_tracker = 0;
+auto num_tracker = 0;
+
 class MatchFinder
 {
 public:
@@ -50,7 +54,16 @@ public:
     // cout << "Processing chunk from " << starting_ts << ".." << ending_ts << " ms:";
     for ( const auto& ev : events ) {
       // cout << " [" << ev.type << " " << ev.note << " " << ev.velocity << "]";
+      uint64_t epoch = Timer::timestamp_ns();
       storage.insert_event( ev );
+      uint64_t end = Timer::timestamp_ns();
+
+      tot_tracker += ( end - epoch );
+      num_tracker += 1;
+
+      if ( ( end - epoch ) > max_tracker ) {
+        max_tracker = ( end - epoch );
+      }
     } /*
     if ( events.empty() ) {
       cout << " (none)";
@@ -97,9 +110,6 @@ void program_body( const string& midi_filename )
     }
     events_in_chunk.push_back( move( ev ) );
   }
-  uint64_t end = Timer::timestamp_ns();
-  cout << "It took " << ( end - epoch ) / MILLION << " ms to STORE data."
-       << "\n";
 
   /*
    * TO DO: Have code that runs every 5 ms (instead of sleep until next event, sleep until 5 ms from now.)
@@ -128,6 +138,8 @@ int main( int argc, char* argv[] )
     }
 
     program_body( argv[1] );
+    cout << "Maximum time: " << ( max_tracker / MILLION ) << " ms\n";
+    cout << "Average time: " << ( tot_tracker / MILLION / num_tracker ) << " ms\n";
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
     return EXIT_FAILURE;
