@@ -3,10 +3,14 @@
 #include <iostream>
 #include <optional>
 #include <vector>
+#include <unordered_map>
 
 #include "timer.hh"
 
 using namespace std;
+
+
+static constexpr uint8_t NUM_KEYS = 88;
 
 struct MidiEvent
 {
@@ -33,6 +37,30 @@ public:
       cout << "[" << ev.note << "] [" << ev.type << "] [" << ev.velocity << "]\n";
     }
   }
+
+  vector<MidiEvent> get_events(){
+    return events_;
+  }
+};
+
+class MatchFinder{
+
+  private:
+    std::array<std::unordered_map<int, std::string>, 88> storage_; //store 88 individual keys
+  
+  public:
+    
+    void find_next_note(vector<Chunk> chunks){ //go through each chunk, and add the next UNIQUE note
+        for (auto& chunk: chunks){
+          vector<MidiEvent> current_chunk = chunk.get_events();
+          for( auto& ev: current_chunk){ //each event in the current chunk
+            //find each unique note and add next note in storage_
+            int prev_key;
+
+          }
+        }
+    }
+
 };
 
 static constexpr uint64_t chunk_duration_ms = 5;
@@ -77,6 +105,9 @@ void program_body( const string& midi_filename )
     chunk.print();
     cout << "\n";
   }
+
+  MatchFinder mf;
+  //mf.find_next_note();
 }
 
 void usage_message( const string_view argv0 )
