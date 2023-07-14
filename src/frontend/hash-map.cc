@@ -21,9 +21,9 @@ static constexpr uint8_t KEYDOWN_TYPE = 0x90;
 
 struct TimingStats
 {
-  uint64_t max_ns {};
-  uint64_t total_ns {};
-  uint64_t count {};
+  uint64_t max_ns {};   // max time taken to process an event
+  uint64_t total_ns {}; // total processing time (to calc avg time)
+  uint64_t count {};    // total events processed
 
   optional<uint64_t> start_time {};
 
@@ -40,7 +40,6 @@ struct TimingStats
     if ( not start_time.has_value() ) {
       throw runtime_error( "timer stopped when not running" );
     }
-
     const uint64_t time_elapsed = Timer::timestamp_ns() - start_time.value();
     max_ns = max( time_elapsed, max_ns );
     total_ns += time_elapsed;
@@ -51,18 +50,33 @@ struct TimingStats
 
 class MatchFinder
 {
-  array<vector<MidiEvent>, NUM_KEYS> storage_;
+  array<vector<unsigned short>, NUM_KEYS> storage_;
+  unsigned short prev_note;
+  bool first_note = true;
+
   TimingStats timing_stats_;
 
 public:
-  void process_events( uint64_t starting_ts, uint64_t ending_ts, const vector<MidiEvent>& events )
+  void process_events( const vector<MidiEvent>& events )
   {
     for ( const auto& ev : events ) {
-      if ( ev.type != KEYDOWN_TYPE ) {
+      if ( ev.type != KEYDOWN_TYPE ) { // only keydowns represent new notes
         continue;
       }
+
       timing_stats_.start_timer();
-      storage_[ev.note - PIANO_OFFSET].push_back( ev );
+
+      if ( !first_note ) {
+        vector<unsigned short>& curr_note = storage_[prev_note - PIANO_OFFSET]; // curr_note follows stored prev_note
+        if ( std::find( curr_note.begin(), curr_note.end(), ev.note )
+             == curr_note.end() ) {       // if curr_note not already listed,
+          curr_note.push_back( ev.note ); // add it
+        }
+      } else {
+        first_note = false; // first note can't possibly follow a note
+      }
+      prev_note = ev.note;
+
       timing_stats_.stop_timer();
     }
   };
@@ -76,6 +90,17 @@ public:
     cout << "\n";
     cout << "  average time: ";
     Timer::pp_ns( cout, timing_stats_.total_ns / timing_stats_.count );
+    cout << "\n\n";
+  }
+
+  void print_predict() const
+  {
+    cout << "Enter a note from 21(A0) to 108(C8): ";
+    unsigned short val;
+    cin >> val;
+    for ( const auto& note : storage_[val - PIANO_OFFSET] ) {
+      cout << note << " ";
+    }
     cout << "\n";
   }
 };
@@ -105,15 +130,14 @@ void program_body( const string& midi_filename )
     midi_data >> timestamp >> ev.type >> ev.note >> ev.velocity; // reads in data to event
 
     while ( timestamp >= end_of_chunk ) {
-      match_finder.process_events( end_of_chunk - chunk_duration_ms, end_of_chunk, events_in_chunk );
+      match_finder.process_events( events_in_chunk );
       events_in_chunk.clear();
       end_of_chunk += chunk_duration_ms;
     }
     events_in_chunk.push_back( std::move( ev ) );
   }
-
   match_finder.print_stats();
-
+  match_finder.print_predict();
   /*
    * TO DO:
    * Each time that MatchFinder::process_events is called for a KeyDown, it should find ALL times
