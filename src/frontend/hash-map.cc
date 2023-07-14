@@ -3,13 +3,12 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 #include "timer.hh"
 
 using namespace std;
-
 
 struct MidiEvent
 {
@@ -71,7 +70,7 @@ public:
       if ( !first_note ) {
         vector<unsigned short>& curr_note
           = storage_[prev_note - PIANO_OFFSET]; // curr_note follows stored prev_note
-          curr_note.push_back( ev.note ); // add it
+        curr_note.push_back( ev.note );         // add it
       } else {
         first_note = false; // first note can't possibly follow a note
       }
@@ -81,11 +80,12 @@ public:
     }
   };
 
-  void make_prediction(int note){ //function to make a prediction
-      
-      vector<unsigned short> notes_vector = storage_[note];
-      int prediction = findMostCommon(notes_vector);
-      cout << "Prediction for note " << note << ": " << prediction << endl;
+  void make_prediction( int note )
+  { // function to make a prediction
+
+    vector<unsigned short> notes_vector = storage_[note];
+    int prediction = findMostCommon( notes_vector );
+    cout << "Prediction for note " << note << ": " << prediction << endl;
   }
 
   void print_stats() const
@@ -124,23 +124,24 @@ public:
     }
   }
 
-  int findMostCommon(const std::vector<unsigned short>& numbers) { //method to find the most common note in the vector
+  int findMostCommon( const std::vector<unsigned short>& numbers )
+  { // method to find the most common note in the vector
     std::unordered_map<int, int> counts;
 
     // Count the occurrences of each integer
-    for (unsigned short num : numbers) {
-        counts[num]++;
+    for ( unsigned short num : numbers ) {
+      counts[num]++;
     }
 
     int mostCommon = 0;
     int maxCount = 0;
 
     // Find the most common integer
-    for (const auto& pair : counts) {
-        if (pair.second > maxCount) {
-            mostCommon = pair.first;
-            maxCount = pair.second;
-        }
+    for ( const auto& pair : counts ) {
+      if ( pair.second > maxCount ) {
+        mostCommon = pair.first;
+        maxCount = pair.second;
+      }
     }
 
     return mostCommon;
@@ -180,8 +181,8 @@ void program_body( const string& midi_filename )
   }
   match_finder.print_stats();
   // match_finder.print_predict();
-  //match_finder.print_storage();
-  match_finder.make_prediction(34);
+  // match_finder.print_storage();
+  match_finder.make_prediction( 34 );
   /*
    * TO DO:
    * Each time that MatchFinder::process_events is called for a KeyDown, it should find ALL times
