@@ -67,7 +67,8 @@ public:
       timing_stats_.start_timer();
 
       if ( !first_note ) {
-        vector<unsigned short>& curr_note = storage_[prev_note - PIANO_OFFSET]; // curr_note follows stored prev_note
+        vector<unsigned short>& curr_note
+          = storage_[prev_note - PIANO_OFFSET]; // curr_note follows stored prev_note
         if ( std::find( curr_note.begin(), curr_note.end(), ev.note )
              == curr_note.end() ) {       // if curr_note not already listed,
           curr_note.push_back( ev.note ); // add it
