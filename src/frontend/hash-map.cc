@@ -182,7 +182,7 @@ void program_body( const string& midi_filename )
   match_finder.print_stats();
   // match_finder.print_predict();
   // match_finder.print_storage();
-  match_finder.make_prediction( 34 );
+  match_finder.make_prediction( 34 ); // make test prediction function for note 34
   /*
    * TO DO:
    * Each time that MatchFinder::process_events is called for a KeyDown, it should find ALL times
