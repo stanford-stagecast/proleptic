@@ -3,7 +3,6 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
-#include <unordered_map>
 #include <vector>
 
 #include "timer.hh"
@@ -70,7 +69,10 @@ public:
       if ( !first_note ) {
         vector<unsigned short>& curr_note
           = storage_[prev_note - PIANO_OFFSET]; // curr_note follows stored prev_note
-        curr_note.push_back( ev.note );         // add it
+        if ( std::find( curr_note.begin(), curr_note.end(), ev.note )
+             == curr_note.end() ) {       // if curr_note not already listed,
+          curr_note.push_back( ev.note ); // add it
+        }
       } else {
         first_note = false; // first note can't possibly follow a note
       }
@@ -79,14 +81,6 @@ public:
       timing_stats_.stop_timer();
     }
   };
-
-  void make_prediction( int note )
-  { // function to make a prediction
-
-    vector<unsigned short> notes_vector = storage_[note];
-    int prediction = findMostCommon( notes_vector );
-    cout << "Prediction for note " << note << ": " << prediction << endl;
-  }
 
   void print_stats() const
   {
@@ -109,42 +103,6 @@ public:
       cout << note << " ";
     }
     cout << "\n";
-  }
-
-  void print_storage()
-  {
-    for ( int i = 0; i < storage_.size(); ++i ) {
-      const std::vector<unsigned short>& notes = storage_[i];
-
-      std::cout << "Storage[" << i << "]: ";
-      for ( const unsigned short& note : notes ) {
-        std::cout << note << " ";
-      }
-      std::cout << std::endl;
-    }
-  }
-
-  int findMostCommon( const std::vector<unsigned short>& numbers )
-  { // method to find the most common note in the vector
-    std::unordered_map<int, int> counts;
-
-    // Count the occurrences of each integer
-    for ( unsigned short num : numbers ) {
-      counts[num]++;
-    }
-
-    int mostCommon = 0;
-    int maxCount = 0;
-
-    // Find the most common integer
-    for ( const auto& pair : counts ) {
-      if ( pair.second > maxCount ) {
-        mostCommon = pair.first;
-        maxCount = pair.second;
-      }
-    }
-
-    return mostCommon;
   }
 };
 
@@ -180,9 +138,7 @@ void program_body( const string& midi_filename )
     events_in_chunk.push_back( std::move( ev ) );
   }
   match_finder.print_stats();
-  // match_finder.print_predict();
-  // match_finder.print_storage();
-  match_finder.make_prediction( 34 ); // make test prediction function for note 34
+  match_finder.print_predict();
   /*
    * TO DO:
    * Each time that MatchFinder::process_events is called for a KeyDown, it should find ALL times
