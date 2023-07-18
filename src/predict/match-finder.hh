@@ -3,9 +3,8 @@
 #include <array>
 #include <vector>
 
-#include "timing-stats.hh"
+#include "timer.hh"
 
-static constexpr uint8_t PIANO_OFFSET = 21;
 static constexpr uint8_t NUM_KEYS = 88;
 
 struct MidiEvent
@@ -13,15 +12,25 @@ struct MidiEvent
   unsigned short type, note, velocity; // actual midi data
 };
 
+class PianoKeyID
+{
+  uint8_t key_id_;
+
+public:
+  static PianoKeyID from_raw_MIDI_code( unsigned short midi_key_id );
+  operator uint8_t() const { return key_id_; }
+};
+
 class MatchFinder
 {
-  std::array<std::vector<unsigned short>, NUM_KEYS> storage_;
-  unsigned short prev_note;
-  bool first_note = true;
+  /* Given KeyDown of key x, how many times was the next KeyDown of key y?
+     We store this count in sequence_counts_[x][y] */
+  std::array<std::array<unsigned int, NUM_KEYS>, NUM_KEYS> sequence_counts_;
 
-  TimingStats timing_stats_;
+  std::optional<PianoKeyID> previous_keydown_; /* previous key pressed */
+
+  void process_event( const MidiEvent& ev );
 
 public:
   void process_events( const std::vector<MidiEvent>& events );
-  void print_stats() const;
 };

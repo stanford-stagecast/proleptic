@@ -69,20 +69,23 @@ public:
     KeyUp,
     AdvanceSample,
     CalcSnippetsSim,
+    ProcessPianoEvent,
+    MakePianoPrediction,
     count
   };
 
   constexpr static size_t num_categories = static_cast<size_t>( Category::count );
 
-  constexpr static std::array<const char*, num_categories> _category_names {
-    { "Nonblocking operations",
-      "Waiting for event",
-      "Initializing synthesizer",
-      "Key down",
-      "Get wav",
-      "Key up",
-      "Advance sample",
-      "Calculating snippets similarity" } };
+  constexpr static std::array<const char*, num_categories> _category_names { { "Nonblocking operations",
+                                                                               "Waiting for event",
+                                                                               "Initializing synthesizer",
+                                                                               "Key down",
+                                                                               "Get wav",
+                                                                               "Key up",
+                                                                               "Advance sample",
+                                                                               "Calculating snippets similarity",
+                                                                               "Process piano event",
+                                                                               "Predict future piano event" } };
 
 private:
   uint64_t _beginning_timestamp = timestamp_ns();

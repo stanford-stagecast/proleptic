@@ -6,35 +6,44 @@ using namespace std;
 
 static constexpr uint8_t KEYDOWN_TYPE = 0x90;
 
+PianoKeyID PianoKeyID::from_raw_MIDI_code( unsigned short midi_key_id )
+{
+  static constexpr uint8_t PIANO_OFFSET = 21;
+
+  if ( midi_key_id < PIANO_OFFSET ) {
+    throw runtime_error( "invalid MIDI key id (too small!)" );
+  }
+
+  PianoKeyID ret;
+  ret.key_id_ = midi_key_id - PIANO_OFFSET;
+
+  if ( ret.key_id_ >= NUM_KEYS ) {
+    throw runtime_error( "invalid MIDI key id (too big!)" );
+  }
+
+  return ret;
+}
+
 void MatchFinder::process_events( const vector<MidiEvent>& events )
 {
+  GlobalScopeTimer<Timer::Category::ProcessPianoEvent> timer;
+
   for ( const auto& ev : events ) {
-    if ( ev.type != KEYDOWN_TYPE ) { // only keydowns represent new notes
-      continue;
-    }
-
-    timing_stats_.start_timer();
-
-    if ( !first_note ) {
-      vector<unsigned short>& curr_note = storage_[prev_note - PIANO_OFFSET]; // curr_note follows stored prev_note
-      curr_note.push_back( ev.note );                                         // add it
-    } else {
-      first_note = false; // first note can't possibly follow a note
-    }
-    prev_note = ev.note;
-
-    timing_stats_.stop_timer();
+    process_event( ev );
   }
 }
 
-void MatchFinder::print_stats() const
+void MatchFinder::process_event( const MidiEvent& ev )
 {
-  cout << "Timing stats:\n";
-  cout << "  total events: " << timing_stats_.count << "\n";
-  cout << "  max time:     ";
-  Timer::pp_ns( cout, timing_stats_.max_ns );
-  cout << "\n";
-  cout << "  average time: ";
-  Timer::pp_ns( cout, timing_stats_.total_ns / timing_stats_.count );
-  cout << "\n\n";
+  if ( ev.type != KEYDOWN_TYPE ) { // only keydowns represent new notes
+    return;
+  }
+
+  const auto this_keydown = PianoKeyID::from_raw_MIDI_code( ev.note );
+
+  if ( previous_keydown_.has_value() ) {
+    sequence_counts_.at( previous_keydown_.value() ).at( this_keydown )++;
+  }
+
+  previous_keydown_ = this_keydown;
 }

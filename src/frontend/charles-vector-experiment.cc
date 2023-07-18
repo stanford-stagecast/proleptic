@@ -44,19 +44,6 @@ void program_body( const string& midi_filename )
     }
     events_in_chunk.push_back( std::move( ev ) );
   }
-  match_finder.print_stats();
-  // match_finder.print_predict();
-  // match_finder.print_storage();
-
-  /*
-   * TO DO:
-   * Each time that MatchFinder::process_events is called for a KeyDown, it should find ALL times
-   * that the same key was KeyDowned in the past, and for all of THOSE times where there was any
-   * subsequent KeyDown, it should make a list of all the UNIQUE keys that came immediately after.
-   * This could be an empty list (if it's the first time this key has been seen in a KeyDown),
-   * or it could be a list of up to 88 entries (it could have preceded every other key going down
-   * at some point in the past).
-   */
 }
 
 void usage_message( const string_view argv0 )
@@ -77,8 +64,10 @@ int main( int argc, char* argv[] )
     }
 
     program_body( argv[1] );
+    global_timer().summary( cout );
   } catch ( const exception& e ) {
     cerr << e.what() << "\n";
+    global_timer().summary( cout );
     return EXIT_FAILURE;
   }
 
