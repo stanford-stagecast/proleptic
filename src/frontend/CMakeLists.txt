@@ -1,6 +1,6 @@
 macro (add_exec exec_name)
     add_executable ("${exec_name}" "${exec_name}.cc")
-    target_link_libraries ("${exec_name}" dbus stats audio)
+    target_link_libraries ("${exec_name}" dbus stats audio predict)
 endmacro (add_exec)
 
 macro (add_exec_with_samplerate exec_name)
