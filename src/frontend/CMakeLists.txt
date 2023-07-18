@@ -32,3 +32,4 @@ add_exec(match_v9)
 add_exec_with_simplenn(metronome-clock-recovery)
 
 add_exec(matchfind-from-file)
+add_exec(matchfind-from-piano)
