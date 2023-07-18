@@ -1,4 +1,5 @@
-#include <chrono>
+#include <array>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <optional>
@@ -9,57 +10,156 @@
 
 using namespace std;
 
-static constexpr uint8_t NUM_KEYS = 88;
-
 struct MidiEvent
 {
   unsigned short type, note, velocity; // actual midi data
 };
 
-class Chunk
+static constexpr uint8_t PIANO_OFFSET = 21;
+static constexpr uint8_t NUM_KEYS = 88;
+static constexpr uint64_t chunk_duration_ms = 5;
+static constexpr uint8_t KEYDOWN_TYPE = 0x90;
+
+struct TimingStats
 {
-  std::vector<MidiEvent> events_;
+  uint64_t max_ns {};   // max time taken to process an event
+  uint64_t total_ns {}; // total processing time (to calc avg time)
+  uint64_t count {};    // total events processed
 
-public:
-  void add( const MidiEvent& new_event ) { events_.push_back( new_event ); }
+  optional<uint64_t> start_time {};
 
-  void clear() { events_.clear(); }
-
-  void print() const
+  void start_timer()
   {
-    if ( events_.empty() ) {
-      cout << "(empty chunk)\n";
-      return;
+    if ( start_time.has_value() ) {
+      throw runtime_error( "timer started when already running" );
     }
-
-    for ( const auto& ev : events_ ) {
-      cout << "[" << ev.note << "] [" << ev.type << "] [" << ev.velocity << "]\n";
-    }
+    start_time = Timer::timestamp_ns(); // start the timer
   }
 
-  vector<MidiEvent> get_events() { return events_; }
+  void stop_timer()
+  {
+    if ( not start_time.has_value() ) {
+      throw runtime_error( "timer stopped when not running" );
+    }
+    const uint64_t time_elapsed = Timer::timestamp_ns() - start_time.value();
+    max_ns = max( time_elapsed, max_ns );
+    total_ns += time_elapsed;
+    count++;
+    start_time.reset();
+  }
 };
 
 class MatchFinder
 {
+  array<vector<unsigned short>, NUM_KEYS> storage_;
+  unsigned short prev_note;
+  bool first_note = true;
 
-private:
-  std::array<std::unordered_map<int, std::string>, 88> storage_; // store 88 individual keys
+  TimingStats timing_stats_;
 
 public:
-  void find_next_note( vector<Chunk> chunks )
-  { // go through each chunk, and add the next UNIQUE note
-    for ( auto& chunk : chunks ) {
-      vector<MidiEvent> current_chunk = chunk.get_events();
-      for ( auto& ev : current_chunk ) { // each event in the current chunk
-        // find each unique note and add next note in storage_
-        int prev_key;
+  void process_events( const vector<MidiEvent>& events )
+  {
+    for ( const auto& ev : events ) {
+      if ( ev.type != KEYDOWN_TYPE ) { // only keydowns represent new notes
+        continue;
       }
+
+      timing_stats_.start_timer();
+
+      if ( !first_note ) {
+        vector<unsigned short>& curr_note
+          = storage_[prev_note - PIANO_OFFSET]; // curr_note follows stored prev_note
+        curr_note.push_back( ev.note );         // add it
+      } else {
+        first_note = false; // first note can't possibly follow a note
+      }
+      prev_note = ev.note;
+
+      timing_stats_.stop_timer();
+    }
+  };
+
+  int make_prediction( int note )
+  { // function to make a prediction
+
+    vector<unsigned short> notes_vector = storage_[note];
+    int prediction = findMostCommon( notes_vector );
+    return prediction;
+  }
+
+  void test_prediction( vector<MidiEvent> events_in_chunk )
+  { // function to predict the entire piece of music
+    /*
+     *1. Figure out a way to iterate through the entire piece
+     *2. Compare the actual note vs the predicted note of the music
+     *3. Figure out a score mechanism to compare % of notes predicted correctly
+     */
+
+    for ( const auto& ev : events_in_chunk ) {
+      MidiEvent predicted_note;
     }
   }
-};
 
-static constexpr uint64_t chunk_duration_ms = 5;
+  void print_stats() const
+  {
+    cout << "Timing stats:\n";
+    cout << "  total events: " << timing_stats_.count << "\n";
+    cout << "  max time:     ";
+    Timer::pp_ns( cout, timing_stats_.max_ns );
+    cout << "\n";
+    cout << "  average time: ";
+    Timer::pp_ns( cout, timing_stats_.total_ns / timing_stats_.count );
+    cout << "\n\n";
+  }
+
+  void print_predict() const
+  {
+    cout << "Enter a note from 21(A0) to 108(C8): ";
+    unsigned short val;
+    cin >> val;
+    for ( const auto& note : storage_[val - PIANO_OFFSET] ) {
+      cout << note << " ";
+    }
+    cout << "\n";
+  }
+
+  void print_storage()
+  {
+    for ( int i = 0; i < storage_.size(); ++i ) {
+      const std::vector<unsigned short>& notes = storage_[i];
+
+      std::cout << "Storage[" << i << "]: ";
+      for ( const unsigned short& note : notes ) {
+        std::cout << note << " ";
+      }
+      std::cout << std::endl;
+    }
+  }
+
+  int findMostCommon( const std::vector<unsigned short>& numbers )
+  { // method to find the most common note in the vector
+    std::unordered_map<int, int> counts;
+
+    // Count the occurrences of each integer
+    for ( unsigned short num : numbers ) {
+      counts[num]++;
+    }
+
+    int mostCommon = 0;
+    int maxCount = 0;
+
+    // Find the most common integer
+    for ( const auto& pair : counts ) {
+      if ( pair.second > maxCount ) {
+        mostCommon = pair.first;
+        maxCount = pair.second;
+      }
+    }
+
+    return mostCommon;
+  }
+};
 
 void program_body( const string& midi_filename )
 {
@@ -72,11 +172,9 @@ void program_body( const string& midi_filename )
   midi_data.unsetf( ios::oct );
   midi_data.unsetf( ios::hex );
 
+  vector<MidiEvent> events_in_chunk;
   uint64_t end_of_chunk = chunk_duration_ms;
-
-  // create vector to store 5ms chunks
-  std::vector<Chunk> chunks;
-  chunks.emplace_back(); // put current chunk on the vector
+  MatchFinder match_finder;
 
   while ( not midi_data.eof() ) { // until file reaches end
     if ( not midi_data.good() ) {
@@ -88,22 +186,25 @@ void program_body( const string& midi_filename )
     midi_data >> timestamp >> ev.type >> ev.note >> ev.velocity; // reads in data to event
 
     while ( timestamp >= end_of_chunk ) {
-      chunks.emplace_back();
+      match_finder.process_events( events_in_chunk );
+      events_in_chunk.clear();
       end_of_chunk += chunk_duration_ms;
     }
-
-    chunks.back().add( ev );
+    events_in_chunk.push_back( std::move( ev ) );
   }
-  cout << "*************" << endl;
+  match_finder.print_stats();
+  // match_finder.print_predict();
+  // match_finder.print_storage();
 
-  for ( const auto& chunk : chunks ) {
-    cout << "Here is a chunk: ";
-    chunk.print();
-    cout << "\n";
-  }
-
-  MatchFinder mf;
-  // mf.find_next_note();
+  /*
+   * TO DO:
+   * Each time that MatchFinder::process_events is called for a KeyDown, it should find ALL times
+   * that the same key was KeyDowned in the past, and for all of THOSE times where there was any
+   * subsequent KeyDown, it should make a list of all the UNIQUE keys that came immediately after.
+   * This could be an empty list (if it's the first time this key has been seen in a KeyDown),
+   * or it could be a list of up to 88 entries (it could have preceded every other key going down
+   * at some point in the past).
+   */
 }
 
 void usage_message( const string_view argv0 )
