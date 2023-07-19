@@ -23,7 +23,7 @@ void print_1d_int( vector<int> to_print )
 {
   cout << "[";
 
-  for ( int i = 0; i < to_print.size(); i++ ) {
+  for ( size_t i = 0; i < to_print.size(); i++ ) {
     cout << to_print[i] << " ";
   }
 
@@ -34,7 +34,7 @@ void print_midi_event( vector<midi_event> to_print )
 {
   cout << "[";
 
-  for ( int i = 0; i < to_print.size(); i++ ) {
+  for ( size_t i = 0; i < to_print.size(); i++ ) {
     cout << "[" << to_print[i].timestamp << " " << to_print[i].note << "] ";
   }
 
@@ -45,9 +45,9 @@ void print_2d_int( vector<vector<float>> to_print )
 {
   cout << "[";
 
-  for ( int i = 0; i < to_print.size(); i++ ) {
+  for ( size_t i = 0; i < to_print.size(); i++ ) {
     cout << "[";
-    for ( int j = 0; j < to_print[i].size(); j++ ) {
+    for ( size_t j = 0; j < to_print[i].size(); j++ ) {
       cout << to_print[i][j] << " ";
     }
     cout << "]\n";
@@ -56,7 +56,7 @@ void print_2d_int( vector<vector<float>> to_print )
   cout << "\n";
 }
 
-int main( int argc, char* argv[] )
+int main( int argc [[maybe_unused]], char* argv[] [[maybe_unused]] )
 {
   return EXIT_SUCCESS;
 }

@@ -79,12 +79,11 @@ void Synthesizer::add_shallow_key_press( uint8_t adj_event_note, uint8_t event_v
     throw runtime_error( "note too big!" );
   }
 
-  size_t offset = 0;
   const vector<wav_frame_t>& a = *combo.a;
   const vector<wav_frame_t>& b = *combo.b;
 
   // Update key future and total future
-  for ( int i = 0; i < max_size; i++ ) {
+  for ( size_t i = 0; i < max_size; i++ ) {
     const std::pair<float, float> curr_sample = { a[i].first * combo.a_weight + b[i].first * combo.b_weight,
                                                   a[i].second * combo.a_weight + b[i].second * combo.b_weight };
 

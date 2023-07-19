@@ -27,7 +27,7 @@ size_t EventLoop::add_category( const string& name )
     throw runtime_error( "maximum categories reached" );
   }
 
-  _rule_categories.push_back( { name, {} } );
+  _rule_categories.push_back( { name, {}, {} } );
   return _rule_categories.size() - 1;
 }
 

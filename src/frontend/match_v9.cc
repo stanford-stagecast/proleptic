@@ -60,7 +60,7 @@ struct match
 int time_to_index( vector<midi_event> notes, int given_timestamp )
 {
   // Make binary search
-  for ( int i = 0; i < notes.size(); i++ ) {
+  for ( size_t i = 0; i < notes.size(); i++ ) {
     if ( notes[i].timestamp >= given_timestamp ) {
       return i;
     }
@@ -91,14 +91,13 @@ vector<midi_event> midi_to_timeseries( const string& midiPath )
 
 tuple<vector<vector<float>>, float, float> note_similarity_vect2_mean( vector<midi_event> sequence1,
                                                                        vector<midi_event> sequence2,
-                                                                       vector<float> ratio )
+                                                                       vector<float> ratio [[maybe_unused]] )
 {
   int min_dist = min_dist_const;
   // vector<float> min_dist = min_dist_const * ratio[", None"];
 
   int n1 = sequence1.size();
   int n2 = sequence2.size();
-  int smaller = n1 < n2 ? n1 : n2;
 
   vector<vector<int>> time_diffs( n2, vector<int>( n1 ) );
   vector<vector<int>> offset( n2, vector<int>( n1 ) );
@@ -435,7 +434,7 @@ vector<match> calculate_similarity_time_prev_match( vector<midi_event> notes,
   vector<match> prev_matches_best;
   if ( prev_matches.size() < NUM_PREV_MATCHES || prev_matches[NUM_PREV_MATCHES - 1].score < THRESHOLD ) {
 
-    for ( int i = 0; i < prev_matches.size(); i++ ) {
+    for ( size_t i = 0; i < prev_matches.size(); i++ ) {
       if ( prev_matches[i].score > THRESHOLD ) {
         prev_matches_best.push_back( prev_matches[i] );
       } else {
@@ -548,7 +547,7 @@ vector<match> calculate_similarity_time_prev_match( vector<midi_event> notes,
 vector<int> get_source_notes( vector<midi_event> notes,
                               int start_time,
                               int start_index,
-                              int max_notes,
+                              int max_notes [[maybe_unused]],
                               int max_time )
 /*
 Args:
