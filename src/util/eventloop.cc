@@ -251,10 +251,14 @@ void EventLoop::summary( ostream& out ) const
 {
   out << "EventLoop timing summary\n------------------------\n\n";
 
+  bool something_printed = false;
+
   auto print_timer = [&]( const string_view name, const Timer::Record timer ) {
     if ( timer.count == 0 ) {
       return;
     }
+
+    something_printed = true;
 
     out << "   " << name << ": ";
     out << string( 27 - min( size_t( 27 ), name.size() ), ' ' );
@@ -279,6 +283,10 @@ void EventLoop::summary( ostream& out ) const
   }
 
   print_timer( "waiting for event", _waiting );
+
+  if ( not something_printed ) {
+    out << "(no events)\n";
+  }
 }
 
 void EventLoop::reset_summary()

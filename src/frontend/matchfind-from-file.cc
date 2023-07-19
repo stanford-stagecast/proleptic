@@ -38,6 +38,7 @@ void program_body( const string& midi_filename )
     midi_data >> timestamp >> ev.type >> ev.note >> ev.velocity; // reads in data to event
 
     while ( timestamp >= end_of_chunk ) {
+      GlobalScopeTimer<Timer::Category::ProcessPianoEvent> timer;
       match_finder.process_events( events_in_chunk );
       events_in_chunk.clear();
       end_of_chunk += chunk_duration_ms;

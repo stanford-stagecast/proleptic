@@ -26,8 +26,6 @@ PianoKeyID PianoKeyID::from_raw_MIDI_code( unsigned short midi_key_id )
 
 void MatchFinder::process_events( const vector<MidiEvent>& events )
 {
-  GlobalScopeTimer<Timer::Category::ProcessPianoEvent> timer;
-
   for ( const auto& ev : events ) {
     process_event( ev );
   }
