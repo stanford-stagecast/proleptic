@@ -50,5 +50,14 @@ void MatchFinder::summary( ostream& out ) const
 {
   out << "MatchFinder statistics summary\n";
   out << "------------------------------\n\n";
-  out << "(nothing to print)\n";
+
+  /* example statistic: total number of KeyDown events (following another KeyDown event) recorded */
+  unsigned int total_count = 0;
+  for ( const auto& first_key_array : sequence_counts_ ) {
+    for ( const auto& second_key_count : first_key_array ) {
+      total_count += second_key_count;
+    }
+  }
+
+  out << "Total number of events recorded in the MatchFinder: " << total_count << "\n";
 }
