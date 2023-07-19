@@ -29,7 +29,7 @@ private:
   struct RuleCategory
   {
     std::string name;
-    Timer::Record timer;
+    Timer::Record timer, timer_cumulative;
   };
 
   struct BasicRule
@@ -64,6 +64,7 @@ private:
   std::list<std::shared_ptr<FDRule>> _fd_rules {};
   std::list<std::shared_ptr<BasicRule>> _non_fd_rules {};
   Timer::Record _waiting {};
+  Timer::Record _waiting_cumulative {};
 
 public:
   EventLoop();

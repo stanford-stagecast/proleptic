@@ -45,3 +45,10 @@ void MatchFinder::process_event( const MidiEvent& ev )
 
   previous_keydown_ = this_keydown;
 }
+
+void MatchFinder::summary( ostream& out ) const
+{
+  out << "MatchFinder statistics summary\n";
+  out << "------------------------------\n\n";
+  out << "(nothing to print)\n";
+}

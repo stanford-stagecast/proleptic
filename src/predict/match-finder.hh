@@ -33,4 +33,5 @@ class MatchFinder
 
 public:
   void process_events( const std::vector<MidiEvent>& events );
+  void summary( std::ostream& out ) const;
 };

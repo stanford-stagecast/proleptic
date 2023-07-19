@@ -64,6 +64,9 @@ void program_body( const string& midi_filename )
       global_timer().summary( cerr );
       cerr << "\n";
       event_loop.summary( cerr );
+      event_loop.reset_summary();
+      cerr << "\n";
+      match_finder.summary( cerr );
       cerr << endl;
       next_stats_print_time = Timer::timestamp_ns() + stats_interval_ns;
     },

@@ -162,3 +162,30 @@ public:
   RecordScopeTimer( const RecordScopeTimer& ) = delete;
   RecordScopeTimer& operator=( const RecordScopeTimer& ) = delete;
 };
+
+template<Timer::Category category>
+class MultiTimer
+{
+  Timer::Record *_timer1, *_timer2;
+  uint64_t _start_time;
+
+public:
+  MultiTimer( Timer::Record& timer1, Timer::Record& timer2 )
+    : _timer1( &timer1 )
+    , _timer2( &timer2 )
+    , _start_time( Timer::timestamp_ns() )
+  {
+    global_timer().start<category>( _start_time );
+  }
+
+  ~MultiTimer()
+  {
+    const uint64_t now = Timer::timestamp_ns();
+    _timer1->log( now - _start_time );
+    _timer2->log( now - _start_time );
+    global_timer().stop<category>( now );
+  }
+
+  MultiTimer( const MultiTimer& ) = delete;
+  MultiTimer& operator=( const MultiTimer& ) = delete;
+};

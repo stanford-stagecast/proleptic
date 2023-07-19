@@ -113,8 +113,9 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
         }
 
         rule_fired = true;
-        RecordScopeTimer<Timer::Category::Nonblock> record_timer {
-          _rule_categories.at( this_rule.category_id ).timer };
+        MultiTimer<Timer::Category::Nonblock> record_timer {
+          _rule_categories.at( this_rule.category_id ).timer,
+          _rule_categories.at( this_rule.category_id ).timer_cumulative };
         this_rule.callback();
       }
 
@@ -172,7 +173,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 
   // call poll -- wait until one of the fds satisfies one of the rules (writeable/readable)
   {
-    RecordScopeTimer<Timer::Category::WaitingForEvent> record_timer { _waiting };
+    MultiTimer<Timer::Category::WaitingForEvent> record_timer { _waiting, _waiting_cumulative };
     if ( 0 == CheckSystemCall( "poll", ::poll( pollfds.data(), pollfds.size(), timeout_ms ) ) ) {
       return Result::Timeout;
     }
@@ -226,8 +227,9 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
     }
 
     if ( poll_ready ) {
-      RecordScopeTimer<Timer::Category::Nonblock> record_timer {
-        _rule_categories.at( this_rule.category_id ).timer };
+      MultiTimer<Timer::Category::Nonblock> record_timer {
+        _rule_categories.at( this_rule.category_id ).timer,
+        _rule_categories.at( this_rule.category_id ).timer_cumulative };
       // we only want to call callback if revents includes the event we asked for
       const auto count_before = this_rule.service_count();
       this_rule.callback();
@@ -253,7 +255,7 @@ void EventLoop::summary( ostream& out ) const
 
   bool something_printed = false;
 
-  auto print_timer = [&]( const string_view name, const Timer::Record timer ) {
+  auto print_timer = [&]( const unsigned int name_len, const string_view name, const Timer::Record timer ) {
     if ( timer.count == 0 ) {
       return;
     }
@@ -261,7 +263,7 @@ void EventLoop::summary( ostream& out ) const
     something_printed = true;
 
     out << "   " << name << ": ";
-    out << string( 27 - min( size_t( 27 ), name.size() ), ' ' );
+    out << string( 27 - min( 27U, name_len ), ' ' );
     out << "mean ";
     Timer::pp_ns( out, timer.total_ns / timer.count );
 
@@ -275,14 +277,33 @@ void EventLoop::summary( ostream& out ) const
     out << "\n";
   };
 
+  out << "Last interval:\n";
+
   for ( const auto& rule : _rule_categories ) {
-    const auto& name = rule.name;
+    const string name = "\033[1;34m" + rule.name + "\033[m";
     const auto& timer = rule.timer;
 
-    print_timer( name, timer );
+    print_timer( rule.name.length(), name, timer );
   }
 
-  print_timer( "waiting for event", _waiting );
+  print_timer( 17, "waiting for event", _waiting );
+
+  if ( not something_printed ) {
+    out << "(no events)\n";
+  }
+
+  out << "\nCumulative:\n";
+
+  something_printed = false;
+
+  for ( const auto& rule : _rule_categories ) {
+    const string name = "\033[1;32m" + rule.name + "\033[m";
+    const auto& timer = rule.timer_cumulative;
+
+    print_timer( rule.name.length(), name, timer );
+  }
+
+  print_timer( 17, "waiting for event", _waiting_cumulative );
 
   if ( not something_printed ) {
     out << "(no events)\n";
