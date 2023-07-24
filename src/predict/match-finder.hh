@@ -35,7 +35,7 @@ public:
   void process_events( const std::vector<MidiEvent>& events );
   void summary( std::ostream& out ) const;
   void print_data_structure( std::ostream& out ) const;
-  void find_next_note( unsigned int note , std::ostream& out);
+  void find_next_note( unsigned int note, std::ostream& out );
   std::array<char, 3> next_note( unsigned int note );
   void predict_chunk( const std::vector<MidiEvent>& events );
 };
