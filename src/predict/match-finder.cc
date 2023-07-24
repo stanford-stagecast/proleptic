@@ -1,5 +1,5 @@
 #include <iostream>
-
+#include <array>
 #include "match-finder.hh"
 
 using namespace std;
@@ -61,3 +61,41 @@ void MatchFinder::summary( ostream& out ) const
 
   out << "Total number of events recorded in the MatchFinder: " << total_count << "\n";
 }
+
+void MatchFinder::print_data_structure( ostream& out ) const
+{
+  for(int i = 0; i < NUM_KEYS; i++){
+    for(int j = 0; j < NUM_KEYS; j++){
+      out << sequence_counts_[i][j] << " ";
+    }
+    out << std::endl;
+  }
+}
+
+
+void MatchFinder::find_next_note(unsigned int note, std::ostream& out)
+{
+  std::array<unsigned int, NUM_KEYS> lookup_array = sequence_counts_[note]; //find the column to look for (column contains all the notes that follows note x)
+  
+  unsigned int most_common_note_frequency = 0;
+  unsigned int most_common_note = 0;
+
+
+  for(unsigned int x = 0; x < lookup_array.size(); x++){
+    if (lookup_array[x] > most_common_note_frequency){
+      most_common_note_frequency = lookup_array[x];
+      most_common_note = x;
+
+    }
+  }
+
+  
+  out << "Most common note: " << most_common_note << endl;  
+}
+
+
+
+
+
+
+

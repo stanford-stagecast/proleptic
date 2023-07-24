@@ -29,19 +29,22 @@ void program_body( const string& midi_filename )
 
   EventLoop event_loop;
 
-  FileDescriptor piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDONLY ) ) };
+  FileDescriptor in_piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDONLY ) ) };
+  FileDescriptor out_piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_WRONLY ) ) };
 
   MidiProcessor midi;
 
   vector<MidiEvent> events_in_chunk;
   uint64_t end_of_chunk = Timer::timestamp_ns() + chunk_duration_ns;
   MatchFinder match_finder;
-
-  event_loop.add_rule( "read MIDI data", piano, Direction::In, [&] {
-    midi.read_from_fd( piano );
+  unsigned int current_note;
+  
+  event_loop.add_rule( "read MIDI data", in_piano, Direction::In, [&] {
+    midi.read_from_fd( in_piano );
     while ( midi.has_event() ) {
       events_in_chunk.emplace_back(
         MidiEvent { midi.get_event_type(), midi.get_event_note(), midi.get_event_velocity() } );
+        current_note = (unsigned int) midi.get_event_note() - 21; //declare current note as current input note from piano
       midi.pop_event();
     }
   } );
@@ -50,10 +53,12 @@ void program_body( const string& midi_filename )
     "process MIDI chunk",
     [&] {
       match_finder.process_events( events_in_chunk );
+      
       events_in_chunk.clear();
       end_of_chunk += chunk_duration_ns;
     },
     [&] { return Timer::timestamp_ns() >= end_of_chunk; } );
+
 
   uint64_t next_stats_print_time = Timer::timestamp_ns();
 
@@ -67,12 +72,15 @@ void program_body( const string& midi_filename )
       event_loop.reset_summary();
       cerr << "\n";
       match_finder.summary( cerr );
+      match_finder.print_data_structure( cerr ); //output storage data structure to screen
+      match_finder.find_next_note(current_note, cerr);
       cerr << endl;
       next_stats_print_time = Timer::timestamp_ns() + stats_interval_ns;
     },
     [&] { return Timer::timestamp_ns() >= next_stats_print_time; } );
 
   uint64_t next_dot = Timer::timestamp_ns() + status_dot_interval_ns;
+
 
   event_loop.add_rule(
     "print status dot",
@@ -101,7 +109,6 @@ int main( int argc, char* argv[] )
       usage_message( argv[0] );
       return EXIT_FAILURE;
     }
-
     program_body( argv[1] );
     global_timer().summary( cout );
   } catch ( const exception& e ) {
