@@ -5,6 +5,7 @@
 using namespace std;
 
 static constexpr uint8_t KEYDOWN_TYPE = 0x90;
+static constexpr uint8_t KEYUP_TYPE = 0x80;
 
 PianoKeyID PianoKeyID::from_raw_MIDI_code( unsigned short midi_key_id )
 {
@@ -72,13 +73,13 @@ void MatchFinder::print_data_structure( ostream& out ) const
   }
 }
 
-void MatchFinder::find_next_note( unsigned int note, std::ostream& out )
+unsigned int MatchFinder::find_next_note( unsigned int note )
 {
   std::array<unsigned int, NUM_KEYS> lookup_array
     = sequence_counts_[note]; // find the column to look for (column contains all the notes that follows note x)
 
   unsigned int most_common_note_frequency = 0;
-  unsigned int most_common_note = 0;
+  unsigned int most_common_note = -1;
 
   for ( unsigned int x = 0; x < lookup_array.size(); x++ ) {
     if ( lookup_array[x] > most_common_note_frequency ) {
@@ -87,5 +88,20 @@ void MatchFinder::find_next_note( unsigned int note, std::ostream& out )
     }
   }
 
-  out << "Most common note: " << most_common_note << endl;
+  return most_common_note;
+}
+
+std::array<char, 3> MatchFinder::next_note( unsigned int note )
+{
+  // create a note out of the prediction of the previous note
+
+  if ( (find_next_note( note ) + 21) > 0 ) {
+    return { char( KEYDOWN_TYPE ),
+             char( find_next_note( note ) + 21 ),
+             char( 70 ) }; // TODO: Fix so that if statement is true, return nothing instead of note with velocity 0.
+  }
+
+  else {
+    return { char( KEYUP_TYPE ), char( find_next_note( note ) + 21 ), char( 70 ) };
+  }
 }
