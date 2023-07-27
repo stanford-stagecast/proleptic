@@ -95,10 +95,11 @@ std::array<char, 3> MatchFinder::next_note( unsigned int note )
 {
   // create a note out of the prediction of the previous note
 
-  if ( (find_next_note( note ) + 21) > 0 ) {
-    return { char( KEYDOWN_TYPE ),
-             char( find_next_note( note ) + 21 ),
-             char( 70 ) }; // TODO: Fix so that if statement is true, return nothing instead of note with velocity 0.
+  if ( ( find_next_note( note ) + 21 ) > 0 ) {
+    return {
+      char( KEYDOWN_TYPE ),
+      char( find_next_note( note ) + 21 ),
+      char( 70 ) }; // TODO: Fix so that if statement is true, return nothing instead of note with velocity 0.
   }
 
   else {

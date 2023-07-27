@@ -4,12 +4,12 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
+#include <queue>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <thread>
 #include <unordered_map>
 #include <vector>
-#include <queue>
-#include <thread>
 
 #include "eventloop.hh"
 #include "exception.hh"
@@ -23,7 +23,7 @@ static constexpr uint64_t chunk_duration_ns = 5 * MILLION;
 static constexpr uint64_t stats_interval_ns = 1 * BILLION;
 static constexpr uint64_t status_dot_interval_ns = BILLION / 20;
 static constexpr char CLEAR_SCREEN[] = "\033[H\033[2J\033[3J";
-static constexpr uint64_t DELAY_VALUE = 500; //how long to play the prediction after playing the note
+static constexpr uint64_t DELAY_VALUE = 500; // how long to play the prediction after playing the note
 
 void program_body( const string& midi_filename )
 {
@@ -42,7 +42,6 @@ void program_body( const string& midi_filename )
   MatchFinder match_finder;
   unsigned int current_note;
   queue<unsigned int> prediction_chunk;
-  
 
   event_loop.add_rule( "read MIDI data", in_piano, Direction::In, [&] {
     midi.read_from_fd( in_piano );
@@ -52,8 +51,7 @@ void program_body( const string& midi_filename )
       current_note
         = (unsigned int)midi.get_event_note() - 21; // declare current note as current input note from piano
       midi.pop_event();
-      prediction_chunk.push(current_note);
-      
+      prediction_chunk.push( current_note );
     }
   } );
 
@@ -61,7 +59,7 @@ void program_body( const string& midi_filename )
     "process MIDI chunk",
     [&] {
       match_finder.process_events( events_in_chunk );
-      
+
       events_in_chunk.clear();
       end_of_chunk += chunk_duration_ns;
     },
@@ -69,7 +67,6 @@ void program_body( const string& midi_filename )
 
   uint64_t next_stats_print_time = Timer::timestamp_ns();
 
-  
   event_loop.add_rule(
     "print stats",
     [&] {
@@ -80,29 +77,32 @@ void program_body( const string& midi_filename )
       event_loop.reset_summary();
       cerr << "\n";
       match_finder.summary( cerr );
-      //match_finder.print_data_structure( cerr ); // output storage data structure to screen
-      
+      // match_finder.print_data_structure( cerr ); // output storage data structure to screen
+
       cerr << endl;
       next_stats_print_time = Timer::timestamp_ns() + stats_interval_ns;
     },
     [&] { return Timer::timestamp_ns() >= next_stats_print_time; } );
 
-  
-    event_loop.add_rule( "play prediction", out_piano, Direction::Out, [&] {
-      while(!prediction_chunk.empty()){
-        std::array<char, 3> data = match_finder.next_note(prediction_chunk.front()); //FIX: PREDICTION PLAYS TWICE INSTEAD OF ONCE, MAKE IT PLAY ONLY ONCE INSTEAD OF TWICE
+  event_loop.add_rule(
+    "play prediction",
+    out_piano,
+    Direction::Out,
+    [&] {
+      while ( !prediction_chunk.empty() ) {
+        std::array<char, 3> data = match_finder.next_note(
+          prediction_chunk
+            .front() ); // FIX: PREDICTION PLAYS TWICE INSTEAD OF ONCE, MAKE IT PLAY ONLY ONCE INSTEAD OF TWICE
         prediction_chunk.pop();
-        std::chrono::milliseconds duration(DELAY_VALUE);
-        std::this_thread::sleep_for(duration);
-        out_piano.write ( {data.begin(), data.size() });
-        
-
+        std::chrono::milliseconds duration( DELAY_VALUE );
+        std::this_thread::sleep_for( duration );
+        out_piano.write( { data.begin(), data.size() } );
       }
-     }, [&]{ return !prediction_chunk.empty();}
-  );
+    },
+    [&] { return !prediction_chunk.empty(); } );
 
   uint64_t next_dot = Timer::timestamp_ns() + status_dot_interval_ns;
-    
+
   event_loop.add_rule(
     "print status dot",
     [&] {
@@ -112,8 +112,6 @@ void program_body( const string& midi_filename )
     [&] { return Timer::timestamp_ns() >= next_dot; } );
 
   while ( event_loop.wait_next_event( 1 ) != EventLoop::Result::Exit ) {}
-
-
 }
 
 void usage_message( const string_view argv0 )
