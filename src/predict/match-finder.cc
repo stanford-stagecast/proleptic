@@ -24,7 +24,7 @@ PianoKeyID PianoKeyID::from_raw_MIDI_code( unsigned short midi_key_id )
   return ret;
 }
 
-PianoKeyID PianoKeyID::from_key( unsigned short array_key )
+PianoKeyID PianoKeyID::from_key( unsigned short array_key ) // converts hash table key into PianoKeyID type
 {
   PianoKeyID ret;
   ret.key_id_ = array_key;
