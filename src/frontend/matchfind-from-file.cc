@@ -39,12 +39,13 @@ void program_body( const string& midi_filename )
 
     while ( timestamp >= end_of_chunk ) {
       GlobalScopeTimer<Timer::Category::ProcessPianoEvent> timer;
-      match_finder.process_events( events_in_chunk );
+      match_finder.process_predict_events( events_in_chunk );
       events_in_chunk.clear();
       end_of_chunk += chunk_duration_ms;
     }
     events_in_chunk.push_back( std::move( ev ) );
   }
+  match_finder.summary( cout );
 }
 
 void usage_message( const string_view argv0 )

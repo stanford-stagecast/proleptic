@@ -24,6 +24,13 @@ PianoKeyID PianoKeyID::from_raw_MIDI_code( unsigned short midi_key_id )
   return ret;
 }
 
+PianoKeyID PianoKeyID::from_key( unsigned short array_key )
+{
+  PianoKeyID ret;
+  ret.key_id_ = array_key;
+  return ret;
+}
+
 void MatchFinder::process_events( const vector<MidiEvent>& events )
 {
   for ( const auto& ev : events ) {
@@ -42,9 +49,66 @@ void MatchFinder::process_event( const MidiEvent& ev )
   if ( previous_keydown_.has_value() ) {
     sequence_counts_.at( previous_keydown_.value() ).at( this_keydown )++;
   }
-
   previous_keydown_ = this_keydown;
 }
+
+void MatchFinder::process_predict_events( const vector<MidiEvent>& events )
+{
+  for ( const auto& ev : events ) {
+    process_predict_event( ev );
+  }
+}
+
+void MatchFinder::process_predict_event( const MidiEvent& ev )
+{
+  if ( ev.type != KEYDOWN_TYPE ) { // only keydowns represent new notes
+    return;
+  }
+
+  const auto this_keydown = PianoKeyID::from_raw_MIDI_code( ev.note );
+
+  if ( previous_keydown_.has_value() ) {
+    sequence_counts_.at( previous_keydown_.value() ).at( this_keydown )++;
+    predict_event( ev );
+  }
+  previous_keydown_ = this_keydown;
+}
+
+void MatchFinder::predict_event( const MidiEvent& ev )
+{
+  const auto this_keydown = PianoKeyID::from_raw_MIDI_code( ev.note ); // current keydown
+
+  if ( made_prediction ) { // if a prediction has been made, compare it to current keydown
+    total_predictions++;
+    if ( previous_prediction_ == this_keydown ) {
+      correct_predictions++;
+    }
+    made_prediction = false;
+    // cout << "Predicted " << previous_prediction_ << "; Actually " << this_keydown << "; Total correct " <<
+    // correct_predictions << "\n";
+  }
+
+  const std::array<unsigned int, NUM_KEYS>& this_data = sequence_counts_[this_keydown];
+
+  bool tie = false;     // if there is a tie, don't make a prediction
+  unsigned int max = 0; // counter to find most frequent keydown following this_keydown
+  PianoKeyID index;     // will eventually store PianoKeyID of prediction (if one is made)
+
+  for ( int i = 0; i < NUM_KEYS; i++ ) {
+    if ( this_data[i] > max ) {
+      max = this_data[i];
+      index = PianoKeyID::from_key( (unsigned short)i );
+      tie = false;
+    } else if ( this_data[i] == max ) {
+      tie = true;
+    }
+  }
+
+  if ( tie == false ) { // if no tie, make a prediction
+    made_prediction = true;
+    previous_prediction_ = index;
+  }
+};
 
 void MatchFinder::summary( ostream& out ) const
 {
@@ -60,6 +124,11 @@ void MatchFinder::summary( ostream& out ) const
   }
 
   out << "Total number of events recorded in the MatchFinder: " << total_count << "\n";
+  out << "Total predictions made: " << total_predictions << "\n";
+  out << "Total correct predictions: " << correct_predictions << "\n";
+  double accuracy = (double)correct_predictions / (double)total_predictions;
+  out << "Prediction accuracy: " << accuracy << "\n";
+  out << "\n";
 }
 
 void MatchFinder::print_data_structure( ostream& out ) const
