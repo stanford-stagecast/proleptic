@@ -1,3 +1,7 @@
+/*
+ * Includes functions for specific use in matchfind-from-file to set up future implementation
+ * of 3x1 dictionary without disturbing progress on matchfind-from-piano.
+ */
 #include "match-finder-v2.hh"
 #include <array>
 #include <iostream>
@@ -27,13 +31,16 @@ PianoKeyID PianoKeyID::from_raw_MIDI_code( unsigned short midi_key_id )
 /*
  * Converts hash table index to PianoKeyID type.
  */
-PianoKeyID PianoKeyID::from_key( unsigned short array_key ) 
+PianoKeyID PianoKeyID::from_key( unsigned short array_key )
 {
   PianoKeyID ret;
   ret.key_id_ = array_key;
   return ret;
 }
 
+/*
+ * Same as match-finder.
+ */
 void MatchFinder::process_events_v2( const vector<MidiEvent>& events )
 {
   for ( const auto& ev : events ) {
@@ -41,6 +48,9 @@ void MatchFinder::process_events_v2( const vector<MidiEvent>& events )
   }
 }
 
+/*
+ * Processing individual event now includes prediction.
+ */
 void MatchFinder::process_event_v2( const MidiEvent& ev )
 {
   if ( ev.type != KEYDOWN_TYPE ) { // only keydowns represent new notes
