@@ -6,12 +6,19 @@
 #include <unordered_map>
 #include <vector>
 
-#include "match-finder-v2.hh"
+#include "match-finder.hh"
 #include "timer.hh"
 
 using namespace std;
 
 static constexpr uint64_t chunk_duration_ms = 5;
+
+void read_as_unsigned_int( ifstream& stream, uint8_t& target )
+{
+  unsigned int value;
+  stream >> value;
+  target = value;
+}
 
 void program_body( const string& midi_filename )
 {
@@ -24,8 +31,6 @@ void program_body( const string& midi_filename )
   midi_data.unsetf( ios::oct );
   midi_data.unsetf( ios::hex );
 
-  vector<MidiEvent> events_in_chunk;
-  uint64_t end_of_chunk = chunk_duration_ms;
   MatchFinder match_finder;
 
   while ( not midi_data.eof() ) { // until file reaches end
@@ -35,17 +40,15 @@ void program_body( const string& midi_filename )
 
     MidiEvent ev;
     uint64_t timestamp;
-    midi_data >> timestamp >> ev.type >> ev.note >> ev.velocity; // reads in data to event
+    midi_data >> timestamp;
+    read_as_unsigned_int( midi_data, ev.type );
+    read_as_unsigned_int( midi_data, ev.note );
+    read_as_unsigned_int( midi_data, ev.velocity );
 
-    while ( timestamp >= end_of_chunk ) {
-      GlobalScopeTimer<Timer::Category::ProcessPianoEvent> timer;
-      match_finder.process_events_v2( events_in_chunk );
-      events_in_chunk.clear();
-      end_of_chunk += chunk_duration_ms;
-    }
-    events_in_chunk.push_back( std::move( ev ) );
+    GlobalScopeTimer<Timer::Category::ProcessPianoEvent> timer;
+    match_finder.process_event( ev );
   }
-  match_finder.summary_v2( cout );
+  match_finder.summary( cout );
 }
 
 void usage_message( const string_view argv0 )
