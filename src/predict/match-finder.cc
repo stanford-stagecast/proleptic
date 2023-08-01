@@ -1,21 +1,21 @@
 #include "match-finder.hh"
+#include <algorithm>
 #include <array>
 #include <iostream>
 
 using namespace std;
+using namespace std::ranges;
 
 static constexpr uint8_t KEYDOWN_TYPE = 0x90;
 static constexpr uint8_t KEYUP_TYPE = 0x80;
 
 PianoKeyID PianoKeyID::from_raw_MIDI_code( unsigned short midi_key_id )
 {
-  static constexpr uint8_t PIANO_OFFSET = 21;
-
   if ( midi_key_id < PIANO_OFFSET ) {
     throw runtime_error( "invalid MIDI key id (too small!)" );
   }
 
-  PianoKeyID ret;
+  PianoKeyID ret { 0 };
   ret.key_id_ = midi_key_id - PIANO_OFFSET;
 
   if ( ret.key_id_ >= NUM_KEYS ) {
@@ -25,11 +25,13 @@ PianoKeyID PianoKeyID::from_raw_MIDI_code( unsigned short midi_key_id )
   return ret;
 }
 
-void MatchFinder::process_events( const vector<MidiEvent>& events )
+uint8_t PianoKeyID::to_raw_MIDI_code() const
 {
-  for ( const auto& ev : events ) {
-    process_event( ev );
+  if ( key_id_ >= NUM_KEYS ) {
+    throw runtime_error( "invalid key ID (too big)" );
   }
+
+  return key_id_ + PIANO_OFFSET;
 }
 
 void MatchFinder::process_event( const MidiEvent& ev )
@@ -73,36 +75,32 @@ void MatchFinder::print_data_structure( ostream& out ) const
   }
 }
 
-unsigned int MatchFinder::find_next_note( unsigned int note )
+optional<MidiEvent> MatchFinder::predict_next_event() const
 {
-  std::array<unsigned int, NUM_KEYS> lookup_array
-    = sequence_counts_[note]; // find the column to look for (column contains all the notes that follows note x)
+  if ( not previous_keydown_.has_value() ) {
+    return {};
+  }
 
-  unsigned int most_common_note_frequency = 0;
-  unsigned int most_common_note = -1;
+  auto& lookup_array = sequence_counts_.at( previous_keydown_.value() );
 
-  for ( unsigned int x = 0; x < lookup_array.size(); x++ ) {
-    if ( lookup_array[x] > most_common_note_frequency ) {
-      most_common_note_frequency = lookup_array[x];
-      most_common_note = x;
+  unsigned int max_count = 0;
+
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+  optional<PianoKeyID> max_element;
+
+  for ( PianoKeyID key_id = 0; key_id < lookup_array.size(); key_id = key_id + 1 ) {
+    unsigned int count = lookup_array.at( key_id );
+    if ( count > max_count ) {
+      max_count = count;
+      max_element.emplace( key_id );
+    } else if ( count == max_count ) {
+      max_element.reset();
     }
   }
 
-  return most_common_note;
-}
-
-std::array<char, 3> MatchFinder::next_note( unsigned int note )
-{
-  // create a note out of the prediction of the previous note
-
-  if ( ( find_next_note( note ) + 21 ) > 0 ) {
-    return {
-      char( KEYDOWN_TYPE ),
-      char( find_next_note( note ) + 21 ),
-      char( 70 ) }; // TODO: Fix so that if statement is true, return nothing instead of note with velocity 0.
+  if ( max_element.has_value() ) {
+    return MidiEvent { KEYDOWN_TYPE, max_element.value().to_raw_MIDI_code(), 70 };
   }
 
-  else {
-    return { char( KEYUP_TYPE ), char( find_next_note( note ) + 21 ), char( 70 ) };
-  }
+  return {};
 }

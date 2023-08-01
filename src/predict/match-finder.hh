@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 #include <vector>
 
 #include "timer.hh"
@@ -9,16 +10,24 @@ static constexpr uint8_t NUM_KEYS = 88;
 
 struct MidiEvent
 {
-  unsigned short type, note, velocity; // actual midi data
+  uint8_t type, note, velocity; // actual midi data
+
+  std::string_view to_string_view() const { return { reinterpret_cast<const char*>( this ), sizeof( MidiEvent ) }; }
 };
 
 class PianoKeyID
 {
-  uint8_t key_id_;
+  uint8_t key_id_ {};
+
+  static constexpr uint8_t PIANO_OFFSET = 21;
 
 public:
   static PianoKeyID from_raw_MIDI_code( unsigned short midi_key_id );
+  uint8_t to_raw_MIDI_code() const;
   operator uint8_t() const { return key_id_; }
+  PianoKeyID( uint8_t id )
+    : key_id_( id )
+  {}
 };
 
 class MatchFinder
@@ -29,12 +38,10 @@ class MatchFinder
 
   std::optional<PianoKeyID> previous_keydown_ {}; /* previous key pressed */
 
-  void process_event( const MidiEvent& ev );
-
 public:
-  void process_events( const std::vector<MidiEvent>& events );
+  void process_event( const MidiEvent& ev );
   void summary( std::ostream& out ) const;
   void print_data_structure( std::ostream& out ) const;
-  unsigned int find_next_note( unsigned int note );
-  std::array<char, 3> next_note( unsigned int );
+
+  std::optional<MidiEvent> predict_next_event() const;
 };

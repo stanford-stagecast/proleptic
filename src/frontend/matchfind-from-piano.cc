@@ -32,43 +32,27 @@ void program_body( const string& midi_filename )
 
   EventLoop event_loop;
 
-  FileDescriptor in_piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDONLY ) ) };
-  FileDescriptor out_piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_WRONLY ) ) };
+  FileDescriptor piano { CheckSystemCall( midi_filename, open( midi_filename.c_str(), O_RDWR ) ) };
 
   MidiProcessor midi;
 
-  vector<MidiEvent> events_in_chunk;
-  uint64_t end_of_chunk = Timer::timestamp_ns() + chunk_duration_ns;
   MatchFinder match_finder;
-  unsigned int current_note;
-  queue<unsigned int> prediction_chunk;
 
-  event_loop.add_rule( "read MIDI data", in_piano, Direction::In, [&] {
-    midi.read_from_fd( in_piano );
+  queue<MidiEvent> outgoing_predictions;
+
+  event_loop.add_rule( "read MIDI event + predict next", piano, Direction::In, [&] {
+    midi.read_from_fd( piano );
     while ( midi.has_event() ) {
-      events_in_chunk.emplace_back(
+      match_finder.process_event(
         MidiEvent { midi.get_event_type(), midi.get_event_note(), midi.get_event_velocity() } );
-      current_note
-        = (unsigned int)midi.get_event_note() - 21; // declare current note as current input note from piano
-      cout << (int)( midi.get_event_type() ) << "\n";
-      // only add to prediction_chunk if it's a keydown event
-      if ( (int)( midi.get_event_type() ) == 128 ) {
-        prediction_chunk.push( current_note );
-        cout << "added to prediction_chunk: " << current_note;
-      }
       midi.pop_event();
+
+      auto maybe_prediction = match_finder.predict_next_event();
+      if ( maybe_prediction.has_value() ) {
+        outgoing_predictions.push( maybe_prediction.value() );
+      }
     }
   } );
-
-  event_loop.add_rule(
-    "process MIDI chunk",
-    [&] {
-      match_finder.process_events( events_in_chunk );
-
-      events_in_chunk.clear();
-      end_of_chunk += chunk_duration_ns;
-    },
-    [&] { return Timer::timestamp_ns() >= end_of_chunk; } );
 
   uint64_t next_stats_print_time = Timer::timestamp_ns();
 
@@ -91,20 +75,15 @@ void program_body( const string& midi_filename )
 
   event_loop.add_rule(
     "play prediction",
-    out_piano,
+    piano,
     Direction::Out,
     [&] {
-      while ( !prediction_chunk.empty() ) {
-        std::array<char, 3> data = match_finder.next_note(
-          prediction_chunk
-            .front() ); // FIX: PREDICTION PLAYS TWICE INSTEAD OF ONCE, MAKE IT PLAY ONLY ONCE INSTEAD OF TWICE
-        prediction_chunk.pop();
-        std::chrono::milliseconds duration( DELAY_VALUE );
-        std::this_thread::sleep_for( duration );
-        out_piano.write( { data.begin(), data.size() } );
+      while ( !outgoing_predictions.empty() ) {
+        piano.write( outgoing_predictions.front().to_string_view() );
+        outgoing_predictions.pop();
       }
     },
-    [&] { return !prediction_chunk.empty(); } );
+    [&] { return not outgoing_predictions.empty(); } );
 
   uint64_t next_dot = Timer::timestamp_ns() + status_dot_interval_ns;
 
