@@ -40,7 +40,7 @@ void program_body( const string& midi_filename )
 
   queue<MidiEvent> outgoing_predictions;
 
-  event_loop.add_rule( "read MIDI event + predict next", piano, Direction::In, [&] {
+  event_loop.add_rule( "read MIDI event + predict", piano, Direction::In, [&] {
     midi.read_from_fd( piano );
     while ( midi.has_event() ) {
       match_finder.process_event(
