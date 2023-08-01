@@ -37,6 +37,10 @@ uint8_t PianoKeyID::to_raw_MIDI_code() const
 void MatchFinder::process_event( const MidiEvent& ev )
 {
   if ( ev.type != KEYDOWN_TYPE ) { // only keydowns represent new notes
+    if ( pending_prediction_.has_value() ) {
+      stats_.predictions_that_were_ignored++;
+    }
+    pending_prediction_.reset();
     return;
   }
 
@@ -47,6 +51,17 @@ void MatchFinder::process_event( const MidiEvent& ev )
   }
 
   previous_keydown_ = this_keydown;
+
+  /* update stats */
+  stats_.total_keydown_events++;
+  if ( pending_prediction_.has_value() ) {
+    if ( pending_prediction_.value() == this_keydown ) {
+      stats_.predictions_that_were_correct++;
+    } else {
+      stats_.predictions_that_were_incorrect++;
+    }
+  }
+  pending_prediction_.reset();
 }
 
 void MatchFinder::summary( ostream& out ) const
@@ -63,6 +78,26 @@ void MatchFinder::summary( ostream& out ) const
   }
 
   out << "Total number of events recorded in the MatchFinder: " << total_count << "\n";
+  out << "Total number of keydown events:  " << stats_.total_keydown_events << "\n";
+  out << "Number of predictions made:      " << stats_.total_predictions_made << "\n";
+  out << "Predictions that were ignored:   " << stats_.predictions_that_were_ignored << "\n";
+  out << "\n";
+  if ( stats_.predictions_that_were_ignored > stats_.total_predictions_made ) {
+    throw runtime_error( "invalid statistics" );
+  }
+  const auto net_predictions_made = stats_.total_predictions_made - stats_.predictions_that_were_ignored;
+  out << "Net predictions made:            " << stats_.total_predictions_made - stats_.predictions_that_were_ignored
+      << "\n";
+  out << "Predictions that were correct:   " << stats_.predictions_that_were_correct << "\n";
+  out << "Predictions that were incorrect: " << stats_.predictions_that_were_incorrect << "\n";
+
+  const auto total_correct_incorrect
+    = stats_.predictions_that_were_correct + stats_.predictions_that_were_incorrect;
+  if ( total_correct_incorrect > net_predictions_made ) {
+    throw runtime_error( "invalid statistics II" );
+  }
+
+  out << "Net preds w/ unknown truth:      " << ( net_predictions_made - total_correct_incorrect ) << "\n";
 }
 
 void MatchFinder::print_data_structure( ostream& out ) const
@@ -75,8 +110,12 @@ void MatchFinder::print_data_structure( ostream& out ) const
   }
 }
 
-optional<MidiEvent> MatchFinder::predict_next_event() const
+optional<MidiEvent> MatchFinder::predict_next_event()
 {
+  if ( pending_prediction_.has_value() ) {
+    throw runtime_error( "attempted to predict next event without a new event" );
+  }
+
   if ( not previous_keydown_.has_value() ) {
     return {};
   }
@@ -85,21 +124,19 @@ optional<MidiEvent> MatchFinder::predict_next_event() const
 
   unsigned int max_count = 0;
 
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-  optional<PianoKeyID> max_element;
-
   for ( PianoKeyID key_id = 0; key_id < lookup_array.size(); key_id = key_id + 1 ) {
     unsigned int count = lookup_array.at( key_id );
     if ( count > max_count ) {
       max_count = count;
-      max_element.emplace( key_id );
+      pending_prediction_.emplace( key_id );
     } else if ( count == max_count ) {
-      max_element.reset();
+      pending_prediction_.reset();
     }
   }
 
-  if ( max_element.has_value() ) {
-    return MidiEvent { KEYDOWN_TYPE, max_element.value().to_raw_MIDI_code(), 70 };
+  if ( pending_prediction_.has_value() ) {
+    stats_.total_predictions_made++;
+    return MidiEvent { KEYDOWN_TYPE, pending_prediction_.value().to_raw_MIDI_code(), 70 };
   }
 
   return {};

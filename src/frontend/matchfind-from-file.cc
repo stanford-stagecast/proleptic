@@ -47,8 +47,10 @@ void program_body( const string& midi_filename )
 
     GlobalScopeTimer<Timer::Category::ProcessPianoEvent> timer;
     match_finder.process_event( ev );
+    match_finder.predict_next_event();
   }
   match_finder.summary( cout );
+  cout << "\n";
 }
 
 void usage_message( const string_view argv0 )

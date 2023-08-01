@@ -32,16 +32,31 @@ public:
 
 class MatchFinder
 {
+public:
+  struct Stats
+  {
+    unsigned int total_keydown_events;
+    unsigned int total_predictions_made;
+    unsigned int predictions_that_were_correct;
+    unsigned int predictions_that_were_incorrect;
+    unsigned int predictions_that_were_ignored;
+  };
+
+private:
   /* Given KeyDown of key x, how many times was the next KeyDown of key y?
      We store this count in sequence_counts_[x][y] */
   std::array<std::array<unsigned int, NUM_KEYS>, NUM_KEYS> sequence_counts_ {};
 
   std::optional<PianoKeyID> previous_keydown_ {}; /* previous key pressed */
 
+  Stats stats_ {};
+
+  std::optional<PianoKeyID> pending_prediction_ {};
+
 public:
   void process_event( const MidiEvent& ev );
   void summary( std::ostream& out ) const;
   void print_data_structure( std::ostream& out ) const;
 
-  std::optional<MidiEvent> predict_next_event() const;
+  std::optional<MidiEvent> predict_next_event(); /* non-const because updates stats */
 };
