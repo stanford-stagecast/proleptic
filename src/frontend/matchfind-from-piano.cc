@@ -50,8 +50,13 @@ void program_body( const string& midi_filename )
         MidiEvent { midi.get_event_type(), midi.get_event_note(), midi.get_event_velocity() } );
       current_note
         = (unsigned int)midi.get_event_note() - 21; // declare current note as current input note from piano
+      cout << (int)( midi.get_event_type() ) << "\n";
+      // only add to prediction_chunk if it's a keydown event
+      if ( (int)( midi.get_event_type() ) == 128 ) {
+        prediction_chunk.push( current_note );
+        cout << "added to prediction_chunk: " << current_note;
+      }
       midi.pop_event();
-      prediction_chunk.push( current_note );
     }
   } );
 
