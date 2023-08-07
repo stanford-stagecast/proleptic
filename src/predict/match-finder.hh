@@ -22,7 +22,7 @@ class PianoKeyID
   static constexpr uint8_t PIANO_OFFSET = 21;
 
 public:
-  static PianoKeyID from_raw_MIDI_code( unsigned short midi_key_id );
+  static PianoKeyID from_raw_MIDI_code( unsigned short first_midi );
   uint8_t to_raw_MIDI_code() const;
   operator uint8_t() const { return key_id_; }
   PianoKeyID( uint8_t id )
@@ -45,10 +45,11 @@ public:
 private:
   /* Given KeyDown of key x, how many times was the next KeyDown of key y?
      We store this count in sequence_counts_[x][y] */
-  std::array<std::array<std::array<unsigned int, NUM_KEYS>, NUM_KEYS>, NUM_KEYS> sequence_counts_ {};
+  std::array<std::array<unsigned int, NUM_KEYS>, ( NUM_KEYS * NUM_KEYS )> sequence_counts_ {};
 
-  std::optional<PianoKeyID> previous_keydown_ {};        /* previous key pressed */
-  std::optional<PianoKeyID> second_previous_keydown_ {}; /*two keys ago (previous to the previous)*/
+  std::optional<PianoKeyID> prev_prev_keydown_ {}; /* they key before the previous key */
+  std::optional<PianoKeyID> previous_keydown_ {};  /* previous key pressed */
+
   Stats stats_ {};
 
   std::optional<PianoKeyID> pending_prediction_ {};

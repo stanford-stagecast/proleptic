@@ -44,28 +44,26 @@ void MatchFinder::process_event( const MidiEvent& ev )
     return;
   }
 
-  const auto this_keydown = PianoKeyID::from_raw_MIDI_code( ev.note );
+  const auto this_keydown = PianoKeyID::from_raw_MIDI_code( ev.note ); // get "index" of current keydown
 
-  if ( previous_keydown_.has_value() && second_previous_keydown_.has_value() ) {
-    cout << "hi \n";
-    sequence_counts_.at( second_previous_keydown_.value() ).at( previous_keydown_.value() ).at( this_keydown )++;
+  if ( prev_prev_keydown_.has_value() && previous_keydown_.has_value() ) { // if there is a preceding keydown,
+    sequence_counts_.at( ( prev_prev_keydown_.value() * NUM_KEYS ) + previous_keydown_.value() )
+      .at( this_keydown )++; // add this_keydown to following count
   }
 
-  // update both previous keydowns
-
-  second_previous_keydown_ = previous_keydown_;
+  prev_prev_keydown_ = previous_keydown_; // rotate stored keydowns
   previous_keydown_ = this_keydown;
 
   /* update stats */
   stats_.total_keydown_events++;
   if ( pending_prediction_.has_value() ) {
     if ( pending_prediction_.value() == this_keydown ) {
-      stats_.predictions_that_were_correct++;
+      stats_.predictions_that_were_correct++; // prediction was correct
     } else {
-      stats_.predictions_that_were_incorrect++;
+      stats_.predictions_that_were_incorrect++; // prediction was incorrect
     }
   }
-  pending_prediction_.reset();
+  pending_prediction_.reset(); // empty pending_prediction
 }
 
 void MatchFinder::summary( ostream& out ) const
@@ -77,9 +75,7 @@ void MatchFinder::summary( ostream& out ) const
   unsigned int total_count = 0;
   for ( const auto& first_key_array : sequence_counts_ ) {
     for ( const auto& second_key_count : first_key_array ) {
-      for ( const auto& third_key_count : second_key_count ) {
-        total_count += third_key_count;
-      }
+      total_count += second_key_count;
     }
   }
 
@@ -110,9 +106,7 @@ void MatchFinder::print_data_structure( ostream& out ) const
 {
   for ( int i = 0; i < NUM_KEYS; i++ ) {
     for ( int j = 0; j < NUM_KEYS; j++ ) {
-      for ( int k = 0; k < NUM_KEYS; k++ ) {
-        out << sequence_counts_[i][j][k] << " ";
-      }
+      out << sequence_counts_[i][j] << " ";
     }
     out << std::endl;
   }
@@ -124,25 +118,25 @@ optional<MidiEvent> MatchFinder::predict_next_event()
     throw runtime_error( "attempted to predict next event without a new event" );
   }
 
-  if ( not previous_keydown_.has_value() || not second_previous_keydown_.has_value() ) {
+  if ( not prev_prev_keydown_.has_value() || not previous_keydown_.has_value() ) { // edge case: no previous keydown
     return {};
   }
 
-  auto& lookup_array = sequence_counts_.at( second_previous_keydown_.value() ).at( previous_keydown_.value() );
+  auto& lookup_array = sequence_counts_.at( ( prev_prev_keydown_.value() * NUM_KEYS ) + previous_keydown_.value() );
 
-  unsigned int max_count = 0;
+  unsigned int max_count = 0; // find note that follows previous_keydown most frequently
 
   for ( PianoKeyID key_id = 0; key_id < lookup_array.size(); key_id = key_id + 1 ) {
     unsigned int count = lookup_array.at( key_id );
     if ( count > max_count ) {
       max_count = count;
-      pending_prediction_.emplace( key_id );
+      pending_prediction_.emplace( key_id ); // possible max -> populate pending_prediction
     } else if ( count == max_count ) {
-      pending_prediction_.reset();
+      pending_prediction_.reset(); // tie -> empty pending_prediction
     }
   }
 
-  if ( pending_prediction_.has_value() ) {
+  if ( pending_prediction_.has_value() ) { // if, by the end, there is a pending_prediction
     stats_.total_predictions_made++;
     return MidiEvent { KEYDOWN_TYPE, pending_prediction_.value().to_raw_MIDI_code(), 70 };
   }
