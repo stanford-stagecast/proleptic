@@ -41,17 +41,18 @@ void MatchFinder::process_event( const MidiEvent& ev )
       stats_.predictions_that_were_ignored++;
     }
     pending_prediction_.reset();
-    previous_keydown_.reset();
     return;
   }
 
   const auto this_keydown = PianoKeyID::from_raw_MIDI_code( ev.note );
 
   if ( previous_keydown_.has_value() && second_previous_keydown_.has_value() ) {
+    cout << "hi \n";
     sequence_counts_.at( second_previous_keydown_.value() ).at( previous_keydown_.value() ).at( this_keydown )++;
   }
 
   // update both previous keydowns
+
   second_previous_keydown_ = previous_keydown_;
   previous_keydown_ = this_keydown;
 
