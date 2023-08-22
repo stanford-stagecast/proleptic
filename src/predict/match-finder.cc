@@ -46,11 +46,15 @@ void MatchFinder::process_event( const MidiEvent& ev )
 
   const auto this_keydown = PianoKeyID::from_raw_MIDI_code( ev.note ); // get "index" of current keydown
 
-  if ( prev_prev_keydown_.has_value() && previous_keydown_.has_value() ) { // if there is a preceding keydown,
-    sequence_counts_.at( ( prev_prev_keydown_.value() * NUM_KEYS ) + previous_keydown_.value() )
+  if ( oldest_keydown_.has_value() && prev_prev_keydown_.has_value()
+       && previous_keydown_.has_value() ) { // if there is a preceding keydown,
+    sequence_counts_
+      ->at( ( oldest_keydown_.value() * NUM_KEYS * NUM_KEYS ) + ( prev_prev_keydown_.value() * NUM_KEYS )
+            + previous_keydown_.value() )
       .at( this_keydown )++; // add this_keydown to following count
   }
 
+  oldest_keydown_ = prev_prev_keydown_;
   prev_prev_keydown_ = previous_keydown_; // rotate stored keydowns
   previous_keydown_ = this_keydown;
 
@@ -73,7 +77,7 @@ void MatchFinder::summary( ostream& out ) const
 
   /* example statistic: total number of KeyDown events (following another KeyDown event) recorded */
   unsigned int total_count = 0;
-  for ( const auto& first_key_array : sequence_counts_ ) {
+  for ( const auto& first_key_array : *sequence_counts_ ) {
     for ( const auto& second_key_count : first_key_array ) {
       total_count += second_key_count;
     }
@@ -106,7 +110,7 @@ void MatchFinder::print_data_structure( ostream& out ) const
 {
   for ( int i = 0; i < NUM_KEYS; i++ ) {
     for ( int j = 0; j < NUM_KEYS; j++ ) {
-      out << sequence_counts_[i][j] << " ";
+      out << sequence_counts_->at( i ).at( j ) << " ";
     }
     out << std::endl;
   }
@@ -118,11 +122,14 @@ optional<MidiEvent> MatchFinder::predict_next_event()
     throw runtime_error( "attempted to predict next event without a new event" );
   }
 
-  if ( not prev_prev_keydown_.has_value() || not previous_keydown_.has_value() ) { // edge case: no previous keydown
+  if ( not oldest_keydown_.has_value() || not prev_prev_keydown_.has_value()
+       || not previous_keydown_.has_value() ) { // edge case: no previous keydown
     return {};
   }
 
-  auto& lookup_array = sequence_counts_.at( ( prev_prev_keydown_.value() * NUM_KEYS ) + previous_keydown_.value() );
+  auto& lookup_array
+    = sequence_counts_->at( ( oldest_keydown_.value() * NUM_KEYS * NUM_KEYS )
+                            + ( prev_prev_keydown_.value() * NUM_KEYS ) + previous_keydown_.value() );
 
   unsigned int max_count = 0; // find note that follows previous_keydown most frequently
 

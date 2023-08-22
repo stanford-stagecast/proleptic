@@ -1,7 +1,9 @@
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
 #include "timer.hh"
@@ -45,8 +47,10 @@ public:
 private:
   /* Given KeyDown of key x, how many times was the next KeyDown of key y?
      We store this count in sequence_counts_[x][y] */
-  std::array<std::array<unsigned int, NUM_KEYS>, ( NUM_KEYS * NUM_KEYS )> sequence_counts_ {};
+  using datastorage = std::array<std::array<unsigned int, NUM_KEYS>, NUM_KEYS * NUM_KEYS * NUM_KEYS>;
+  std::unique_ptr<datastorage> sequence_counts_ = std::make_unique<datastorage>();
 
+  std::optional<PianoKeyID> oldest_keydown_ {};
   std::optional<PianoKeyID> prev_prev_keydown_ {}; /* they key before the previous key */
   std::optional<PianoKeyID> previous_keydown_ {};  /* previous key pressed */
 
